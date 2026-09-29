@@ -5,14 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CyberPath — бесплатная платформа по кибербезопасности</title>
   <meta name="description" content="Бесплатная интерактивная платформа для изучения кибербезопасности: курсы, квесты, песочница-терминал и система прогрессии.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F25C05' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l7 3v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3z'/></svg>">
 </head>
 <body>
   <header class="topbar">
     <div class="topbar-inner">
       <a class="logo" onclick="App.go('home')">
-        <span class="logo-mark">🛡️</span>
+        <span class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg></span>
         <span class="logo-text">Cyber<span class="accent">Path</span></span>
       </a>
       <nav class="main-nav">
@@ -31,7 +34,7 @@
   <footer class="footer">
     <div class="footer-inner">
       <div>
-        <span class="logo-mark">🛡️</span>
+        <span class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3z"/></svg></span>
         <b>CyberPath</b> — учись этично, применяй ответственно.
       </div>
       <p class="footer-note">Все материалы носят образовательный характер. Тестируйте только свои системы или площадки с разрешением. Прогресс хранится локально в вашем браузере.</p>
@@ -40,6 +43,7 @@
 
   <div id="toasts" class="toasts"></div>
 
+  <script src="js/icons.js"></script>
   <script src="js/data.js"></script>
   <script src="js/terminal.js"></script>
   <script src="js/app.js"></script>

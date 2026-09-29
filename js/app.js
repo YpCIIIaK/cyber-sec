@@ -219,7 +219,7 @@ const App = (() => {
           <div class="xp-bar-mini"><span style="width:${(s.xpInLevel)}%"></span></div>
           <span class="xp-text">${s.xp} XP</span>
         </div>
-        ${s.streak > 0 ? `<span class="streak" title="Серия дней подряд">🔥 ${s.streak}</span>` : ""}
+        ${s.streak > 0 ? `<span class="streak" title="Серия дней подряд">${Icon.ui("flame")}${s.streak}</span>` : ""}
       `;
     }
   }
@@ -251,13 +251,13 @@ const App = (() => {
       <section class="hero">
         <div class="hero-inner">
           <div class="hero-text">
-            <span class="hero-badge">🛡️ Бесплатно · Без регистрации · Прогресс сохраняется локально</span>
+            <span class="hero-badge">Бесплатно · Без регистрации · Прогресс сохраняется локально</span>
             <h1>Учись <span class="accent">кибербезопасности</span><br>на практике</h1>
             <p class="hero-sub">Интерактивные курсы, квесты, задания и живая песочница-терминал.
-            От основ до пентеста, веба, сетей, криптографии и OSINT.</p>
+            От основ до пентеста, веба, сетей, Active Directory и форензики.</p>
             <div class="hero-actions">
-              <button class="btn btn-primary btn-lg" onclick="App.go('courses')">🚀 Начать обучение</button>
-              <button class="btn btn-ghost btn-lg" onclick="App.go('sandbox')">🧪 Открыть песочницу</button>
+              <button class="btn btn-primary btn-lg" onclick="App.go('courses')">Начать обучение ${Icon.ui("arrow")}</button>
+              <button class="btn btn-ghost btn-lg" onclick="App.go('sandbox')">${Icon.ui("terminal")} Открыть песочницу</button>
             </div>
           </div>
           <div class="hero-card">
@@ -268,7 +268,7 @@ const App = (() => {
               <div><b>${s.tasksDone}</b><span>заданий</span></div>
               <div><b>${s.coursesDone}/${s.coursesTotal}</b><span>курсов</span></div>
               <div><b>${s.achievements}/${s.achievementsTotal}</b><span>ачивок</span></div>
-              <div><b>🔥 ${s.streak}</b><span>дней</span></div>
+              <div><b>${s.streak}</b><span>дней подряд</span></div>
             </div>
           </div>
         </div>
@@ -276,13 +276,13 @@ const App = (() => {
 
       <section class="features">
         ${[
-          ["🎯", "Реальные навыки", "Задания построены на настоящих концепциях: SQLi, XSS, Nmap, cmd/PowerShell, Active Directory, хеши."],
-          ["🧩", "Квесты и флаги", "Находи флаги CYBER{...} в песочнице — как в CTF."],
-          ["📈", "Система прогрессии", "XP, уровни, серии дней и достижения за каждый шаг."],
-          ["💾", "Прогресс локально", "Всё хранится в браузере. Никаких аккаунтов и слежки."],
+          ["target", "Реальные навыки", "Задания на настоящих концепциях: SQLi, XSS, Nmap, cmd/PowerShell, Active Directory, хеши."],
+          ["flag", "Квесты и флаги", "Находи флаги CYBER{…} в живой песочнице — как в CTF-соревнованиях."],
+          ["progress", "Система прогрессии", "XP, уровни, серии дней и достижения. Сложные курсы открываются по мере роста."],
+          ["terminal", "Прогресс локально", "Всё хранится в браузере. Никаких аккаунтов, регистрации и слежки."],
         ].map(([i, t, d]) => `
           <div class="feature">
-            <div class="feature-ic">${i}</div>
+            <div class="feature-ic">${Icon.ui(i)}</div>
             <h3>${t}</h3><p>${d}</p>
           </div>`).join("")}
       </section>
@@ -290,7 +290,7 @@ const App = (() => {
       <section class="section">
         <div class="section-head">
           <h2>Популярные курсы</h2>
-          <a class="link" onclick="App.go('courses')">Все курсы →</a>
+          <a class="link" onclick="App.go('courses')">Все курсы ${Icon.ui("arrow")}</a>
         </div>
         <div class="course-grid">
           ${COURSES.slice(0, 3).map(courseCard).join("")}
@@ -310,8 +310,8 @@ const App = (() => {
     return `
       <article class="course-card ${unlocked ? "" : "locked"} ${p.pct === 100 ? "completed" : ""}" style="--c:${course.color}" onclick="${onclick}">
         <div class="cc-top">
-          <span class="cc-icon">${course.icon}</span>
-          <span class="cc-level">${unlocked ? course.level : "🔒 " + course.level}</span>
+          <span class="cc-icon">${Icon.course(course.id)}</span>
+          <span class="cc-level">${unlocked ? "" : Icon.ui("lock")}${course.level}</span>
         </div>
         <h3>${course.title}</h3>
         <p>${course.summary}</p>
@@ -321,7 +321,7 @@ const App = (() => {
           <div class="xp-bar"><span style="width:${p.pct}%"></span></div>
           <span class="cc-pct">${p.pct === 100 ? "✓ Пройдено" : p.done + "/" + p.total + " · " + p.pct + "%"}</span>
         </div>`
-        : `<div class="cc-lock">🔒 Требуется: ${missing.map((m) => m.title).join(", ")}</div>`}
+        : `<div class="cc-lock">${Icon.ui("lock")} Требуется: ${missing.map((m) => m.title).join(", ")}</div>`}
       </article>`;
   }
 
@@ -350,15 +350,15 @@ const App = (() => {
         <section class="section">
           <a class="back" onclick="App.go('courses')">← Все курсы</a>
           <div class="locked-screen card">
-            <div class="ls-icon">🔒</div>
-            <h1>${course.icon} ${course.title}</h1>
+            <div class="ls-icon">${Icon.ui("lock")}</div>
+            <h1><span class="ls-course-ic" style="color:${course.color}">${Icon.course(course.id)}</span> ${course.title}</h1>
             <p class="ls-sub">Этот курс уровня «${course.level}» откроется, когда вы завершите предыдущие. Так сложность растёт постепенно.</p>
             <h3>Нужно пройти на 100%:</h3>
             <div class="ls-prereq">
               ${missing.map((m) => {
                 const mp = Progress.courseProgress(m);
                 return `<div class="ls-row" onclick="App.go('course',{courseId:'${m.id}'})">
-                  <span class="cpl-ic">${m.icon}</span>
+                  <span class="cpl-ic" style="color:${m.color}">${Icon.course(m.id)}</span>
                   <div class="cpl-body">
                     <div class="cpl-head"><b>${m.title}</b><span>${mp.pct}%</span></div>
                     <div class="xp-bar"><span style="width:${mp.pct}%;background:${m.color}"></span></div>
@@ -377,7 +377,7 @@ const App = (() => {
       <section class="section">
         <a class="back" onclick="App.go('courses')">← Все курсы</a>
         <div class="course-head" style="--c:${course.color}">
-          <span class="ch-icon">${course.icon}</span>
+          <span class="ch-icon">${Icon.course(course.id)}</span>
           <div>
             <span class="cc-level">${course.level}</span>
             <h1>${course.title}</h1>
@@ -404,7 +404,7 @@ const App = (() => {
     return `
       <div class="room-row ${complete ? "done" : ""} ${locked ? "locked" : ""}"
            onclick="${locked ? "App.toast('Сначала завершите предыдущую комнату 🔒')" : `App.go('room',{courseId:'${course.id}',roomId:'${room.id}'})`}">
-        <span class="rr-num">${complete ? "✓" : locked ? "🔒" : i + 1}</span>
+        <span class="rr-num">${complete ? Icon.ui("check") : locked ? Icon.ui("lock") : i + 1}</span>
         <div class="rr-body">
           <h3>${room.title}</h3>
           <span class="rr-meta">${done}/${total} заданий</span>
@@ -453,19 +453,19 @@ const App = (() => {
     return `
       <div class="task ${done ? "done" : ""}" id="task-${task.id}">
         <div class="task-head">
-          <span class="task-check">${done ? "✓" : ""}</span>
+          <span class="task-check">${done ? Icon.ui("check") : ""}</span>
           <div class="task-title">
             <h4>${task.title}</h4>
             <span class="task-points">+${task.points} XP</span>
-            ${task.sandbox ? '<span class="task-sandbox" title="Решается в песочнице">🧪</span>' : ""}
+            ${task.sandbox ? `<span class="task-sandbox" title="Решается в песочнице">${Icon.ui("terminal")} песочница</span>` : ""}
           </div>
         </div>
         <p class="task-prompt">${task.prompt}</p>
         ${task.type === "info"
-          ? (done ? `<div class="task-ok">Отмечено как прочитанное ✓</div>`
+          ? (done ? `<div class="task-ok">${Icon.ui("check")} Отмечено как прочитанное</div>`
                   : `<button class="btn btn-primary btn-sm" onclick="App.markInfo('${course.id}','${task.id}')">Понятно, дальше</button>`)
           : (done
-              ? `<div class="task-ok">Верно! Решено ✓</div>`
+              ? `<div class="task-ok">${Icon.ui("check")} Верно! Решено</div>`
               : `
                 <div class="answer-row">
                   <input type="text" id="ans-${task.id}" placeholder="${task.type === "flag" ? "CYBER{...}" : "Ваш ответ"}"
@@ -488,11 +488,11 @@ const App = (() => {
   function completionBanner(course, room, nextRoom) {
     return `
       <div class="complete-banner">
-        <div class="cb-icon">🎉</div>
+        <div class="cb-icon">${Icon.ui("check")}</div>
         <h3>Комната пройдена!</h3>
         <p>Отличная работа. ${nextRoom ? "Готовы к следующей?" : "Это была последняя комната курса!"}</p>
         ${nextRoom
-          ? `<button class="btn btn-primary" onclick="App.go('room',{courseId:'${course.id}',roomId:'${nextRoom.id}'})">Следующая комната →</button>`
+          ? `<button class="btn btn-primary" onclick="App.go('room',{courseId:'${course.id}',roomId:'${nextRoom.id}'})">Следующая комната ${Icon.ui("arrow")}</button>`
           : `<button class="btn btn-primary" onclick="App.go('course',{courseId:'${course.id}'})">К обзору курса</button>`}
       </div>`;
   }
@@ -501,7 +501,7 @@ const App = (() => {
     root().innerHTML = `
       <section class="section">
         <div class="page-title">
-          <h1>🧪 Песочница</h1>
+          <h1>Песочница</h1>
           <p>Безопасный учебный терминал. Отрабатывайте команды и ищите флаги. Наберите <code>help</code>.</p>
         </div>
         <div class="term-wrap card">
@@ -533,7 +533,7 @@ const App = (() => {
     const s = Progress.overallStats();
     root().innerHTML = `
       <section class="section">
-        <div class="page-title"><h1>👤 Профиль и прогресс</h1></div>
+        <div class="page-title"><h1>Профиль и прогресс</h1></div>
 
         <div class="profile-top card">
           <div class="pt-level">
@@ -545,7 +545,7 @@ const App = (() => {
             <div class="ps"><b>${s.xp}</b><span>всего XP</span></div>
             <div class="ps"><b>${s.tasksDone}/${s.tasksTotal}</b><span>заданий</span></div>
             <div class="ps"><b>${s.coursesDone}/${s.coursesTotal}</b><span>курсов пройдено</span></div>
-            <div class="ps"><b>🔥 ${s.streak}</b><span>дней подряд</span></div>
+            <div class="ps"><b>${s.streak}</b><span>дней подряд</span></div>
           </div>
         </div>
 
@@ -554,7 +554,7 @@ const App = (() => {
           ${COURSES.map((c) => {
             const p = Progress.courseProgress(c);
             return `<div class="cpl-row" onclick="App.go('course',{courseId:'${c.id}'})">
-              <span class="cpl-ic">${c.icon}</span>
+              <span class="cpl-ic" style="color:${c.color}">${Icon.course(c.id)}</span>
               <div class="cpl-body">
                 <div class="cpl-head"><b>${c.title}</b><span>${p.pct}%</span></div>
                 <div class="xp-bar"><span style="width:${p.pct}%;background:${c.color}"></span></div>
