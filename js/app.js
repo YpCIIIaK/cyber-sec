@@ -155,10 +155,35 @@ const Progress = (() => {
     save();
   }
 
+  function exportData() {
+    return JSON.stringify({ app: "CyberPath", version: 1, exportedAt: Date.now(), state }, null, 2);
+  }
+  function importData(json) {
+    let parsed;
+    try { parsed = JSON.parse(json); } catch (e) { return { ok: false, error: "Файл повреждён или это не JSON." }; }
+    const incoming = parsed && parsed.state ? parsed.state : parsed;
+    if (!incoming || typeof incoming !== "object" || typeof incoming.completed !== "object") {
+      return { ok: false, error: "Это не похоже на файл прогресса CyberPath." };
+    }
+    state = Object.assign(structuredClone(defaultState), incoming);
+    save();
+    return { ok: true };
+  }
+
+  // Заработанный XP внутри конкретного курса (для сертификата)
+  function courseXP(course) {
+    return course.rooms.reduce((s, r) =>
+      s + r.tasks.reduce((a, t) => a + (state.completed[t.id] ? (t.points || 0) : 0), 0), 0);
+  }
+  function completedAtISO() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
   return {
     isDone, completeTask, useHint, hintsUsedFor, roomCompleted, roomUsedNoHints,
     courseProgress, courseUnlocked, missingPrereqs, overallStats, level, xpInLevel, xpToNext,
     unlockAchievement, hasAchievement, trackVisit, reset,
+    exportData, importData, courseXP, completedAtISO,
     _state: () => state,
   };
 })();
@@ -274,6 +299,8 @@ const App = (() => {
         </div>
       </section>
 
+      ${continueBlock()}
+
       <section class="features">
         ${[
           ["target", "Реальные навыки", "Задания на настоящих концепциях: SQLi, XSS, Nmap, cmd/PowerShell, Active Directory, хеши."],
@@ -298,6 +325,39 @@ const App = (() => {
       </section>
     `;
     highlightNav();
+  }
+
+  // Следующий шаг: первый открытый курс с прогрессом <100% и первая незавершённая комната
+  function nextUp() {
+    for (const course of COURSES) {
+      if (!Progress.courseUnlocked(course)) continue;
+      const p = Progress.courseProgress(course);
+      if (p.pct === 100) continue;
+      const room = course.rooms.find((r) => !Progress.roomCompleted(r));
+      if (room) {
+        const started = p.done > 0 || COURSES.some((c) => Progress.courseProgress(c).done > 0);
+        return { course, room, started, pct: p.pct };
+      }
+    }
+    return null;
+  }
+
+  function continueBlock() {
+    const n = nextUp();
+    if (!n) return "";
+    const started = Progress.overallStats().tasksDone > 0;
+    return `
+      <section class="section continue-section">
+        <div class="continue-card" style="--c:${n.course.color}" onclick="App.go('room',{courseId:'${n.course.id}',roomId:'${n.room.id}'})">
+          <span class="cont-ic">${Icon.course(n.course.id)}</span>
+          <div class="cont-body">
+            <span class="cont-label">${started ? "Продолжить обучение" : "Начните здесь"}</span>
+            <h3>${n.course.title}</h3>
+            <p>${n.room.title} · курс пройден на ${n.pct}%</p>
+          </div>
+          <button class="btn btn-primary">${started ? "Продолжить" : "Начать"} ${Icon.ui("arrow")}</button>
+        </div>
+      </section>`;
   }
 
   function courseCard(course) {
@@ -325,19 +385,71 @@ const App = (() => {
       </article>`;
   }
 
+  const catalog = { q: "", level: "all", sort: "default" };
+  const LEVELS = ["all", "Новичок", "Средний", "Сложный"];
+
+  function filteredCourses() {
+    let list = COURSES.slice();
+    const q = catalog.q.trim().toLowerCase();
+    if (q) list = list.filter((c) =>
+      (c.title + " " + c.summary + " " + c.tags.join(" ")).toLowerCase().includes(q));
+    if (catalog.level !== "all") list = list.filter((c) => c.level === catalog.level);
+    if (catalog.sort === "progress")
+      list.sort((a, b) => Progress.courseProgress(b).pct - Progress.courseProgress(a).pct);
+    else if (catalog.sort === "level") {
+      const order = { "Новичок": 0, "Средний": 1, "Сложный": 2 };
+      list.sort((a, b) => order[a.level] - order[b.level]);
+    }
+    return list;
+  }
+
+  function renderCourseGrid() {
+    const grid = document.getElementById("course-grid");
+    if (!grid) return;
+    const list = filteredCourses();
+    grid.innerHTML = list.length
+      ? list.map(courseCard).join("")
+      : `<div class="empty-state">Ничего не найдено. Попробуйте изменить запрос или фильтр.</div>`;
+    const count = document.getElementById("catalog-count");
+    if (count) count.textContent = `${list.length} из ${COURSES.length}`;
+  }
+
   function renderCourses() {
     root().innerHTML = `
       <section class="section">
         <div class="page-title">
           <h1>Каталог курсов</h1>
-          <p>${COURSES.length} курсов · от новичка до продвинутого уровня</p>
+          <p>Выберите направление. Сложные курсы открываются по мере прохождения предыдущих.</p>
         </div>
-        <div class="course-grid">
-          ${COURSES.map(courseCard).join("")}
+        <div class="catalog-toolbar">
+          <div class="search-box">
+            ${Icon.ui("quest")}
+            <input id="catalog-search" type="text" placeholder="Поиск по курсам и темам…" value="${catalog.q}"
+                   oninput="App.catalogSearch(this.value)">
+          </div>
+          <div class="filter-chips">
+            ${LEVELS.map((lv) => `<button class="chip ${catalog.level === lv ? "active" : ""}" onclick="App.catalogLevel('${lv}')">${lv === "all" ? "Все уровни" : lv}</button>`).join("")}
+          </div>
+          <select class="sort-select" onchange="App.catalogSort(this.value)">
+            <option value="default" ${catalog.sort === "default" ? "selected" : ""}>По умолчанию</option>
+            <option value="progress" ${catalog.sort === "progress" ? "selected" : ""}>По прогрессу</option>
+            <option value="level" ${catalog.sort === "level" ? "selected" : ""}>По сложности</option>
+          </select>
         </div>
+        <div class="catalog-meta"><span id="catalog-count"></span></div>
+        <div class="course-grid" id="course-grid"></div>
       </section>`;
+    renderCourseGrid();
     highlightNav();
   }
+  function catalogSearch(v) { catalog.q = v; renderCourseGrid(); }
+  function catalogLevel(lv) {
+    catalog.level = lv;
+    document.querySelectorAll(".filter-chips .chip").forEach((el) =>
+      el.classList.toggle("active", el.textContent === (lv === "all" ? "Все уровни" : lv)));
+    renderCourseGrid();
+  }
+  function catalogSort(v) { catalog.sort = v; renderCourseGrid(); }
 
   function renderCourse(courseId) {
     const course = COURSES.find((c) => c.id === courseId);
@@ -388,12 +500,26 @@ const App = (() => {
             </div>
           </div>
         </div>
+        ${p.pct === 100 ? certificateCard(course) : ""}
         <h2 class="rooms-title">Комнаты курса</h2>
         <div class="room-list">
           ${course.rooms.map((room, i) => roomRow(course, room, i)).join("")}
         </div>
       </section>`;
     highlightNav();
+  }
+
+  function certificateCard(course) {
+    return `
+      <div class="cert-card" style="--c:${course.color}">
+        <div class="cert-ribbon">${Icon.ui("check")} Курс пройден</div>
+        <div class="cert-ic">${Icon.course(course.id)}</div>
+        <div class="cert-body">
+          <h3>Поздравляем!</h3>
+          <p>Вы завершили курс «${course.title}» и заработали ${Progress.courseXP(course)} XP.</p>
+        </div>
+        <button class="btn btn-primary" onclick="App.downloadCertificate('${course.id}')">${Icon.ui("progress")} Скачать сертификат</button>
+      </div>`;
   }
 
   function roomRow(course, room, i) {
@@ -439,11 +565,79 @@ const App = (() => {
         </div>
       </section>`;
     highlightNav();
+    addCopyButtons();
 
     // проверка "без подсказок"
     if (Progress.roomCompleted(room) && Progress.roomUsedNoHints(room)) {
       Progress.unlockAchievement("no_hints");
     }
+  }
+
+  // Кнопка «копировать» на блоках кода в уроке
+  function addCopyButtons() {
+    document.querySelectorAll(".lesson pre").forEach((pre) => {
+      if (pre.querySelector(".copy-btn")) return;
+      const btn = document.createElement("button");
+      btn.className = "copy-btn";
+      btn.type = "button";
+      btn.textContent = "копировать";
+      btn.addEventListener("click", () => {
+        const text = pre.innerText.replace(/копировать|скопировано$/g, "").trim();
+        const done = () => { btn.textContent = "скопировано"; setTimeout(() => (btn.textContent = "копировать"), 1400); };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(done);
+        else { try { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); done(); } catch (e) {} }
+      });
+      pre.appendChild(btn);
+    });
+  }
+
+  // Скачать сертификат курса как PNG
+  function downloadCertificate(courseId) {
+    const course = COURSES.find((c) => c.id === courseId);
+    if (!course) return;
+    const W = 1200, H = 848, scale = 2;
+    const cv = document.createElement("canvas");
+    cv.width = W * scale; cv.height = H * scale;
+    const g = cv.getContext("2d");
+    g.scale(scale, scale);
+    // фон
+    g.fillStyle = "#fffdfb"; g.fillRect(0, 0, W, H);
+    // рамка
+    g.strokeStyle = course.color; g.lineWidth = 6; g.strokeRect(28, 28, W - 56, H - 56);
+    g.strokeStyle = "#ece5dd"; g.lineWidth = 1.5; g.strokeRect(44, 44, W - 88, H - 88);
+    const cx = W / 2;
+    g.textAlign = "center";
+    g.fillStyle = "#8c8178"; g.font = "600 22px Inter, sans-serif";
+    g.fillText("CYBERPATH · СЕРТИФИКАТ О ПРОХОЖДЕНИИ", cx, 150);
+    g.fillStyle = "#1a1613"; g.font = "800 40px Sora, Inter, sans-serif";
+    g.fillText("Настоящим подтверждается, что", cx, 250);
+    g.fillStyle = course.color; g.font = "800 60px Sora, Inter, sans-serif";
+    wrapText(g, course.title, cx, 360, W - 220, 66);
+    g.fillStyle = "#4b433c"; g.font = "400 24px Inter, sans-serif";
+    g.fillText("успешно завершён.", cx, 470);
+    const total = totalTasksInCourse(course);
+    g.fillStyle = "#1a1613"; g.font = "700 26px Inter, sans-serif";
+    g.fillText(`${Progress.courseXP(course)} XP  ·  ${total} заданий  ·  ${Progress.completedAtISO()}`, cx, 560);
+    // печать-кружок
+    g.beginPath(); g.arc(cx, 660, 46, 0, Math.PI * 2); g.strokeStyle = course.color; g.lineWidth = 3; g.stroke();
+    g.fillStyle = course.color; g.font = "800 30px Sora, Inter, sans-serif"; g.fillText("✓", cx, 672);
+    g.fillStyle = "#8c8178"; g.font = "500 18px Inter, sans-serif";
+    g.fillText("cyberpath · учись этично, применяй ответственно", cx, 770);
+
+    const a = document.createElement("a");
+    a.href = cv.toDataURL("image/png");
+    a.download = `CyberPath-${course.id}-certificate.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+    toast("Сертификат скачан");
+  }
+  function wrapText(ctx, text, x, y, maxW, lh) {
+    const words = text.split(" "); let line = "", yy = y;
+    for (const w of words) {
+      const test = line ? line + " " + w : w;
+      if (ctx.measureText(test).width > maxW && line) { ctx.fillText(line, x, yy); line = w; yy += lh; }
+      else line = test;
+    }
+    ctx.fillText(line, x, yy);
   }
 
   function taskBlock(course, task) {
@@ -575,6 +769,19 @@ const App = (() => {
           }).join("")}
         </div>
 
+        <h2 class="rooms-title">Данные и синхронизация</h2>
+        <div class="data-zone card">
+          <div>
+            <h3>Перенос прогресса</h3>
+            <p>Прогресс хранится локально в этом браузере. Скачайте файл, чтобы перенести его на другое устройство или сделать резервную копию.</p>
+          </div>
+          <div class="data-actions">
+            <button class="btn btn-ghost" onclick="App.exportProgress()">${Icon.ui("progress")} Скачать прогресс</button>
+            <button class="btn btn-ghost" onclick="document.getElementById('import-file').click()">${Icon.ui("book")} Загрузить из файла</button>
+            <input id="import-file" type="file" accept="application/json,.json" hidden onchange="App.importProgress(this.files[0])">
+          </div>
+        </div>
+
         <div class="danger-zone card">
           <div>
             <h3>Сброс прогресса</h3>
@@ -584,6 +791,27 @@ const App = (() => {
         </div>
       </section>`;
     highlightNav();
+  }
+
+  function exportProgress() {
+    const blob = new Blob([Progress.exportData()], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `cyberpath-progress-${Progress.completedAtISO()}.json`;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 100);
+    toast("Прогресс сохранён в файл");
+  }
+  function importProgress(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const res = Progress.importData(String(reader.result));
+      if (res.ok) { toast("Прогресс загружен ✓"); renderNav(); render(); }
+      else { toast(res.error || "Не удалось загрузить файл"); }
+    };
+    reader.onerror = () => toast("Ошибка чтения файла");
+    reader.readAsText(file);
   }
 
   /* ---------- Действия ---------- */
@@ -695,7 +923,10 @@ const App = (() => {
     render();
   }
 
-  return { init, go, submit, markInfo, showHint, toast, toastAchievement, resetConfirm, toggleTheme };
+  return {
+    init, go, submit, markInfo, showHint, toast, toastAchievement, resetConfirm, toggleTheme,
+    catalogSearch, catalogLevel, catalogSort, downloadCertificate, exportProgress, importProgress,
+  };
 })();
 
 document.addEventListener("DOMContentLoaded", App.init);
