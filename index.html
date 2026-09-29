@@ -15,6 +15,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F25C05' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l7 3v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3z'/></svg>">
 </head>
 <body>
+  <a class="skip-link" href="#view">Перейти к содержимому</a>
   <header class="topbar">
     <div class="topbar-inner">
       <a class="logo" onclick="App.go('home')">
@@ -24,10 +25,13 @@
       <nav class="main-nav">
         <a data-view="home" onclick="App.go('home')">Главная</a>
         <a data-view="courses" onclick="App.go('courses')">Курсы</a>
+        <a data-view="roadmap" onclick="App.go('roadmap')">Путь</a>
         <a data-view="sandbox" onclick="App.go('sandbox')">Песочница</a>
+        <a data-view="glossary" onclick="App.go('glossary')">Словарь</a>
         <a data-view="profile" onclick="App.go('profile')">Профиль</a>
       </nav>
       <div id="nav-stats" class="nav-stats"></div>
+      <button class="cmdk-btn" onclick="App.openPalette()" aria-label="Поиск (Ctrl+K)" title="Быстрый переход — Ctrl/⌘ + K"><span class="cmdk-ic"></span><kbd>⌘K</kbd></button>
       <button id="theme-toggle" class="theme-toggle" onclick="App.toggleTheme()" aria-label="Переключить тему" title="Светлая / тёмная тема"></button>
       <button class="burger" onclick="document.body.classList.toggle('nav-open')" aria-label="Меню">☰</button>
     </div>

@@ -17,8 +17,11 @@ const Progress = (() => {
     streak: 0,
     dailyDate: null,      // дата последнего решённого ежедневного задания
     dailySolved: 0,       // сколько всего решено ежедневных
+    exams: {},            // courseId -> { passed, best }
     createdAt: Date.now(),
   };
+  const EXAM_PASS = 0.8;   // порог сдачи
+  const EXAM_BONUS = 30;   // бонус XP за первую сдачу
 
   const HINT_PENALTY = 5; // XP штраф за каждую использованную подсказку
 
@@ -51,23 +54,29 @@ const Progress = (() => {
     return Math.max(1, base - penalty);
   }
 
+  // Начислить XP и заполнить события уровня/ранга/милстоунов
+  function awardXP(amount, events) {
+    const beforeLvl = level();
+    const beforeRank = rankForLevel(beforeLvl).name;
+    state.xp += amount;
+    const afterLvl = level();
+    if (afterLvl > beforeLvl) events.levelUp = afterLvl;
+    const afterRank = rankForLevel(afterLvl).name;
+    if (afterRank !== beforeRank) events.newRank = rankForLevel(afterLvl);
+    if (state.xp >= 1000) tryAch("hundred_k", events);
+    if (afterLvl >= 5) tryAch("level_5", events);
+    if (afterLvl >= 10) tryAch("level_10", events);
+  }
+
   function completeTask(task, courseId) {
     if (state.completed[task.id]) return { already: true };
     const gained = effectivePoints(task);
     state.completed[task.id] = true;
     state.earned[task.id] = gained;
-    state.xp += gained;
 
     const events = { xpGained: gained, newAchievements: [] };
-
-    // достижения
     if (Object.keys(state.completed).length === 1) tryAch("first_blood", events);
-    if (state.xp >= 1000) tryAch("hundred_k", events);
-    const lvl = level();
-    if (lvl >= 5) tryAch("level_5", events);
-    if (lvl >= 10) tryAch("level_10", events);
-
-    // завершение курса
+    awardXP(gained, events);
     checkCourseCompletion(courseId, events);
 
     save();
@@ -77,11 +86,10 @@ const Progress = (() => {
   function checkCourseCompletion(courseId, events) {
     let doneCourses = 0;
     for (const c of COURSES) {
-      const all = c.rooms.flatMap((r) => r.tasks.map((t) => t.id));
-      const done = all.every((id) => state.completed[id]);
+      const done = courseProgress(c).pct === 100;
       if (done) {
         doneCourses++;
-        if (c.id === courseId) tryAch("course_done", events);
+        if (c.id === courseId) { tryAch("course_done", events); events.courseDone = c; }
       }
     }
     if (doneCourses >= 3) tryAch("three_courses", events);
@@ -149,6 +157,8 @@ const Progress = (() => {
       achievements: Object.keys(state.achievements).length,
       achievementsTotal: ACHIEVEMENTS.length,
       streak: state.streak,
+      rank: rankForLevel(level()),
+      nextRank: nextRank(level()),
     };
   }
 
@@ -197,17 +207,12 @@ const Progress = (() => {
     if (state.completed[key]) return { already: true };
     state.completed[key] = true;
     state.earned[key] = mission.points;
-    state.xp += mission.points;
     const events = { xpGained: mission.points, newAchievements: [] };
-    Progress_unlock("terminal_master", events);
-    if (state.xp >= 1000) tryAch("hundred_k", events);
-    const lvl = level();
-    if (lvl >= 5) tryAch("level_5", events);
-    if (lvl >= 10) tryAch("level_10", events);
+    tryAch("terminal_master", events);
+    awardXP(mission.points, events);
     save();
     return events;
   }
-  function Progress_unlock(id, events) { if (!state.achievements[id]) { state.achievements[id] = Date.now(); events.newAchievements.push(id); } }
 
   /* ---------- Ежедневное задание ---------- */
   function todayStr() { return new Date().toISOString().slice(0, 10); }
@@ -223,18 +228,36 @@ const Progress = (() => {
     if (dailyIsDone()) return { already: true };
     state.dailyDate = todayStr();
     state.dailySolved = (state.dailySolved || 0) + 1;
-    state.xp += DAILY_BONUS;
     const events = { xpGained: DAILY_BONUS, newAchievements: [] };
     if (state.dailySolved >= 5) tryAch("daily_5", events);
-    if (state.xp >= 1000) tryAch("hundred_k", events);
-    const lvl = level();
-    if (lvl >= 5) tryAch("level_5", events);
-    if (lvl >= 10) tryAch("level_10", events);
+    awardXP(DAILY_BONUS, events);
     save();
     return events;
   }
   function completedAtISO() {
     return new Date().toISOString().slice(0, 10);
+  }
+
+  /* ---------- Экзамен ---------- */
+  function examPassed(courseId) { return !!(state.exams[courseId] && state.exams[courseId].passed); }
+  function examBest(courseId) { return state.exams[courseId] ? state.exams[courseId].best : 0; }
+  function recordExam(courseId, correct, total) {
+    const score = total ? correct / total : 0;
+    const pct = Math.round(score * 100);
+    const firstPass = score >= EXAM_PASS && !examPassed(courseId);
+    const prev = state.exams[courseId] || { passed: false, best: 0 };
+    state.exams[courseId] = { passed: prev.passed || score >= EXAM_PASS, best: Math.max(prev.best, pct) };
+    const events = { xpGained: 0, newAchievements: [] };
+    if (firstPass) {
+      tryAch("exam_pass", events);
+      awardXP(EXAM_BONUS, events);
+      events.xpGained = EXAM_BONUS;
+    }
+    if (score === 1) tryAch("flawless", events);
+    // все курсы пройдены (комнаты) — отдельная ачивка
+    if (COURSES.every((c) => courseProgress(c).pct === 100)) tryAch("all_courses", events);
+    save();
+    return { pct, passed: score >= EXAM_PASS, firstPass, events };
   }
 
   return {
@@ -245,6 +268,7 @@ const Progress = (() => {
     effectivePoints, hintPenalty: () => HINT_PENALTY,
     dailyToday, dailyIsDone, dailyCount, solveDaily,
     missionDone, completeMission,
+    examPassed, examBest, recordExam,
     _state: () => state,
   };
 })();
@@ -275,9 +299,12 @@ const App = (() => {
   function buildHash(view, params) {
     if (view === "course") return `#/course/${params.courseId}`;
     if (view === "room") return `#/course/${params.courseId}/room/${params.roomId}`;
+    if (view === "exam") return `#/course/${params.courseId}/exam`;
     if (view === "sandbox") return "#/sandbox";
     if (view === "profile") return "#/profile";
     if (view === "courses") return "#/courses";
+    if (view === "glossary") return "#/glossary";
+    if (view === "roadmap") return "#/roadmap";
     return "#/";
   }
   function parseHash() {
@@ -287,9 +314,13 @@ const App = (() => {
     if (parts[0] === "courses") return { view: "courses" };
     if (parts[0] === "sandbox") return { view: "sandbox" };
     if (parts[0] === "profile") return { view: "profile" };
+    if (parts[0] === "glossary") return { view: "glossary" };
+    if (parts[0] === "roadmap") return { view: "roadmap" };
     if (parts[0] === "course" && parts[1]) {
       if (parts[2] === "room" && parts[3])
         return { view: "room", courseId: parts[1], roomId: parts[3] };
+      if (parts[2] === "exam")
+        return { view: "exam", courseId: parts[1] };
       return { view: "course", courseId: parts[1] };
     }
     return { view: "home" };
@@ -301,6 +332,7 @@ const App = (() => {
     const nav = document.getElementById("nav-stats");
     if (nav) {
       nav.innerHTML = `
+        <span class="rank-chip" title="Ваше звание">${s.rank.icon} ${s.rank.name}</span>
         <div class="nav-xp" title="Ваш уровень и опыт">
           <span class="lvl-badge">LVL ${s.level}</span>
           <div class="xp-bar-mini"><span style="width:${(s.xpInLevel)}%"></span></div>
@@ -316,15 +348,21 @@ const App = (() => {
     renderNav();
     const c = current;
     switch (c.view) {
-      case "home": return renderHome();
-      case "courses": return renderCourses();
-      case "course": return renderCourse(c.courseId);
-      case "room": return renderRoom(c.courseId, c.roomId);
-      case "sandbox": return renderSandbox();
-      case "profile": return renderProfile();
-      default: return renderHome();
+      case "home": renderHome(); break;
+      case "courses": renderCourses(); break;
+      case "course": renderCourse(c.courseId); break;
+      case "room": renderRoom(c.courseId, c.roomId); break;
+      case "sandbox": renderSandbox(); break;
+      case "profile": renderProfile(); break;
+      case "glossary": renderGlossary(); break;
+      case "roadmap": renderRoadmap(); break;
+      case "exam": renderExam(c.courseId); break;
+      default: renderHome();
     }
     highlightNav();
+    const v = root();
+    if (v) { v.classList.remove("view-enter"); void v.offsetWidth; v.classList.add("view-enter"); }
+    observeReveal();
   }
   function highlightNav() {
     document.querySelectorAll(".main-nav a").forEach((a) => {
@@ -371,7 +409,7 @@ const App = (() => {
           ["progress", "Система прогрессии", "XP, уровни, серии дней и достижения. Сложные курсы открываются по мере роста."],
           ["terminal", "Прогресс локально", "Всё хранится в браузере. Никаких аккаунтов, регистрации и слежки."],
         ].map(([i, t, d]) => `
-          <div class="feature">
+          <div class="feature reveal">
             <div class="feature-ic">${Icon.ui(i)}</div>
             <h3>${t}</h3><p>${d}</p>
           </div>`).join("")}
@@ -465,7 +503,7 @@ const App = (() => {
       ? `App.go('course',{courseId:'${course.id}'})`
       : `App.toast('🔒 Сначала пройдите: ${missing.map((m) => m.title).join(", ")}')`;
     return `
-      <article class="course-card ${unlocked ? "" : "locked"} ${p.pct === 100 ? "completed" : ""}" style="--c:${course.color}" onclick="${onclick}">
+      <article class="course-card reveal ${unlocked ? "" : "locked"} ${p.pct === 100 ? "completed" : ""}" style="--c:${course.color}" onclick="${onclick}" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}">
         <div class="cc-top">
           <span class="cc-icon">${Icon.course(course.id)}</span>
           <span class="cc-level">${unlocked ? "" : Icon.ui("lock")}${course.level}</span>
@@ -509,6 +547,7 @@ const App = (() => {
       : `<div class="empty-state">Ничего не найдено. Попробуйте изменить запрос или фильтр.</div>`;
     const count = document.getElementById("catalog-count");
     if (count) count.textContent = `${list.length} из ${COURSES.length}`;
+    observeReveal();
   }
 
   function renderCourses() {
@@ -613,9 +652,12 @@ const App = (() => {
         <div class="cert-ic">${Icon.course(course.id)}</div>
         <div class="cert-body">
           <h3>Поздравляем!</h3>
-          <p>Вы завершили курс «${course.title}» и заработали ${Progress.courseXP(course)} XP.</p>
+          <p>Вы завершили курс «${course.title}» и заработали ${Progress.courseXP(course)} XP.${Progress.examPassed(course.id) ? " Экзамен сдан на " + Progress.examBest(course.id) + "%." : ""}</p>
         </div>
-        <button class="btn btn-primary" onclick="App.downloadCertificate('${course.id}')">${Icon.ui("progress")} Скачать сертификат</button>
+        <div class="cert-actions">
+          <button class="btn btn-ghost btn-sm" onclick="App.go('exam',{courseId:'${course.id}'})">${Icon.ui("quest")} ${Progress.examPassed(course.id) ? "Пересдать экзамен" : "Сдать экзамен"}</button>
+          <button class="btn btn-primary btn-sm" onclick="App.downloadCertificate('${course.id}')">${Icon.ui("progress")} Сертификат</button>
+        </div>
       </div>`;
   }
 
@@ -950,7 +992,262 @@ const App = (() => {
   }
   function toggleShell() {
     Sandbox.toggleMode();
-    const t = document.querySelector(".term-title");
+  }
+
+  /* ---------- Глоссарий ---------- */
+  const glossaryState = { q: "" };
+  function renderGlossary() {
+    root().innerHTML = `
+      <section class="section">
+        <div class="page-title">
+          <h1>Словарь терминов</h1>
+          <p>${GLOSSARY.length} определений ключевых понятий кибербезопасности — по реальным стандартам.</p>
+        </div>
+        <div class="catalog-toolbar">
+          <div class="search-box">
+            ${Icon.ui("quest")}
+            <input id="gloss-search" type="text" placeholder="Поиск термина или определения…" value="${glossaryState.q}" oninput="App.glossarySearch(this.value)">
+          </div>
+        </div>
+        <div id="gloss-list" class="gloss-list"></div>
+      </section>`;
+    renderGlossaryList();
+    highlightNav();
+  }
+  function renderGlossaryList() {
+    const el = document.getElementById("gloss-list");
+    if (!el) return;
+    const q = glossaryState.q.trim().toLowerCase();
+    const items = GLOSSARY.filter((g) => !q || (g.term + " " + g.def + " " + g.cat).toLowerCase().includes(q))
+      .sort((a, b) => a.term.localeCompare(b.term, "ru"));
+    if (!items.length) { el.innerHTML = `<div class="empty-state">Ничего не найдено.</div>`; return; }
+    const byCat = {};
+    items.forEach((g) => (byCat[g.cat] = byCat[g.cat] || []).push(g));
+    el.innerHTML = Object.keys(byCat).sort((a, b) => a.localeCompare(b, "ru")).map((cat) => `
+      <div class="gloss-cat">
+        <h3 class="gloss-cat-title">${cat}</h3>
+        <div class="gloss-grid">
+          ${byCat[cat].map((g) => `
+            <div class="gloss-card reveal">
+              <h4>${g.term}</h4>
+              <p>${g.def}</p>
+            </div>`).join("")}
+        </div>
+      </div>`).join("");
+    observeReveal();
+  }
+  function glossarySearch(v) { glossaryState.q = v; renderGlossaryList(); }
+
+  /* ---------- Дорожная карта (граф зависимостей) ---------- */
+  function renderRoadmap() {
+    const tiers = { "Новичок": [], "Средний": [], "Сложный": [] };
+    COURSES.forEach((c) => (tiers[c.level] || (tiers[c.level] = [])).push(c));
+    const s = Progress.overallStats();
+    root().innerHTML = `
+      <section class="section">
+        <div class="page-title">
+          <h1>Путь обучения</h1>
+          <p>Курсы выстроены по сложности: продвинутые открываются по мере прохождения предыдущих. Ваше звание — ${s.rank.icon} <b>${s.rank.name}</b>.</p>
+        </div>
+        <div class="roadmap">
+          ${["Новичок", "Средний", "Сложный"].map((tier) => `
+            <div class="tier">
+              <div class="tier-label"><span>${tier}</span></div>
+              <div class="tier-courses">
+                ${tiers[tier].map((c) => {
+                  const p = Progress.courseProgress(c);
+                  const unlocked = Progress.courseUnlocked(c);
+                  const state = p.pct === 100 ? "done" : unlocked ? "open" : "locked";
+                  return `<button class="rm-node ${state}" style="--c:${c.color}"
+                            onclick="App.go('course',{courseId:'${c.id}'})"
+                            title="${unlocked ? c.title : "Требуется: " + Progress.missingPrereqs(c).map((m) => m.title).join(", ")}">
+                    <span class="rm-ic">${state === "locked" ? Icon.ui("lock") : Icon.course(c.id)}</span>
+                    <span class="rm-name">${c.title}</span>
+                    <span class="rm-pct">${state === "done" ? "✓ 100%" : unlocked ? p.pct + "%" : "заблокировано"}</span>
+                    <span class="rm-bar"><span style="width:${p.pct}%"></span></span>
+                  </button>`;
+                }).join("")}
+              </div>
+            </div>`).join("")}
+        </div>
+      </section>`;
+    highlightNav();
+    observeReveal();
+  }
+
+  /* ---------- Финальный экзамен курса ---------- */
+  const examState = {};
+  function buildExam(course) {
+    // берём вопросы с проверяемым ответом (question/flag/choice), перемешиваем, до 5
+    const pool = course.rooms.flatMap((r) => r.tasks)
+      .filter((t) => (t.type === "question" || t.type === "choice" || t.type === "flag") && (t.answers || t.answer));
+    const shuffled = pool.slice().sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, Math.min(5, shuffled.length));
+  }
+  function renderExam(courseId) {
+    const course = COURSES.find((c) => c.id === courseId);
+    if (!course) return go("courses");
+    if (Progress.courseProgress(course).pct < 100) return go("course", { courseId });
+    if (!examState[courseId] || examState[courseId].done) {
+      examState[courseId] = { qs: buildExam(course), answers: {}, done: false };
+    }
+    const ex = examState[courseId];
+    root().innerHTML = `
+      <section class="section exam-view">
+        <a class="back" onclick="App.go('course',{courseId:'${course.id}'})">← ${course.title}</a>
+        <div class="page-title">
+          <h1>Экзамен: ${course.title}</h1>
+          <p>Ответьте на ${ex.qs.length} вопросов. Порог сдачи — 80%. ${Progress.examPassed(courseId) ? "Лучший результат: " + Progress.examBest(courseId) + "%." : ""}</p>
+        </div>
+        <div class="exam-list">
+          ${ex.qs.map((q, i) => `
+            <div class="exam-q card">
+              <div class="exam-q-head"><span class="exam-num">${i + 1}</span><h4>${q.title}</h4></div>
+              <p class="task-prompt" style="padding-left:0">${q.prompt}</p>
+              ${q.type === "choice"
+                ? `<div class="exam-choices">${q.options.map((o) => `<label class="exam-opt"><input type="radio" name="eq-${i}" value="${escapeAttr(o)}"> ${o}</label>`).join("")}</div>`
+                : `<input class="exam-input" type="text" name="eq-${i}" placeholder="Ваш ответ">`}
+            </div>`).join("")}
+        </div>
+        <button class="btn btn-primary btn-lg" onclick="App.submitExam('${courseId}')">Завершить экзамен</button>
+        <div id="exam-result" class="exam-result"></div>
+      </section>`;
+    highlightNav();
+  }
+  function submitExam(courseId) {
+    const course = COURSES.find((c) => c.id === courseId);
+    const ex = examState[courseId];
+    let correct = 0;
+    ex.qs.forEach((q, i) => {
+      let val = "";
+      if (q.type === "choice") {
+        const sel = document.querySelector(`input[name="eq-${i}"]:checked`);
+        val = sel ? sel.value : "";
+      } else {
+        const inp = document.querySelector(`input[name="eq-${i}"]`);
+        val = inp ? inp.value : "";
+      }
+      if (val && checkAnswer(q, val)) correct++;
+    });
+    const res = Progress.recordExam(courseId, correct, ex.qs.length);
+    ex.done = true;
+    celebrate(res.events);
+    if (res.passed) confetti();
+    const box = document.getElementById("exam-result");
+    box.innerHTML = `
+      <div class="exam-verdict ${res.passed ? "pass" : "fail"}">
+        <div class="ev-score">${res.pct}%</div>
+        <div>
+          <h3>${res.passed ? "Экзамен сдан! 🎉" : "Пока не сдан"}</h3>
+          <p>${correct} из ${ex.qs.length} верно.${res.firstPass ? " Бонус +30 XP за первую сдачу!" : (res.passed ? "" : " Нужно ≥ 80%. Повторите материал и попробуйте снова.")}</p>
+          <div class="exam-actions">
+            <button class="btn btn-ghost btn-sm" onclick="App.retryExam('${courseId}')">Пройти заново</button>
+            <button class="btn btn-primary btn-sm" onclick="App.go('course',{courseId:'${courseId}'})">К курсу</button>
+          </div>
+        </div>
+      </div>`;
+    box.scrollIntoView({ behavior: "smooth", block: "center" });
+    renderNav();
+  }
+  function retryExam(courseId) { examState[courseId] = null; renderExam(courseId); window.scrollTo(0, 0); }
+
+  /* ---------- Командная палитра (Ctrl/⌘+K) ---------- */
+  const palette = { open: false, items: [], active: 0, filtered: [] };
+  function buildPaletteItems() {
+    const items = [
+      { label: "Главная", sub: "Домашняя страница", go: () => go("home") },
+      { label: "Каталог курсов", sub: "Все курсы", go: () => go("courses") },
+      { label: "Путь обучения", sub: "Дорожная карта", go: () => go("roadmap") },
+      { label: "Песочница", sub: "Терминал и квесты", go: () => go("sandbox") },
+      { label: "Словарь терминов", sub: "Глоссарий", go: () => go("glossary") },
+      { label: "Профиль", sub: "Прогресс и достижения", go: () => go("profile") },
+    ];
+    COURSES.forEach((c) => {
+      items.push({ label: c.title, sub: "Курс · " + c.level, go: () => go("course", { courseId: c.id }) });
+      c.rooms.forEach((r) => items.push({ label: r.title, sub: "Комната · " + c.title, go: () => go("room", { courseId: c.id, roomId: r.id }) }));
+    });
+    GLOSSARY.forEach((g) => items.push({ label: g.term, sub: "Термин · " + g.cat, go: () => { go("glossary"); glossaryState.q = g.term; setTimeout(() => { const i = document.getElementById("gloss-search"); if (i) i.value = g.term; renderGlossaryList(); }, 30); } }));
+    return items;
+  }
+  function openPalette() {
+    palette.open = true; palette.items = buildPaletteItems(); palette.active = 0;
+    let ov = document.getElementById("palette");
+    if (!ov) {
+      ov = document.createElement("div");
+      ov.id = "palette"; ov.className = "palette-overlay";
+      ov.innerHTML = `
+        <div class="palette" role="dialog" aria-label="Быстрый переход">
+          <div class="palette-search">
+            ${Icon.ui("quest")}
+            <input id="palette-input" type="text" placeholder="Куда перейти? Курс, комната, термин…" autocomplete="off">
+            <kbd>ESC</kbd>
+          </div>
+          <div id="palette-results" class="palette-results"></div>
+        </div>`;
+      document.body.appendChild(ov);
+      ov.addEventListener("click", (e) => { if (e.target === ov) closePalette(); });
+      const inp = ov.querySelector("#palette-input");
+      inp.addEventListener("input", () => filterPalette(inp.value));
+      inp.addEventListener("keydown", paletteKeys);
+    }
+    ov.classList.add("show");
+    filterPalette("");
+    setTimeout(() => { const i = document.getElementById("palette-input"); if (i) { i.value = ""; i.focus(); } }, 20);
+  }
+  function closePalette() {
+    palette.open = false;
+    const ov = document.getElementById("palette");
+    if (ov) ov.classList.remove("show");
+  }
+  function filterPalette(q) {
+    const query = q.trim().toLowerCase();
+    palette.filtered = (!query ? palette.items
+      : palette.items.filter((it) => (it.label + " " + it.sub).toLowerCase().includes(query))).slice(0, 40);
+    palette.active = 0;
+    renderPaletteResults();
+  }
+  function renderPaletteResults() {
+    const box = document.getElementById("palette-results");
+    if (!box) return;
+    if (!palette.filtered.length) { box.innerHTML = `<div class="palette-empty">Ничего не найдено</div>`; return; }
+    box.innerHTML = palette.filtered.map((it, i) => `
+      <div class="palette-item ${i === palette.active ? "active" : ""}" data-i="${i}" onclick="App.palettePick(${i})">
+        <span class="pi-label">${it.label}</span>
+        <span class="pi-sub">${it.sub}</span>
+      </div>`).join("");
+    const act = box.querySelector(".palette-item.active");
+    if (act) act.scrollIntoView({ block: "nearest" });
+  }
+  function paletteKeys(e) {
+    if (e.key === "ArrowDown") { e.preventDefault(); palette.active = Math.min(palette.active + 1, palette.filtered.length - 1); renderPaletteResults(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); palette.active = Math.max(palette.active - 1, 0); renderPaletteResults(); }
+    else if (e.key === "Enter") { e.preventDefault(); palettePick(palette.active); }
+    else if (e.key === "Escape") { e.preventDefault(); closePalette(); }
+  }
+  function palettePick(i) {
+    const it = palette.filtered[i];
+    if (!it) return;
+    closePalette();
+    it.go();
+  }
+
+  /* ---------- Анимация появления карточек ---------- */
+  let revealObserver = null;
+  function observeReveal() {
+    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || typeof IntersectionObserver === "undefined") {
+      document.querySelectorAll(".reveal").forEach((el) => el.classList.add("in"));
+      return;
+    }
+    if (!revealObserver) {
+      revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach((en) => { if (en.isIntersecting) { en.target.classList.add("in"); revealObserver.unobserve(en.target); } });
+      }, { threshold: 0.08 });
+    }
+    document.querySelectorAll(".reveal:not(.in)").forEach((el, i) => {
+      el.style.setProperty("--d", (i % 12) * 35 + "ms");
+      revealObserver.observe(el);
+    });
   }
 
   function renderProfile() {
@@ -1141,9 +1438,45 @@ const App = (() => {
 
   function celebrate(res) {
     if (!res || res.already) return;
-    if (res.xpGained) toast(`+${res.xpGained} XP 🎉`);
+    if (res.xpGained) toast(`+${res.xpGained} XP`);
+    if (res.levelUp) { toast(`🎉 Новый уровень: ${res.levelUp}!`); confetti(); }
+    if (res.newRank) toast(`${res.newRank.icon} Новое звание: ${res.newRank.name}`);
+    if (res.courseDone) confetti();
     (res.newAchievements || []).forEach((id) => toastAchievement(id));
     renderNav();
+  }
+
+  /* ---------- Конфетти (без библиотек) ---------- */
+  function confetti() {
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const cv = document.createElement("canvas");
+    cv.className = "confetti-canvas";
+    document.body.appendChild(cv);
+    const ctx = cv.getContext("2d");
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const W = cv.width = innerWidth * dpr, H = cv.height = innerHeight * dpr;
+    cv.style.width = innerWidth + "px"; cv.style.height = innerHeight + "px";
+    const colors = ["#f2620a", "#ff8c47", "#ffb182", "#1f9d61", "#74b9ff", "#ffd23f"];
+    const N = 140;
+    const parts = Array.from({ length: N }, () => ({
+      x: W / 2 + (Math.random() - 0.5) * 120 * dpr,
+      y: H * 0.28,
+      vx: (Math.random() - 0.5) * 15 * dpr,
+      vy: (Math.random() * -12 - 4) * dpr,
+      s: (Math.random() * 6 + 4) * dpr,
+      c: colors[(Math.random() * colors.length) | 0],
+      rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.3,
+    }));
+    let t = 0;
+    (function frame() {
+      t++; ctx.clearRect(0, 0, W, H);
+      parts.forEach((p) => {
+        p.vy += 0.35 * dpr; p.x += p.vx; p.y += p.vy; p.vx *= 0.99; p.rot += p.vr;
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+        ctx.fillStyle = p.c; ctx.fillRect(-p.s / 2, -p.s / 2, p.s, p.s * 0.6); ctx.restore();
+      });
+      if (t < 140) requestAnimationFrame(frame); else cv.remove();
+    })();
   }
 
   /* ---------- Тосты ---------- */
@@ -1209,15 +1542,59 @@ const App = (() => {
         if (!saved) applyTheme(e.matches ? "dark" : "light");
       });
     }
+    // глобальные горячие клавиши
+    document.addEventListener("keydown", (e) => {
+      const tag = (e.target && e.target.tagName) || "";
+      const typing = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault(); palette.open ? closePalette() : openPalette();
+      } else if (e.key === "Escape") {
+        closePalette(); closeShortcuts();
+      } else if (e.key === "?" && !typing) {
+        e.preventDefault(); openShortcuts();
+      }
+    });
     current = parseHash();
     render();
   }
+
+  /* ---------- Справка по горячим клавишам ---------- */
+  function openShortcuts() {
+    let ov = document.getElementById("shortcuts");
+    if (!ov) {
+      ov = document.createElement("div");
+      ov.id = "shortcuts"; ov.className = "modal-overlay";
+      const rows = [
+        ["Ctrl / ⌘ + K", "Быстрый переход (палитра)"],
+        ["?", "Эта справка"],
+        ["Esc", "Закрыть окно"],
+        ["↑ / ↓, Enter", "Навигация в палитре"],
+        ["Tab", "Автодополнение в песочнице"],
+        ["↑ / ↓", "История команд в песочнице"],
+      ];
+      ov.innerHTML = `
+        <div class="modal" role="dialog" aria-label="Горячие клавиши">
+          <div class="modal-head"><h3>Горячие клавиши</h3><button class="modal-x" onclick="App.closeShortcuts()" aria-label="Закрыть">✕</button></div>
+          <div class="sc-list">
+            ${rows.map(([k, d]) => `<div class="sc-row"><kbd>${k}</kbd><span>${d}</span></div>`).join("")}
+          </div>
+        </div>`;
+      document.body.appendChild(ov);
+      ov.addEventListener("click", (e) => { if (e.target === ov) closeShortcuts(); });
+    }
+    ov.classList.add("show");
+  }
+  function closeShortcuts() { const ov = document.getElementById("shortcuts"); if (ov) ov.classList.remove("show"); }
 
   return {
     init, go, submit, markInfo, showHint, toast, toastAchievement, resetConfirm, toggleTheme,
     catalogSearch, catalogLevel, catalogSort, downloadCertificate, exportProgress, importProgress,
     submitChoice, submitMatch, orderPick, orderReset, submitDaily,
+    submitMission, toggleShell, openShortcuts, closeShortcuts,
+    catalogSearch, catalogLevel, catalogSort, downloadCertificate, exportProgress, importProgress,
+    submitChoice, submitMatch, orderPick, orderReset, submitDaily,
     submitMission, toggleShell,
+    glossarySearch, submitExam, retryExam, openPalette, palettePick,
   };
 })();
 
