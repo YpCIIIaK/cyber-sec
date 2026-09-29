@@ -18,6 +18,10 @@ const Icon = (() => {
     ad: svg(`<path d="M5 20V6l6-3v17M11 20V9l7 2.5V20"/><path d="M4 20h16M8 8v.01M8 11v.01M8 14v.01M14.5 13v.01M14.5 16v.01"/>`),
     reverse: svg(`<rect x="7" y="7" width="10" height="10" rx="2"/><path d="M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4"/>`),
     forensics: svg(`<path d="M9 3h4M11 3v5"/><path d="M11 8a5 5 0 0 0-2 9.5V20a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2.5A5 5 0 0 0 11 8z"/><path d="M9.5 12.5c.8-.8 2.2-.8 3 0" opacity=".5"/>`),
+    phishing: svg(`<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3.5 7l8.5 6 8.5-6"/><path d="M16 18c0 1.7 1.3 3 3 3" opacity=".6"/>`),
+    hardening: svg(`<path d="M12 3l7 3v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3z"/><rect x="9.5" y="10.5" width="5" height="4.5" rx="1"/><path d="M10.5 10.5v-1a1.5 1.5 0 0 1 3 0v1"/>`),
+    blueteam: svg(`<path d="M12 3l7 3v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3z"/><path d="M8 12h2l1.5 3 2-6 1 3H16"/>`),
+    malware: svg(`<circle cx="12" cy="13" r="5"/><path d="M12 8V4M9 5l1.5 2M15 5l-1.5 2M4 11l2.5 1M20 11l-2.5 1M4.5 17l2.6-1.4M19.5 17l-2.6-1.4M12 18v3"/>`),
   };
 
   const UI = {

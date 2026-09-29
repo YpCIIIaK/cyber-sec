@@ -823,6 +823,313 @@ const COURSES = [
       },
     ],
   },
+
+  /* ==================== 11. АНАЛИЗ ФИШИНГА ==================== */
+  {
+    id: "phishing",
+    title: "Анализ фишинга",
+    icon: "✉️",
+    level: "Средний",
+    color: "#ff6a00",
+    summary: "Разбор фишинговых писем как в SOC: типы атак, аутентификация почты (SPF/DKIM/DMARC) и анализ заголовков. По реальным стандартам.",
+    tags: ["phishing", "email", "SOC"],
+    prereq: ["fundamentals"],
+    rooms: [
+      {
+        id: "ph_anatomy",
+        title: "Анатомия фишингового письма",
+        intro: `
+<h3>Разновидности фишинга</h3>
+<ul>
+  <li><b>Spear phishing</b> — целевая атака на конкретного человека/компанию.</li>
+  <li><b>Whaling</b> — фишинг на топ-менеджмент («крупную рыбу»).</li>
+  <li><b>BEC</b> (Business Email Compromise) — компрометация деловой переписки, поддельные счета/переводы.</li>
+  <li><b>Smishing / Vishing</b> — фишинг через SMS / голосом.</li>
+</ul>
+<h3>Признаки</h3>
+<ul>
+  <li>Срочность и давление, угрозы блокировки.</li>
+  <li>Несоответствие отображаемого имени и реального адреса.</li>
+  <li>Ссылки на поддельные домены, вложения-приманки.</li>
+  <li>Просьба сообщить пароль/код/реквизиты.</li>
+</ul>
+<div class="callout">🎣 Аналитик SOC ежедневно триажит такие письма — навык разбора критичен.</div>
+`,
+        tasks: [
+          { id: "pha_read", type: "info", title: "Изучить типы", prompt: "Прочитайте о видах фишинга.", points: 5 },
+          { id: "pha_spear", type: "question", title: "Целевой фишинг", prompt: "Как называется целевой фишинг на конкретного человека? (2 слова англ. или 1-е слово)", answers: ["spear phishing", "spear"], hints: ["Копьё по-английски."], points: 15 },
+          { id: "pha_whaling", type: "question", title: "Фишинг на топов", prompt: "Как называется фишинг на топ-менеджмент? (англ., 1 слово)", answers: ["whaling"], hints: ["«Охота на кита»."], points: 15 },
+          { id: "pha_bec", type: "question", title: "Компрометация переписки", prompt: "Аббревиатура атаки на деловую переписку (поддельные счета)? (3 буквы)", answers: ["bec"], hints: ["Business Email Compromise."], points: 15 },
+          { id: "pha_choice", type: "choice", title: "Что НЕ признак фишинга?", prompt: "Выберите то, что само по себе НЕ является признаком фишинга.", options: ["Срочность и угрозы", "Подпись PGP от известного отправителя", "Домен-двойник в ссылке", "Просьба ввести пароль по ссылке"], answers: ["Подпись PGP от известного отправителя"], points: 15 },
+        ],
+      },
+      {
+        id: "ph_auth",
+        title: "Аутентификация почты: SPF, DKIM, DMARC",
+        intro: `
+<h3>Три столпа доверия к отправителю</h3>
+<ul>
+  <li><b>SPF</b> (Sender Policy Framework) — какие серверы вправе слать почту от домена. Проверяет адрес конверта (MAIL FROM), а не видимое поле From.</li>
+  <li><b>DKIM</b> (DomainKeys Identified Mail) — криптоподпись заголовков/тела, подтверждает целостность и подлинность.</li>
+  <li><b>DMARC</b> (Domain-based Message Authentication, Reporting &amp; Conformance) — политика поверх SPF/DKIM + «выравнивание» (alignment) домена From, плюс отчёты.</li>
+</ul>
+<div class="callout">⚠️ Важно: SPF может «pass», даже если видимое From подделано, — поэтому нужен DMARC с выравниванием.</div>
+`,
+        tasks: [
+          { id: "pau_read", type: "info", title: "Изучить SPF/DKIM/DMARC", prompt: "Прочитайте про аутентификацию.", points: 5 },
+          { id: "pau_dkim", type: "question", title: "Целостность письма", prompt: "Какой механизм ставит криптоподпись и подтверждает целостность письма? (аббревиатура)", answers: ["dkim"], hints: ["DomainKeys Identified Mail."], points: 15 },
+          { id: "pau_dmarc", type: "question", title: "Политика поверх", prompt: "Какая политика объединяет SPF/DKIM и задаёт действие + отчёты? (аббревиатура)", answers: ["dmarc"], hints: ["...Reporting & Conformance."], points: 15 },
+          { id: "pau_match", type: "match", title: "Сопоставьте механизмы", prompt: "Соедините механизм с тем, что он делает.", pairs: [["SPF", "разрешённые серверы"], ["DKIM", "подпись целостности"], ["DMARC", "политика и отчёты"]], points: 20 },
+        ],
+      },
+      {
+        id: "ph_headers",
+        title: "Разбор заголовков письма",
+        intro: `
+<h3>Где искать правду</h3>
+<ul>
+  <li><b>Authentication-Results</b> — итоги проверок SPF/DKIM/DMARC (pass/fail).</li>
+  <li><b>Received</b> — путь письма по серверам (снизу вверх — от отправителя).</li>
+  <li><b>Return-Path</b> vs <b>From</b> — несовпадение доменов часто указывает на спуфинг.</li>
+  <li><b>Reply-To</b> — подмена адреса для ответа — частый приём.</li>
+</ul>
+<div class="callout">🔎 Порядок триажа: сначала Authentication-Results, затем сверка From / Return-Path и репутация IP из Received.</div>
+`,
+        tasks: [
+          { id: "phh_read", type: "info", title: "Изучить заголовки", prompt: "Прочитайте о разборе заголовков.", points: 5 },
+          { id: "phh_ar", type: "question", title: "Где итоги проверок", prompt: "В каком заголовке лежат результаты SPF/DKIM/DMARC? (англ., через дефис)", answers: ["authentication-results", "authentication results"], hints: ["Authentication-..."], points: 20 },
+          { id: "phh_mismatch", type: "question", title: "Признак спуфинга", prompt: "Несовпадение From и какого поля (адрес возврата) — красный флаг? (англ., через дефис)", answers: ["return-path", "return path", "returnpath"], hints: ["Return-..."], points: 15 },
+        ],
+      },
+    ],
+  },
+
+  /* ==================== 12. ХАРДЕНИНГ ==================== */
+  {
+    id: "hardening",
+    title: "Харденинг систем",
+    icon: "🔧",
+    level: "Средний",
+    color: "#e85400",
+    summary: "Снижение поверхности атаки и безопасная конфигурация по CIS Benchmarks: харденинг Windows, обновления и базовые линии.",
+    tags: ["hardening", "CIS", "конфигурация"],
+    prereq: ["windows"],
+    rooms: [
+      {
+        id: "hd_principles",
+        title: "Принципы харденинга",
+        intro: `
+<h3>Меньше поверхность — меньше риск</h3>
+<ul>
+  <li><b>Attack Surface Reduction</b> — отключать всё лишнее (службы, порты, фичи).</li>
+  <li><b>Least Privilege</b> — минимально необходимые права.</li>
+  <li><b>Defense in Depth</b> — несколько слоёв защиты.</li>
+  <li><b>Secure Defaults</b> — безопасные значения по умолчанию.</li>
+</ul>
+<h3>CIS Benchmarks</h3>
+<p><b>CIS Benchmarks</b> — согласованные отраслью гайды безопасной конфигурации ОС, облаков, приложений. Два уровня: <b>Level 1</b> (базовый, без потери функциональности) и <b>Level 2</b> (усиленный, для сред с повышенными требованиями).</p>
+<div class="callout">📏 Бенчмарки дают конкретные проверяемые настройки — основа аудита конфигураций.</div>
+`,
+        tasks: [
+          { id: "hdp_read", type: "info", title: "Изучить принципы", prompt: "Прочитайте о принципах и CIS.", points: 5 },
+          { id: "hdp_cis", type: "question", title: "Кто выпускает бенчмарки", prompt: "Аббревиатура организации, выпускающей бенчмарки конфигураций (3 буквы)?", answers: ["cis"], hints: ["Center for Internet Security."], points: 15 },
+          { id: "hdp_priv", type: "question", title: "Минимум прав", prompt: "Как называется принцип минимально необходимых прав? (2 слова англ.)", answers: ["least privilege"], hints: ["Least ..."], points: 15 },
+          { id: "hdp_level", type: "question", title: "Базовый уровень CIS", prompt: "Какой уровень CIS базовый и без потери функциональности? (Level и число)", answers: ["level 1", "1"], hints: ["Level 1 или Level 2?"], points: 10 },
+        ],
+      },
+      {
+        id: "hd_windows",
+        title: "Харденинг Windows",
+        intro: `
+<h3>Практические меры</h3>
+<ul>
+  <li>Отключить устаревший <b>SMBv1</b> (уязвим, вектор WannaCry).</li>
+  <li>Включить <b>BitLocker</b> — шифрование диска.</li>
+  <li><b>LAPS</b> — уникальные пароли локального админа.</li>
+  <li><b>AppLocker</b> / <b>WDAC</b> — контроль запуска приложений (белые списки).</li>
+  <li>Отключить лишние службы, включить брандмауэр, регулярно ставить патчи.</li>
+</ul>
+<div class="callout">🧪 Проверьте службы в песочнице: <code>Get-Service</code>.</div>
+`,
+        tasks: [
+          { id: "hdw_read", type: "info", title: "Изучить меры", prompt: "Прочитайте о харденинге Windows.", points: 5 },
+          { id: "hdw_smb", type: "question", title: "Отключить протокол", prompt: "Какой устаревший протокол (вектор WannaCry) надо отключить? (англ., включая версию)", answers: ["smbv1", "smb1"], hints: ["SMB + версия 1."], points: 15 },
+          { id: "hdw_bitlocker", type: "question", title: "Шифрование диска", prompt: "Штатное шифрование диска в Windows? (англ., 1 слово)", answers: ["bitlocker"], hints: ["Bit..."], points: 15 },
+          { id: "hdw_applock", type: "question", title: "Белые списки приложений", prompt: "Назовите технологию контроля запуска приложений в Windows (App... или WDAC).", answers: ["applocker", "wdac"], hints: ["AppLocker / WDAC"], points: 15 },
+        ],
+      },
+      {
+        id: "hd_baseline",
+        title: "Обновления и базовые линии",
+        intro: `
+<h3>Держать систему в форме</h3>
+<ul>
+  <li><b>Patch Management</b> — своевременная установка обновлений безопасности.</li>
+  <li><b>Security Baseline</b> — эталонный набор настроек (напр. Microsoft Security Baseline, применяется через GPO).</li>
+  <li><b>Configuration drift</b> — отклонение от эталона; выявляют аудитом.</li>
+</ul>
+<div class="callout">🛡️ Большинство взломов используют уже известные, но не закрытые уязвимости — патчинг критичен.</div>
+`,
+        tasks: [
+          { id: "hdb_read", type: "info", title: "Изучить обновления", prompt: "Прочитайте о патчах и базовых линиях.", points: 5 },
+          { id: "hdb_patch", type: "question", title: "Процесс обновлений", prompt: "Как называется процесс управления установкой обновлений? (2 слова англ.)", answers: ["patch management"], hints: ["Patch ..."], points: 15 },
+          { id: "hdb_drift", type: "question", title: "Отклонение от эталона", prompt: "Как называется отклонение конфигурации от эталона? (2 слова англ.)", answers: ["configuration drift", "config drift"], hints: ["Configuration ..."], points: 15 },
+        ],
+      },
+    ],
+  },
+
+  /* ==================== 13. BLUE TEAM ==================== */
+  {
+    id: "blueteam",
+    title: "Blue Team: SOC и реагирование",
+    icon: "🛰️",
+    level: "Сложный",
+    color: "#c94a00",
+    summary: "Оборона: SOC, SIEM/EDR, жизненный цикл реагирования по NIST SP 800-61, MITRE ATT&CK и Pyramid of Pain.",
+    tags: ["blueteam", "SOC", "MITRE"],
+    prereq: ["fundamentals", "networking"],
+    rooms: [
+      {
+        id: "bt_soc",
+        title: "SOC, SIEM и EDR",
+        intro: `
+<h3>Кто и чем защищает</h3>
+<ul>
+  <li><b>SOC</b> (Security Operations Center) — команда мониторинга и реагирования; уровни аналитиков L1/L2/L3.</li>
+  <li><b>SIEM</b> (Security Information and Event Management) — сбор, нормализация и корреляция логов, алерты.</li>
+  <li><b>EDR</b> (Endpoint Detection &amp; Response) — телеметрия и реагирование на конечных точках.</li>
+  <li><b>IOC</b> (индикатор компрометации) vs <b>IOA</b> (индикатор атаки/поведения).</li>
+</ul>
+<div class="callout">🔭 SIEM отвечает на «что произошло по логам», EDR — «что происходит на хосте».</div>
+`,
+        tasks: [
+          { id: "bts_read", type: "info", title: "Изучить SOC/SIEM/EDR", prompt: "Прочитайте о центре мониторинга.", points: 5 },
+          { id: "bts_siem", type: "question", title: "Корреляция логов", prompt: "Система сбора и корреляции логов с алертами? (аббревиатура, 4 буквы)", answers: ["siem"], hints: ["Security Information and Event Management."], points: 15 },
+          { id: "bts_edr", type: "question", title: "Защита конечных точек", prompt: "Телеметрия и реагирование на конечных точках? (аббревиатура, 3 буквы)", answers: ["edr"], hints: ["Endpoint Detection & Response."], points: 15 },
+          { id: "bts_ioc", type: "question", title: "След компрометации", prompt: "Аббревиатура индикатора компрометации (3 буквы)?", answers: ["ioc"], hints: ["Indicator of Compromise."], points: 15 },
+        ],
+      },
+      {
+        id: "bt_ir",
+        title: "Реагирование по NIST SP 800-61",
+        intro: `
+<h3>Жизненный цикл инцидента</h3>
+<p>Стандарт <b>NIST SP 800-61</b> определяет 4 фазы:</p>
+<ol>
+  <li><b>Preparation</b> — подготовка (люди, процессы, инструменты).</li>
+  <li><b>Detection &amp; Analysis</b> — обнаружение и анализ.</li>
+  <li><b>Containment, Eradication &amp; Recovery</b> — сдерживание, устранение, восстановление.</li>
+  <li><b>Post-Incident Activity</b> — разбор «lessons learned».</li>
+</ol>
+<div class="callout">🔁 Цикл замкнут: выводы после инцидента усиливают подготовку к следующему.</div>
+`,
+        tasks: [
+          { id: "bti_read", type: "info", title: "Изучить фазы IR", prompt: "Прочитайте про NIST SP 800-61.", points: 5 },
+          { id: "bti_std", type: "question", title: "Номер стандарта", prompt: "Номер NIST-стандарта по реагированию на инциденты? (формат 800-XX)", answers: ["800-61", "sp 800-61"], hints: ["NIST SP 800-..."], points: 15 },
+          { id: "bti_order", type: "order", title: "Порядок фаз IR", prompt: "Расставьте фазы реагирования по NIST по порядку.", items: ["Подготовка", "Обнаружение и анализ", "Сдерживание, устранение, восстановление", "Действия после инцидента"], points: 20 },
+          { id: "bti_first", type: "question", title: "Что важно ДО инцидента", prompt: "Какая фаза выполняется заранее, до инцидента? (1 слово рус.)", answers: ["подготовка"], hints: ["Preparation."], points: 10 },
+        ],
+      },
+      {
+        id: "bt_attack",
+        title: "MITRE ATT&CK и Pyramid of Pain",
+        intro: `
+<h3>Язык угроз</h3>
+<p><b>MITRE ATT&amp;CK</b> — база знаний тактик и техник атакующих. В Enterprise-матрице <b>14 тактик</b> (Initial Access, Execution, Persistence, … Exfiltration, Impact) и сотни техник. TTP = Tactics, Techniques, Procedures.</p>
+<h3>Pyramid of Pain (David Bianco, 2013)</h3>
+<p>Показывает, насколько «больно» атакующему, если детектить разные индикаторы — снизу вверх: хеши → IP-адреса → домены → сетевые/хостовые артефакты → инструменты → <b>TTP</b>. Детект TTP — самый болезненный для злоумышленника.</p>
+<div class="callout">🎯 Цель зрелой защиты — двигаться вверх пирамиды, к детекту поведения (TTP), а не только хешей.</div>
+`,
+        tasks: [
+          { id: "bta_read", type: "info", title: "Изучить ATT&CK", prompt: "Прочитайте про MITRE и пирамиду.", points: 5 },
+          { id: "bta_tactics", type: "question", title: "Сколько тактик", prompt: "Сколько тактик в матрице MITRE ATT&CK Enterprise? (число)", answers: ["14"], hints: ["Между 10 и 15."], points: 15 },
+          { id: "bta_ttp", type: "question", title: "Вершина пирамиды", prompt: "Что на вершине Pyramid of Pain (аббревиатура)?", answers: ["ttp", "ttps"], hints: ["Tactics, Techniques, Procedures."], points: 15 },
+          { id: "bta_author", type: "question", title: "Автор пирамиды", prompt: "Фамилия автора Pyramid of Pain?", answers: ["bianco"], hints: ["David ..."], points: 15 },
+        ],
+      },
+    ],
+  },
+
+  /* ==================== 14. АНАЛИЗ ВРЕДОНОСОВ ==================== */
+  {
+    id: "malware",
+    title: "Основы анализа вредоносов",
+    icon: "🦠",
+    level: "Сложный",
+    color: "#b84400",
+    summary: "Типы вредоносов и подходы к анализу (статический/динамический), безопасная лаборатория, поведение и закрепление. Требует реверса.",
+    tags: ["malware", "анализ", "IOC"],
+    prereq: ["windows", "reverse"],
+    rooms: [
+      {
+        id: "mw_types",
+        title: "Типы вредоносов и анализа",
+        intro: `
+<h3>Классификация</h3>
+<ul>
+  <li><b>Virus / Worm</b> — заражает файлы / распространяется сам по сети.</li>
+  <li><b>Trojan</b> — маскируется под легитимное ПО.</li>
+  <li><b>Ransomware</b> — шифрует данные ради выкупа.</li>
+  <li><b>Rootkit</b> — прячет присутствие в системе.</li>
+  <li><b>RAT</b> — средство удалённого управления.</li>
+</ul>
+<h3>Подходы к анализу</h3>
+<ul>
+  <li><b>Статический</b> — без запуска (строки, импорт, сигнатуры).</li>
+  <li><b>Динамический</b> — запуск в изолированной среде и наблюдение поведения.</li>
+  <li><b>Гибридный</b> — сочетание обоих.</li>
+</ul>
+`,
+        tasks: [
+          { id: "mwt_read", type: "info", title: "Изучить типы", prompt: "Прочитайте классификацию.", points: 5 },
+          { id: "mwt_static", type: "question", title: "Без запуска", prompt: "Как называется анализ без запуска образца? (1 слово рус.)", answers: ["статический"], hints: ["Противоположность динамическому."], points: 15 },
+          { id: "mwt_dynamic", type: "question", title: "С запуском", prompt: "Как называется анализ с запуском в изолированной среде? (1 слово рус.)", answers: ["динамический"], hints: ["Наблюдение поведения при запуске."], points: 15 },
+          { id: "mwt_choice", type: "choice", title: "Кто требует выкуп?", prompt: "Какой тип вредоноса шифрует файлы ради выкупа?", options: ["Rootkit", "Ransomware", "Worm", "Trojan"], answers: ["Ransomware"], points: 15 },
+        ],
+      },
+      {
+        id: "mw_lab",
+        title: "Безопасная лаборатория и индикаторы",
+        intro: `
+<h3>Не заразите себя</h3>
+<ul>
+  <li>Изолированная <b>VM</b> без доступа в продакшн-сеть; эмуляция сети (INetSim/FakeNet).</li>
+  <li><b>Snapshot</b> — снимок для отката после запуска образца.</li>
+  <li>Считать <b>хеш</b> (SHA-256), проверить на <b>VirusTotal</b> (много антивирусов сразу).</li>
+  <li>Собрать <b>IOC</b>: домены C2, хеши, ключи реестра, имена файлов.</li>
+</ul>
+<div class="callout">⚠️ Реальные образцы запускают ТОЛЬКО в изолированной лаборатории.</div>
+`,
+        tasks: [
+          { id: "mwl_read", type: "info", title: "Изучить лабораторию", prompt: "Прочитайте о безопасной среде.", points: 5 },
+          { id: "mwl_snapshot", type: "question", title: "Откат VM", prompt: "Как называется снимок состояния VM для отката? (англ., 1 слово)", answers: ["snapshot", "снимок"], hints: ["Snap..."], points: 15 },
+          { id: "mwl_vt", type: "question", title: "Мультисканер", prompt: "Сервис проверки файла множеством антивирусов? (1 слово)", answers: ["virustotal", "virus total"], hints: ["Virus..."], points: 15 },
+          { id: "mwl_hash", type: "question", title: "Идентификатор образца", prompt: "Что считают для однозначной идентификации образца? (1 слово рус.)", answers: ["хеш", "хэш", "hash"], hints: ["SHA-256 даёт это."], points: 10 },
+        ],
+      },
+      {
+        id: "mw_behavior",
+        title: "Поведение и закрепление",
+        intro: `
+<h3>Что делает вредонос в системе</h3>
+<ul>
+  <li><b>Persistence</b> (закрепление): Run-ключи реестра, планировщик задач, службы.</li>
+  <li><b>C2</b> (Command &amp; Control) — связь с сервером управления.</li>
+  <li><b>Packing</b> — упаковка/шифрование кода против анализа.</li>
+  <li><b>Anti-analysis / Anti-VM</b> — обнаружение песочницы и отладчика.</li>
+</ul>
+<div class="callout">🧪 Практика в песочнице: квест «Разбор закрепления в системе» (netstat → reg query → certutil) — найдите флаг закрепления.</div>
+`,
+        tasks: [
+          { id: "mwb_read", type: "info", title: "Изучить поведение", prompt: "Прочитайте о закреплении и C2.", points: 5 },
+          { id: "mwb_persist", type: "question", title: "Закрепление", prompt: "Общий англ. термин для закрепления в системе (автозагрузка, задачи, службы)?", answers: ["persistence"], hints: ["Persist..."], points: 15 },
+          { id: "mwb_c2", type: "question", title: "Сервер управления", prompt: "Аббревиатура сервера управления вредоносом (2 символа)?", answers: ["c2", "c&c"], hints: ["Command & Control."], points: 15 },
+          { id: "mwb_flag", type: "flag", title: "🚩 Найдите закрепление в песочнице", prompt: "Пройдите в песочнице цепочку netstat → reg query …Run → certutil -decode и введите флаг закрепления.", answers: ["CYBER{persistence_found}"], hints: ["Квест «Разбор закрепления в системе» на вкладке Песочница.", "certutil -decode <строка из ключа updater>"], points: 25, sandbox: true, caseSensitive: true },
+        ],
+      },
+    ],
+  },
 ];
 
 /* Итоговые агрегаты для удобства */
