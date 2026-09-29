@@ -656,18 +656,46 @@ const App = (() => {
     }
   }
 
+  /* ---------- Тема (светлая / тёмная) ---------- */
+  const THEME_KEY = "cyberpath_theme";
+  function currentTheme() {
+    let saved = null;
+    try { saved = localStorage.getItem(THEME_KEY); } catch (e) {}
+    if (saved === "dark" || saved === "light") return saved;
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    const btn = document.getElementById("theme-toggle");
+    if (btn) btn.innerHTML = theme === "dark" ? Icon.ui("sun") : Icon.ui("moon");
+  }
+  function toggleTheme() {
+    const next = currentTheme() === "dark" ? "light" : "dark";
+    try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+    applyTheme(next);
+  }
+
   /* ---------- Инициализация ---------- */
   function init() {
+    applyTheme(currentTheme());
     Progress.trackVisit();
     window.addEventListener("hashchange", () => {
       current = parseHash();
       render();
     });
+    // реагируем на смену системной темы, если пользователь не выбрал вручную
+    if (window.matchMedia) {
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+        let saved = null;
+        try { saved = localStorage.getItem(THEME_KEY); } catch (err) {}
+        if (!saved) applyTheme(e.matches ? "dark" : "light");
+      });
+    }
     current = parseHash();
     render();
   }
 
-  return { init, go, submit, markInfo, showHint, toast, toastAchievement, resetConfirm };
+  return { init, go, submit, markInfo, showHint, toast, toastAchievement, resetConfirm, toggleTheme };
 })();
 
 document.addEventListener("DOMContentLoaded", App.init);
