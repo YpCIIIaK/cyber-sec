@@ -1080,7 +1080,7 @@ const App = (() => {
   function buildExam(course) {
     // берём вопросы с проверяемым ответом (question/flag/choice), перемешиваем, до 5
     const pool = course.rooms.flatMap((r) => r.tasks)
-      .filter((t) => (t.type === "question" || t.type === "choice" || t.type === "flag") && (t.answers || t.answer));
+      .filter((t) => (t.type === "question" || t.type === "choice") && (t.answers || t.answer));
     const shuffled = pool.slice().sort(() => Math.random() - 0.5);
     return shuffled.slice(0, Math.min(5, shuffled.length));
   }
