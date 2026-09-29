@@ -9,13 +9,18 @@ const Progress = (() => {
 
   const defaultState = {
     completed: {},        // taskId -> true
+    earned: {},           // taskId -> реально начисленный XP (с учётом подсказок)
     hintsUsed: {},        // taskId -> count
     xp: 0,
     achievements: {},     // id -> timestamp
     lastVisit: null,      // YYYY-MM-DD
     streak: 0,
+    dailyDate: null,      // дата последнего решённого ежедневного задания
+    dailySolved: 0,       // сколько всего решено ежедневных
     createdAt: Date.now(),
   };
+
+  const HINT_PENALTY = 5; // XP штраф за каждую использованную подсказку
 
   let state = load();
 
@@ -39,12 +44,21 @@ const Progress = (() => {
 
   function isDone(taskId) { return !!state.completed[taskId]; }
 
+  // Эффективный XP за задание с учётом использованных подсказок
+  function effectivePoints(task) {
+    const base = task.points || 0;
+    const penalty = (state.hintsUsed[task.id] || 0) * HINT_PENALTY;
+    return Math.max(1, base - penalty);
+  }
+
   function completeTask(task, courseId) {
     if (state.completed[task.id]) return { already: true };
+    const gained = effectivePoints(task);
     state.completed[task.id] = true;
-    state.xp += task.points || 0;
+    state.earned[task.id] = gained;
+    state.xp += gained;
 
-    const events = { xpGained: task.points || 0, newAchievements: [] };
+    const events = { xpGained: gained, newAchievements: [] };
 
     // достижения
     if (Object.keys(state.completed).length === 1) tryAch("first_blood", events);
@@ -170,10 +184,35 @@ const Progress = (() => {
     return { ok: true };
   }
 
-  // Заработанный XP внутри конкретного курса (для сертификата)
+  // Реально заработанный XP внутри курса (с учётом подсказок)
   function courseXP(course) {
     return course.rooms.reduce((s, r) =>
-      s + r.tasks.reduce((a, t) => a + (state.completed[t.id] ? (t.points || 0) : 0), 0), 0);
+      s + r.tasks.reduce((a, t) => a + (state.completed[t.id] ? (state.earned[t.id] ?? t.points ?? 0) : 0), 0), 0);
+  }
+
+  /* ---------- Ежедневное задание ---------- */
+  function todayStr() { return new Date().toISOString().slice(0, 10); }
+  function dayIndex() {
+    return Math.floor(Date.parse(todayStr()) / 86400000);
+  }
+  function dailyToday() {
+    return DAILY_QUESTIONS[dayIndex() % DAILY_QUESTIONS.length];
+  }
+  function dailyIsDone() { return state.dailyDate === todayStr(); }
+  function dailyCount() { return state.dailySolved || 0; }
+  function solveDaily() {
+    if (dailyIsDone()) return { already: true };
+    state.dailyDate = todayStr();
+    state.dailySolved = (state.dailySolved || 0) + 1;
+    state.xp += DAILY_BONUS;
+    const events = { xpGained: DAILY_BONUS, newAchievements: [] };
+    if (state.dailySolved >= 5) tryAch("daily_5", events);
+    if (state.xp >= 1000) tryAch("hundred_k", events);
+    const lvl = level();
+    if (lvl >= 5) tryAch("level_5", events);
+    if (lvl >= 10) tryAch("level_10", events);
+    save();
+    return events;
   }
   function completedAtISO() {
     return new Date().toISOString().slice(0, 10);
@@ -184,6 +223,8 @@ const Progress = (() => {
     courseProgress, courseUnlocked, missingPrereqs, overallStats, level, xpInLevel, xpToNext,
     unlockAchievement, hasAchievement, trackVisit, reset,
     exportData, importData, courseXP, completedAtISO,
+    effectivePoints, hintPenalty: () => HINT_PENALTY,
+    dailyToday, dailyIsDone, dailyCount, solveDaily,
     _state: () => state,
   };
 })();
@@ -204,6 +245,7 @@ const App = (() => {
   let current = { view: "home" };
 
   function go(view, params = {}) {
+    stopRoomTimer();
     current = { view, ...params };
     document.body.classList.remove("nav-open");
     location.hash = buildHash(view, params);
@@ -300,6 +342,7 @@ const App = (() => {
       </section>
 
       ${continueBlock()}
+      ${dailyCard()}
 
       <section class="features">
         ${[
@@ -358,6 +401,40 @@ const App = (() => {
           <button class="btn btn-primary">${started ? "Продолжить" : "Начать"} ${Icon.ui("arrow")}</button>
         </div>
       </section>`;
+  }
+
+  function dailyCard() {
+    const done = Progress.dailyIsDone();
+    const q = Progress.dailyToday();
+    return `
+      <section class="section daily-section">
+        <div class="daily-card ${done ? "done" : ""}">
+          <div class="daily-badge">${Icon.ui("flame")} Задание дня<span class="daily-bonus">+${DAILY_BONUS} XP</span></div>
+          ${done
+            ? `<p class="daily-done">${Icon.ui("check")} Решено сегодня! Возвращайтесь завтра за новым заданием. Решено всего: ${Progress.dailyCount()}.</p>`
+            : `
+              <p class="daily-q">${q.q}</p>
+              <div class="answer-row daily-row">
+                <input type="text" id="daily-input" placeholder="Ваш ответ"
+                       onkeydown="if(event.key==='Enter')App.submitDaily()">
+                <button class="btn btn-primary btn-sm" onclick="App.submitDaily()">Ответить</button>
+              </div>
+              <div class="feedback" id="fb-daily"></div>`}
+        </div>
+      </section>`;
+  }
+  function submitDaily() {
+    const input = document.getElementById("daily-input");
+    const fb = document.getElementById("fb-daily");
+    if (!input || !input.value.trim()) { if (fb) fb.innerHTML = `<span class="fb-warn">Введите ответ</span>`; return; }
+    const q = Progress.dailyToday();
+    if (checkAnswer({ answers: q.answers }, input.value)) {
+      const res = Progress.solveDaily();
+      celebrate(res);
+      render();
+    } else {
+      if (fb) fb.innerHTML = `<span class="fb-err">✗ Неверно. Попробуйте ещё раз.</span>`;
+    }
   }
 
   function courseCard(course) {
@@ -552,6 +629,12 @@ const App = (() => {
         <div class="room-header">
           <span class="rh-tag">Комната ${idx + 1}/${course.rooms.length}</span>
           <h1>${room.title}</h1>
+          <div class="room-meta">
+            <span class="room-chip timer-chip">${Icon.ui("progress")} <span id="room-timer">00:00</span></span>
+            <span class="room-chip nohint-chip ${Progress.roomUsedNoHints(room) ? "on" : "off"}">
+              ${Icon.ui("bolt")} ${Progress.roomUsedNoHints(room) ? "Без подсказок" : "Подсказки использованы"}
+            </span>
+          </div>
         </div>
         <div class="room-columns">
           <div class="lesson card">${room.intro}</div>
@@ -566,6 +649,7 @@ const App = (() => {
       </section>`;
     highlightNav();
     addCopyButtons();
+    startRoomTimer(Progress.roomCompleted(room));
 
     // проверка "без подсказок"
     if (Progress.roomCompleted(room) && Progress.roomUsedNoHints(room)) {
@@ -589,6 +673,26 @@ const App = (() => {
       });
       pre.appendChild(btn);
     });
+  }
+
+  // Таймер комнаты
+  let roomTimerId = null, roomStartTs = 0;
+  function stopRoomTimer() { if (roomTimerId) { clearInterval(roomTimerId); roomTimerId = null; } }
+  function startRoomTimer(frozen) {
+    stopRoomTimer();
+    const el = document.getElementById("room-timer");
+    if (!el) return;
+    if (frozen) { el.textContent = "готово"; return; }
+    roomStartTs = Date.now();
+    const tick = () => {
+      const s = Math.floor((Date.now() - roomStartTs) / 1000);
+      const mm = String(Math.floor(s / 60)).padStart(2, "0");
+      const ss = String(s % 60).padStart(2, "0");
+      const t = document.getElementById("room-timer");
+      if (t) t.textContent = `${mm}:${ss}`; else stopRoomTimer();
+    };
+    tick();
+    roomTimerId = setInterval(tick, 1000);
   }
 
   // Скачать сертификат курса как PNG
@@ -655,29 +759,87 @@ const App = (() => {
           </div>
         </div>
         <p class="task-prompt">${task.prompt}</p>
-        ${task.type === "info"
-          ? (done ? `<div class="task-ok">${Icon.ui("check")} Отмечено как прочитанное</div>`
-                  : `<button class="btn btn-primary btn-sm" onclick="App.markInfo('${course.id}','${task.id}')">Понятно, дальше</button>`)
-          : (done
-              ? `<div class="task-ok">${Icon.ui("check")} Верно! Решено</div>`
-              : `
-                <div class="answer-row">
-                  <input type="text" id="ans-${task.id}" placeholder="${task.type === "flag" ? "CYBER{...}" : "Ваш ответ"}"
-                         onkeydown="if(event.key==='Enter')App.submit('${course.id}','${task.id}')">
-                  <button class="btn btn-primary btn-sm" onclick="App.submit('${course.id}','${task.id}')">Проверить</button>
-                </div>
-                <div class="feedback" id="fb-${task.id}"></div>
-                ${hints.length ? `
-                  <div class="hints">
-                    ${hints.map((h, i) => i < hintsShown
-                      ? `<div class="hint-shown">💡 ${h}</div>`
-                      : (i === hintsShown ? `<button class="hint-btn" onclick="App.showHint('${task.id}',${i})">Показать подсказку ${i + 1} (−0 XP)</button>` : "")
-                    ).join("")}
-                  </div>` : ""}
-              `)
-        }
+        ${done
+          ? `<div class="task-ok">${Icon.ui("check")} ${task.type === "info" ? "Отмечено как прочитанное" : "Верно! Решено (+" + (Progress._state().earned[task.id] ?? task.points) + " XP)"}</div>`
+          : answerArea(course, task) + hintsArea(course, task)}
       </div>`;
   }
+
+  function answerArea(course, task) {
+    const cid = course.id, tid = task.id;
+    switch (task.type) {
+      case "info":
+        return `<button class="btn btn-primary btn-sm" onclick="App.markInfo('${cid}','${tid}')">Понятно, дальше</button>`;
+      case "choice":
+        return `
+          <div class="choice-grid">
+            ${task.options.map((o) => `<button class="choice-opt" onclick="App.submitChoice('${cid}','${tid}',this)">${o}</button>`).join("")}
+          </div>
+          <div class="feedback" id="fb-${tid}"></div>`;
+      case "match": {
+        const rights = shuffleSeed(task.pairs.map((p) => p[1]), tid);
+        return `
+          <div class="match-grid" id="match-${tid}">
+            ${task.pairs.map((p, i) => `
+              <div class="match-row">
+                <span class="match-left">${p[0]}</span>
+                <span class="match-arrow">${Icon.ui("arrow")}</span>
+                <select class="match-sel" data-left="${escapeAttr(p[0])}">
+                  <option value="">— выбрать —</option>
+                  ${rights.map((r) => `<option value="${escapeAttr(r)}">${r}</option>`).join("")}
+                </select>
+              </div>`).join("")}
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="App.submitMatch('${cid}','${tid}')">Проверить</button>
+          <div class="feedback" id="fb-${tid}"></div>`;
+      }
+      case "order": {
+        const shuffled = shuffleSeed(task.items.slice(), tid);
+        return `
+          <div class="order-picked" id="order-picked-${tid}" data-count="0"></div>
+          <div class="order-pool" id="order-pool-${tid}">
+            ${shuffled.map((it) => `<button class="order-tok" onclick="App.orderPick('${cid}','${tid}',this)">${it}</button>`).join("")}
+          </div>
+          <button class="hint-btn" onclick="App.orderReset('${tid}')">Сбросить</button>
+          <div class="feedback" id="fb-${tid}"></div>`;
+      }
+      default: // question / flag
+        return `
+          <div class="answer-row">
+            <input type="text" id="ans-${tid}" placeholder="${task.type === "flag" ? "CYBER{...}" : "Ваш ответ"}"
+                   onkeydown="if(event.key==='Enter')App.submit('${cid}','${tid}')">
+            <button class="btn btn-primary btn-sm" onclick="App.submit('${cid}','${tid}')">Проверить</button>
+          </div>
+          <div class="feedback" id="fb-${tid}"></div>`;
+    }
+  }
+
+  function hintsArea(course, task) {
+    const hints = task.hints || [];
+    if (!hints.length) return "";
+    const shown = Progress.hintsUsedFor(task.id);
+    const cost = Progress.hintPenalty();
+    return `
+      <div class="hints">
+        ${hints.map((h, i) => i < shown
+          ? `<div class="hint-shown">💡 ${h}</div>`
+          : (i === shown ? `<button class="hint-btn" onclick="App.showHint('${task.id}',${i})">Показать подсказку ${i + 1} (−${cost} XP)</button>` : "")
+        ).join("")}
+      </div>`;
+  }
+
+  // Детерминированное перемешивание по строковому seed (стабильно между ререндерами)
+  function shuffleSeed(arr, seed) {
+    let h = 0; for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      h = (h * 1103515245 + 12345) & 0x7fffffff;
+      const j = h % (i + 1);
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  function escapeAttr(s) { return String(s).replace(/"/g, "&quot;"); }
 
   function completionBanner(course, room, nextRoom) {
     return `
@@ -835,12 +997,72 @@ const App = (() => {
   }
 
   function markInfo(courseId, taskId) {
+    solveTask(courseId, taskId);
+  }
+
+  // Общий путь «задание решено»
+  function findTask(courseId, taskId) {
     const course = COURSES.find((c) => c.id === courseId);
     const task = course.rooms.flatMap((r) => r.tasks).find((t) => t.id === taskId);
+    const roomId = course.rooms.find((r) => r.tasks.includes(task)).id;
+    return { course, task, roomId };
+  }
+  function solveTask(courseId, taskId) {
+    const { task, roomId } = findTask(courseId, taskId);
     const res = Progress.completeTask(task, courseId);
     celebrate(res);
-    const roomId = course.rooms.find((r) => r.tasks.includes(task)).id;
     renderRoom(courseId, roomId);
+  }
+  function wrongFx(taskId, msg) {
+    const fb = document.getElementById(`fb-${taskId}`);
+    if (fb) fb.innerHTML = `<span class="fb-err">✗ ${msg || "Неверно, попробуйте ещё раз."}</span>`;
+    const el = document.getElementById(`task-${taskId}`);
+    if (el) { el.classList.remove("shake"); void el.offsetWidth; el.classList.add("shake"); }
+  }
+
+  function submitChoice(courseId, taskId, btn) {
+    const { task } = findTask(courseId, taskId);
+    if (checkAnswer(task, btn.textContent)) solveTask(courseId, taskId);
+    else { btn.classList.add("wrong"); setTimeout(() => btn.classList.remove("wrong"), 600); wrongFx(taskId); }
+  }
+
+  function submitMatch(courseId, taskId) {
+    const { task } = findTask(courseId, taskId);
+    const sels = document.querySelectorAll(`#match-${taskId} .match-sel`);
+    const correct = {};
+    task.pairs.forEach((p) => (correct[p[0]] = p[1]));
+    let allFilled = true, allRight = true;
+    sels.forEach((s) => {
+      if (!s.value) allFilled = false;
+      const ok = s.value === correct[s.dataset.left];
+      s.classList.toggle("bad", !!s.value && !ok);
+      if (!ok) allRight = false;
+    });
+    if (!allFilled) { wrongFx(taskId, "Заполните все пары."); return; }
+    if (allRight) solveTask(courseId, taskId);
+    else wrongFx(taskId, "Есть ошибки в сопоставлении.");
+  }
+
+  function orderPick(courseId, taskId, btn) {
+    const picked = document.getElementById(`order-picked-${taskId}`);
+    const tok = document.createElement("span");
+    tok.className = "order-num";
+    tok.textContent = (picked.children.length + 1) + ". " + btn.textContent;
+    picked.appendChild(tok);
+    btn.disabled = true; btn.classList.add("used");
+    const { task } = findTask(courseId, taskId);
+    if (picked.children.length === task.items.length) {
+      const seq = Array.from(picked.children).map((c) => c.textContent.replace(/^\d+\.\s/, ""));
+      const ok = seq.every((v, i) => v === task.items[i]);
+      if (ok) solveTask(courseId, taskId);
+      else { wrongFx(taskId, "Порядок неверный, сброшено."); setTimeout(() => orderReset(taskId), 700); }
+    }
+  }
+  function orderReset(taskId) {
+    const picked = document.getElementById(`order-picked-${taskId}`);
+    if (picked) picked.innerHTML = "";
+    document.querySelectorAll(`#order-pool-${taskId} .order-tok`).forEach((b) => { b.disabled = false; b.classList.remove("used"); });
+    const fb = document.getElementById(`fb-${taskId}`); if (fb) fb.innerHTML = "";
   }
 
   function showHint(taskId, i) {
@@ -926,6 +1148,7 @@ const App = (() => {
   return {
     init, go, submit, markInfo, showHint, toast, toastAchievement, resetConfirm, toggleTheme,
     catalogSearch, catalogLevel, catalogSort, downloadCertificate, exportProgress, importProgress,
+    submitChoice, submitMatch, orderPick, orderReset, submitDaily,
   };
 })();
 

@@ -14,7 +14,27 @@ const ACHIEVEMENTS = [
   { id: "terminal_master", icon: "💻", title: "Повелитель терминала", desc: "Найдите скрытый флаг в песочнице" },
   { id: "no_hints", icon: "🧠", title: "Чистый разум", desc: "Пройдите комнату без подсказок" },
   { id: "hundred_k", icon: "💎", title: "Тысяча очков", desc: "Наберите 1000 XP" },
+  { id: "daily_5", icon: "📅", title: "Постоянство", desc: "Решите 5 ежедневных заданий" },
 ];
+
+/* Пул ежедневных заданий (по одному в день, +бонус XP) */
+const DAILY_QUESTIONS = [
+  { q: "На каком порту по умолчанию работает HTTPS?", answers: ["443"] },
+  { q: "Протокол аутентификации в Active Directory? (англ.)", answers: ["kerberos"] },
+  { q: "Как называется атака внедрения SQL в ввод? (2 слова, англ., через дефис или пробел)", answers: ["sql injection", "sql-injection", "sqli"] },
+  { q: "Команда cmd для вывода содержимого файла?", answers: ["type"] },
+  { q: "Свойство триады CIA, которое ломает DDoS? (рус.)", answers: ["доступность"] },
+  { q: "Аббревиатура механизма запроса прав администратора в Windows? (3 буквы)", answers: ["uac"] },
+  { q: "Стандартный порт SSH?", answers: ["22"] },
+  { q: "Кодировка, обратимая без ключа: Base...? (число)", answers: ["64", "base64"] },
+  { q: "Тип XSS, который сохраняется в БД? (англ.)", answers: ["stored"] },
+  { q: "Утилита для сканирования портов? (англ.)", answers: ["nmap"] },
+  { q: "Как называется голосовой фишинг? (англ.)", answers: ["vishing"] },
+  { q: "Главная таблица файлов NTFS (аббревиатура, 3 буквы)?", answers: ["mft"] },
+  { q: "Фреймворк анализа дампов памяти? (англ.)", answers: ["volatility"] },
+  { q: "Формат исполняемых файлов Windows (аббревиатура, 2 буквы)?", answers: ["pe"] },
+];
+const DAILY_BONUS = 20;
 
 /* Каждое задание task:
    { id, type: "question"|"info"|"flag", title, prompt, answer, answers[], hints[], points, caseSensitive }
@@ -51,6 +71,7 @@ const COURSES = [
           { id: "cia_ddos", type: "question", title: "Какое свойство ломает DDoS?", prompt: "Одно слово на русском: конфиденциальность, целостность или доступность.", answers: ["доступность"], hints: ["DDoS «кладёт» сервис.", "Пользователи не могут зайти на сайт."], points: 10 },
           { id: "cia_leak", type: "question", title: "Утечка паролей ломает…", prompt: "Какое свойство триады нарушает утечка приватных данных?", answers: ["конфиденциальность"], hints: ["Данные увидели те, кому нельзя."], points: 10 },
           { id: "cia_abbr", type: "question", title: "Расшифровка", prompt: "Что означает буква I в CIA (одно слово, англ.)?", answers: ["integrity"], hints: ["Целостность по-английски."], points: 10 },
+          { id: "cia_choice", type: "choice", title: "Что лишнее?", prompt: "Что НЕ входит в триаду CIA?", options: ["Конфиденциальность", "Целостность", "Масштабируемость", "Доступность"], answers: ["Масштабируемость"], points: 15 },
         ],
       },
       {
@@ -238,6 +259,7 @@ const COURSES = [
           { id: "tcp_https", type: "question", title: "Порт HTTPS", prompt: "На каком порту по умолчанию работает HTTPS?", answers: ["443"], hints: ["HTTP=80, HTTPS=..."], points: 10 },
           { id: "tcp_ssh", type: "question", title: "Порт SSH", prompt: "Стандартный порт SSH?", answers: ["22"], hints: ["Безопасный удалённый доступ."], points: 10 },
           { id: "tcp_handshake", type: "question", title: "Рукопожатие TCP", prompt: "Какой первый флаг отправляет клиент в three-way handshake? (англ., 3 буквы)", answers: ["syn"], hints: ["SYN → SYN/ACK → ACK"], points: 15 },
+          { id: "tcp_match", type: "match", title: "Сопоставьте порты", prompt: "Соедините порт со стандартным сервисом.", pairs: [["22", "SSH"], ["443", "HTTPS"], ["53", "DNS"], ["3389", "RDP"]], points: 20 },
         ],
       },
       {
@@ -400,6 +422,7 @@ const COURSES = [
           { id: "meth_first", type: "question", title: "Первая фаза", prompt: "Как называется первая фаза — сбор информации? (англ., 1 слово)", answers: ["reconnaissance", "recon"], hints: ["Разведка."], points: 15 },
           { id: "meth_last", type: "question", title: "Финал", prompt: "Какая фаза завершает пентест и даёт ценность заказчику? (англ., 1 слово)", answers: ["reporting", "report"], hints: ["Отчёт."], points: 15 },
           { id: "meth_privesc", type: "question", title: "Повышение прав", prompt: "Как коротко называют повышение привилегий? (англ., 1 слово-сленг)", answers: ["privesc"], hints: ["Privilege Escalation → priv..."], points: 15 },
+          { id: "meth_order", type: "order", title: "Порядок фаз", prompt: "Расставьте фазы пентеста по порядку — нажимайте по очереди.", items: ["Разведка", "Сканирование", "Эксплуатация", "Пост-эксплуатация", "Отчёт"], points: 20 },
         ],
       },
       {

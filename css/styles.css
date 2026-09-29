@@ -526,6 +526,56 @@ main { min-height: 72vh; }
 .complete-banner h3 { font-size: 1.3rem; margin: 6px 0; }
 .complete-banner p { color: var(--ink-2); margin-bottom: 18px; }
 
+/* Интерактивные типы заданий */
+.choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; padding-left: 39px; }
+.choice-opt {
+  text-align: left; padding: 12px 15px; border: 1.5px solid var(--line); border-radius: 11px;
+  background: var(--surface); color: var(--ink); font-family: var(--sans); font-weight: 500; font-size: .9rem;
+  cursor: pointer; transition: .15s;
+}
+.choice-opt:hover { border-color: var(--o-300); background: var(--o-50); }
+.choice-opt.wrong { border-color: var(--err); background: color-mix(in srgb, var(--err) 12%, var(--surface)); animation: shake .4s; }
+
+.match-grid { padding-left: 39px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.match-row { display: grid; grid-template-columns: auto 24px 1fr; align-items: center; gap: 10px; }
+.match-left { font-family: var(--mono); font-weight: 600; background: var(--o-50); color: var(--o-700); border: 1px solid var(--o-100); padding: 6px 12px; border-radius: 8px; min-width: 64px; text-align: center; }
+.match-arrow svg { width: 16px; height: 16px; color: var(--muted); }
+.match-sel { padding: 9px 12px; border: 1.5px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink); font-family: var(--sans); font-size: .9rem; cursor: pointer; }
+.match-sel.bad { border-color: var(--err); }
+.match-grid + .btn { margin-left: 39px; }
+
+.order-pool { padding-left: 39px; display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.order-picked { padding-left: 39px; display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; min-height: 2px; }
+.order-tok, .order-num { font-family: var(--sans); font-size: .88rem; font-weight: 600; padding: 8px 14px; border-radius: 9px; }
+.order-tok { background: var(--surface); border: 1.5px solid var(--line); color: var(--ink); cursor: pointer; transition: .15s; }
+.order-tok:hover { border-color: var(--o-300); background: var(--o-50); }
+.order-tok.used { opacity: .35; cursor: default; }
+.order-num { background: var(--o-500); color: #fff; }
+:root[data-theme="dark"] .order-num { color: #14110d; }
+.order-pool + .hint-btn { margin-left: 39px; }
+
+/* Задание дня */
+.daily-section { padding-top: 40px; padding-bottom: 0; }
+.daily-card { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--o-500); border-radius: var(--r); padding: 22px 24px; box-shadow: var(--sh-sm); }
+.daily-card.done { border-left-color: var(--ok); }
+.daily-badge { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; font-size: .82rem; color: var(--o-700); margin-bottom: 12px; }
+.daily-badge svg { width: 16px; height: 16px; }
+.daily-bonus { background: var(--ink); color: #fff; font-size: .68rem; padding: 3px 8px; border-radius: 6px; margin-left: 4px; }
+:root[data-theme="dark"] .daily-bonus { background: var(--o-600); color: #14110d; }
+.daily-q { font-size: 1.05rem; font-weight: 600; color: var(--ink); margin-bottom: 12px; }
+.daily-row { padding-left: 0; max-width: 460px; }
+.daily-done { display: inline-flex; align-items: center; gap: 8px; color: var(--ok); font-weight: 600; }
+.daily-done svg { width: 18px; height: 18px; }
+.daily-card .feedback { padding-left: 0; }
+
+/* Мета-строка комнаты (таймер, без подсказок) */
+.room-meta { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+.room-chip { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; font-weight: 600; padding: 6px 12px; border-radius: 20px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.room-chip svg { width: 15px; height: 15px; }
+.timer-chip { color: var(--o-700); border-color: var(--o-100); background: var(--o-50); }
+.nohint-chip.on { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 30%, var(--line)); background: var(--ok-bg); }
+.nohint-chip.off { color: var(--muted); }
+
 .shake { animation: shake .4s; }
 @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-6px)} 40%,80%{transform:translateX(6px)} }
 
