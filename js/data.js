@@ -101,78 +101,105 @@ const COURSES = [
     ],
   },
 
-  /* ==================== 2. LINUX ==================== */
+  /* ==================== 2. WINDOWS ==================== */
   {
-    id: "linux",
-    title: "Linux для хакеров",
-    icon: "🐧",
+    id: "windows",
+    title: "Windows для безопасности",
+    icon: "🪟",
     level: "Новичок",
     color: "#ff8c33",
-    summary: "Командная строка, файловая система, права доступа и основы разведки в системе. С заданиями в песочнице.",
-    tags: ["linux", "терминал", "практика"],
+    summary: "Командная строка Windows (cmd), PowerShell, учётные записи и права NTFS, разведка системы. С заданиями в песочнице.",
+    tags: ["windows", "cmd", "powershell"],
     rooms: [
       {
-        id: "cli_basics",
-        title: "Основы командной строки",
+        id: "cmd_basics",
+        title: "Командная строка Windows (cmd)",
         intro: `
-<h3>Терминал — ваш главный инструмент</h3>
-<p>Базовые команды навигации:</p>
+<h3>Консоль Windows — ваш инструмент</h3>
+<p>Открыть: <kbd>Win+R</kbd> → введите <code>cmd</code> → Enter. Базовые команды:</p>
 <ul>
-  <li><code>pwd</code> — где я сейчас (текущий каталог).</li>
-  <li><code>ls</code> — список файлов; <code>ls -la</code> — включая скрытые и права.</li>
-  <li><code>cd путь</code> — сменить каталог.</li>
-  <li><code>cat файл</code> — вывести содержимое файла.</li>
+  <li><code>dir</code> — список файлов и папок в текущем каталоге.</li>
+  <li><code>cd путь</code> — сменить каталог; <code>cd ..</code> — на уровень вверх.</li>
+  <li><code>type файл.txt</code> — вывести содержимое файла.</li>
   <li><code>whoami</code> — под каким пользователем я работаю.</li>
+  <li><code>cls</code> — очистить экран; <code>ver</code> — версия Windows.</li>
 </ul>
 <div class="callout">🧪 Откройте вкладку <b>Песочница</b> и попробуйте команды вживую! Наберите <code>help</code>.</div>
 `,
         tasks: [
-          { id: "cli_read", type: "info", title: "Изучить команды", prompt: "Прочитайте список базовых команд.", points: 5 },
-          { id: "cli_pwd", type: "question", title: "Текущий каталог", prompt: "Какая команда показывает текущий каталог? (англ.)", answers: ["pwd"], hints: ["Print Working Directory."], points: 10, sandbox: true },
-          { id: "cli_hidden", type: "question", title: "Скрытые файлы", prompt: "Какой флаг у ls показывает ВСЕ файлы, включая скрытые? (например -x)", answers: ["-a", "-la", "-al"], hints: ["'a' — all.", "Скрытые файлы начинаются с точки."], points: 10, sandbox: true },
-          { id: "cli_flag", type: "flag", title: "🚩 Найдите флаг в песочнице", prompt: "В песочнице есть файл secret.txt в домашнем каталоге. Прочитайте его через cat и введите флаг (формат CYBER{...}).", answers: ["CYBER{terminal_navigator}"], hints: ["cat secret.txt", "Сначала ls, потом cat."], points: 25, sandbox: true, caseSensitive: true },
+          { id: "cmd_read", type: "info", title: "Изучить команды cmd", prompt: "Прочитайте список базовых команд.", points: 5 },
+          { id: "cmd_dir", type: "question", title: "Список файлов", prompt: "Какая команда cmd показывает содержимое текущего каталога? (англ.)", answers: ["dir"], hints: ["Не 'ls', а короткое слово из 3 букв."], points: 10, sandbox: true },
+          { id: "cmd_clear", type: "question", title: "Очистить экран", prompt: "Какая команда очищает экран в cmd? (англ., 3 буквы)", answers: ["cls"], hints: ["Clear Screen."], points: 10, sandbox: true },
+          { id: "cmd_flag", type: "flag", title: "🚩 Найдите флаг в песочнице", prompt: "В песочнице в домашней папке есть файл secret.txt. Прочитайте его командой type и введите флаг (формат CYBER{...}).", answers: ["CYBER{windows_explorer}"], hints: ["Сначала dir, потом type secret.txt", "type secret.txt"], points: 25, sandbox: true, caseSensitive: true },
         ],
       },
       {
-        id: "permissions",
-        title: "Права доступа и пользователи",
+        id: "powershell",
+        title: "Основы PowerShell",
         intro: `
-<h3>rwx и восьмеричная запись</h3>
-<p>У каждого файла три группы прав: <b>владелец</b>, <b>группа</b>, <b>остальные</b>. Каждая — read(4), write(2), execute(1).</p>
+<h3>PowerShell — мощнее, чем cmd</h3>
+<p>Открыть: меню Пуск → введите <code>PowerShell</code>. Команды имеют вид <b>Глагол-Существительное</b> (Verb-Noun):</p>
 <ul>
-  <li><code>chmod 755 file</code> — rwxr-xr-x</li>
-  <li><code>chmod 644 file</code> — rw-r--r--</li>
-  <li><code>chmod +x script.sh</code> — сделать исполняемым</li>
+  <li><code>Get-Content файл.txt</code> — прочитать файл (алиас <code>gc</code>, <code>cat</code>).</li>
+  <li><code>Get-Process</code> — список процессов (алиас <code>ps</code>).</li>
+  <li><code>Get-Service</code> — службы Windows.</li>
+  <li><code>Get-Help команда</code> — справка по командлету.</li>
+  <li><code>Get-ChildItem</code> — список файлов (алиас <code>ls</code>, <code>dir</code>).</li>
 </ul>
-<p>Спецбит <b>SUID</b> (<code>chmod 4755</code>) заставляет файл выполняться от имени владельца — частый вектор повышения привилегий, если стоит на бинарнике вроде <code>bash</code>.</p>
-<div class="callout">⚠️ Команда <code>find / -perm -4000 2>/dev/null</code> ищет SUID-бинарники — классика при аудите системы.</div>
+<div class="callout">💡 Почти каждый командлет чтения начинается с глагола <code>Get-</code>.</div>
 `,
         tasks: [
-          { id: "perm_read", type: "info", title: "Изучить права", prompt: "Разберитесь с rwx и chmod.", points: 5 },
-          { id: "perm_octal", type: "question", title: "Права rwxr-xr-x", prompt: "Введите восьмеричное представление прав rwxr-xr-x (3 цифры).", answers: ["755"], hints: ["r=4,w=2,x=1", "7 = 4+2+1, 5 = 4+1"], points: 15 },
-          { id: "perm_suid", type: "question", title: "Спецбит", prompt: "Как называется бит, заставляющий файл исполняться от имени владельца? (англ., 4 символа)", answers: ["suid"], hints: ["Set User ID.", "chmod 4755"], points: 15 },
-          { id: "perm_read2", type: "question", title: "Только чтение всем", prompt: "Какие права (число) дают: владелец rw, группа r, остальные r?", answers: ["644"], hints: ["rw=6, r=4, r=4"], points: 15 },
+          { id: "ps_read", type: "info", title: "Изучить PowerShell", prompt: "Прочитайте о структуре командлетов.", points: 5 },
+          { id: "ps_verb", type: "question", title: "Глагол чтения", prompt: "С какого глагола начинаются командлеты получения данных? (англ., напр. Set/New/...)", answers: ["get", "get-"], hints: ["Get-Content, Get-Process..."], points: 10 },
+          { id: "ps_read_file", type: "question", title: "Прочитать файл", prompt: "Какой командлет читает содержимое файла? (Глагол-Существительное)", answers: ["get-content", "gc"], hints: ["Get-...", "Get-Content"], points: 15 },
+          { id: "ps_proc", type: "question", title: "Список процессов", prompt: "Какой командлет показывает запущенные процессы? (Глагол-Существительное)", answers: ["get-process", "ps"], hints: ["Get-Process"], points: 15 },
         ],
       },
       {
-        id: "recon_linux",
-        title: "Разведка внутри системы",
+        id: "win_users",
+        title: "Учётные записи и права NTFS",
+        intro: `
+<h3>Пользователи, группы и UAC</h3>
+<p>Windows разделяет обычных пользователей и администраторов. Ключевое:</p>
+<ul>
+  <li><code>net user</code> — список учётных записей; <code>net user имя</code> — детали.</li>
+  <li><code>net localgroup administrators</code> — кто в группе админов.</li>
+  <li><b>UAC</b> (User Account Control) — запрос подтверждения на действия с правами администратора.</li>
+</ul>
+<h3>Права на файлы (NTFS)</h3>
+<ul>
+  <li><code>icacls файл</code> — показать права доступа к файлу/папке.</li>
+  <li>Права: (F) полный, (M) изменение, (RX) чтение+выполнение, (R) чтение, (W) запись.</li>
+</ul>
+<div class="callout">🛡️ Принцип минимальных привилегий: работайте под обычным аккаунтом, админ — только когда нужно.</div>
+`,
+        tasks: [
+          { id: "wu_read", type: "info", title: "Изучить права Windows", prompt: "Разберитесь с учётками и NTFS.", points: 5 },
+          { id: "wu_netuser", type: "question", title: "Список учёток", prompt: "Какая команда (2 слова) показывает список локальных пользователей?", answers: ["net user"], hints: ["net ...", "net user"], points: 15 },
+          { id: "wu_uac", type: "question", title: "Запрос прав админа", prompt: "Как называется механизм запроса подтверждения прав администратора? (аббревиатура, 3 буквы)", answers: ["uac"], hints: ["User Account Control."], points: 15 },
+          { id: "wu_icacls", type: "question", title: "Права на файл", prompt: "Какая команда показывает NTFS-права на файл? (англ., одно слово)", answers: ["icacls"], hints: ["i + cacls"], points: 15 },
+        ],
+      },
+      {
+        id: "win_recon",
+        title: "Разведка системы Windows",
         intro: `
 <h3>Ситуационная осведомлённость</h3>
-<p>Попав в систему (легально, в рамках теста), первым делом собирают информацию:</p>
+<p>При авторизованном аудите (или на своей машине) сначала собирают информацию:</p>
 <ul>
-  <li><code>id</code>, <code>whoami</code> — кто я, в каких группах.</li>
-  <li><code>uname -a</code> — версия ядра (важно для эксплойтов).</li>
-  <li><code>cat /etc/os-release</code> — дистрибутив.</li>
-  <li><code>ss -tulpn</code> / <code>netstat</code> — открытые порты и сервисы.</li>
-  <li><code>sudo -l</code> — что можно запускать через sudo.</li>
+  <li><code>whoami /priv</code> — мои привилегии; <code>whoami /groups</code> — группы.</li>
+  <li><code>systeminfo</code> — полная информация о системе и патчах.</li>
+  <li><code>tasklist</code> — список запущенных процессов.</li>
+  <li><code>ipconfig /all</code> — сетевая конфигурация.</li>
+  <li><code>netstat -ano</code> — открытые порты и соединения с PID.</li>
 </ul>
 <div class="callout">🔎 Всё это — легитимные шаги при авторизованном пентесте или аудите своей же машины.</div>
 `,
         tasks: [
-          { id: "rec_read", type: "info", title: "Изучить разведку", prompt: "Прочитайте о сборе информации.", points: 5 },
-          { id: "rec_kernel", type: "question", title: "Версия ядра", prompt: "Какая команда с флагом -a показывает версию ядра? (команда без флага, англ.)", answers: ["uname"], hints: ["uname -a"], points: 10 },
-          { id: "rec_sudo", type: "question", title: "Проверка sudo", prompt: "Какая команда показывает, что разрешено запускать через sudo? (2 слова с флагом)", answers: ["sudo -l"], hints: ["sudo и флаг -l (list)."], points: 15, sandbox: true },
+          { id: "wr_read", type: "info", title: "Изучить разведку", prompt: "Прочитайте о сборе информации.", points: 5 },
+          { id: "wr_systeminfo", type: "question", title: "Инфо о системе", prompt: "Какая команда выводит полную информацию о системе и установленных патчах? (англ., одно слово)", answers: ["systeminfo"], hints: ["system + info"], points: 10, sandbox: true },
+          { id: "wr_tasklist", type: "question", title: "Процессы в cmd", prompt: "Какая команда cmd показывает список запущенных процессов? (англ., одно слово)", answers: ["tasklist"], hints: ["task + list"], points: 10, sandbox: true },
+          { id: "wr_netstat", type: "question", title: "Открытые порты", prompt: "Какая команда показывает сетевые соединения и порты? (англ., одно слово)", answers: ["netstat"], hints: ["net + stat"], points: 15, sandbox: true },
         ],
       },
     ],
@@ -187,6 +214,7 @@ const COURSES = [
     color: "#ff6a00",
     summary: "TCP/IP, порты, сканирование Nmap, анализ трафика и понимание, как данные ходят по сети.",
     tags: ["сети", "nmap", "протоколы"],
+    prereq: ["fundamentals"],
     rooms: [
       {
         id: "tcpip",
@@ -246,6 +274,7 @@ const COURSES = [
     color: "#ff5e1a",
     summary: "SQL-инъекции, XSS, IDOR, аутентификация и главные риски OWASP Top 10 — с понятными примерами.",
     tags: ["web", "owasp", "уязвимости"],
+    prereq: ["fundamentals", "networking"],
     rooms: [
       {
         id: "owasp_intro",
@@ -330,6 +359,7 @@ const COURSES = [
     color: "#e85400",
     summary: "Полный цикл авторизованного тестирования на проникновение: разведка, сканирование, эксплуатация, отчёт.",
     tags: ["пентест", "методология", "этика"],
+    prereq: ["fundamentals", "networking", "web"],
     rooms: [
       {
         id: "ethics",
@@ -406,6 +436,7 @@ const COURSES = [
     color: "#ff7a18",
     summary: "Хеши, симметричное и асимметричное шифрование, кодировки и практические задачи-квесты на декодирование.",
     tags: ["крипто", "хеши", "encoding"],
+    prereq: ["fundamentals"],
     rooms: [
       {
         id: "encoding",
@@ -514,6 +545,225 @@ const COURSES = [
           { id: "so_site", type: "question", title: "Ограничить доменом", prompt: "Какой оператор ограничивает поиск сайтом? (с двоеточием)", answers: ["site:"], hints: ["site двоеточие."], points: 10 },
           { id: "so_filetype", type: "question", title: "Найти PDF", prompt: "Какой оператор ищет по типу файла? (с двоеточием)", answers: ["filetype:"], hints: ["file..."], points: 10 },
           { id: "so_hibp", type: "question", title: "Проверка утечек", prompt: "Аббревиатура сервиса проверки утечки своего email (4 буквы, англ.)?", answers: ["hibp"], hints: ["Have I Been Pwned."], points: 15 },
+        ],
+      },
+    ],
+  },
+
+  /* ==================== 8. ACTIVE DIRECTORY ==================== */
+  {
+    id: "ad",
+    title: "Active Directory",
+    icon: "🏢",
+    level: "Сложный",
+    color: "#d94f00",
+    summary: "Как устроен домен Windows: DC, Kerberos, LDAP, разведка и типовые атаки/защита. Для тех, кто прошёл Windows и Сети.",
+    tags: ["windows", "домен", "kerberos"],
+    prereq: ["windows", "networking"],
+    rooms: [
+      {
+        id: "ad_intro",
+        title: "Что такое Active Directory",
+        intro: `
+<h3>Каталог всей организации</h3>
+<p><b>Active Directory (AD)</b> — служба каталогов Microsoft: централизованное управление пользователями, компьютерами и политиками в домене.</p>
+<ul>
+  <li><b>Domain Controller (DC)</b> — сервер, хранящий базу AD и выполняющий аутентификацию.</li>
+  <li><b>OU</b> (Organizational Unit) — контейнеры для группировки объектов.</li>
+  <li><b>Kerberos</b> — основной протокол аутентификации в домене (тикеты TGT/TGS).</li>
+  <li><b>LDAP</b> — протокол запросов к каталогу.</li>
+  <li><b>GPO</b> — групповые политики, применяемые к объектам.</li>
+</ul>
+<div class="callout">🔎 Понимание AD критично: большинство корпоративных сетей построено вокруг него.</div>
+`,
+        tasks: [
+          { id: "ad_read", type: "info", title: "Изучить основы AD", prompt: "Прочитайте вступление.", points: 5 },
+          { id: "ad_dc", type: "question", title: "Сердце домена", prompt: "Как называется сервер, хранящий базу AD? (аббревиатура, 2 буквы)", answers: ["dc"], hints: ["Domain Controller."], points: 15 },
+          { id: "ad_kerb", type: "question", title: "Аутентификация", prompt: "Основной протокол аутентификации в домене? (англ., одно слово)", answers: ["kerberos"], hints: ["Назван в честь трёхголового пса."], points: 15 },
+          { id: "ad_ldap", type: "question", title: "Запросы к каталогу", prompt: "Протокол запросов к каталогу? (аббревиатура, 4 буквы)", answers: ["ldap"], hints: ["Lightweight Directory Access Protocol."], points: 15 },
+        ],
+      },
+      {
+        id: "ad_recon",
+        title: "Разведка домена (легально)",
+        intro: `
+<h3>Enumeration в рамках аудита</h3>
+<p>При авторизованном тесте собирают карту домена:</p>
+<ul>
+  <li><code>net user /domain</code> — пользователи домена.</li>
+  <li><code>net group "Domain Admins" /domain</code> — состав админов домена.</li>
+  <li><code>nltest /dclist:домен</code> — список контроллеров.</li>
+  <li>Инструменты: BloodHound (граф связей), PowerView.</li>
+</ul>
+<p>Известная техника: <b>Kerberoasting</b> — запрос TGS для сервисных аккаунтов и офлайн-подбор их паролей (защита — длинные пароли сервисных учёток и gMSA).</p>
+<div class="callout">🧪 В песочнице: <code>type Documents\\domain.txt</code> — там учебный флаг.</div>
+`,
+        tasks: [
+          { id: "adr_read", type: "info", title: "Изучить разведку AD", prompt: "Прочитайте про enumeration.", points: 5 },
+          { id: "adr_users", type: "question", title: "Пользователи домена", prompt: "Какая команда (3 слова) показывает пользователей домена?", answers: ["net user /domain"], hints: ["net user ...", "net user /domain"], points: 15 },
+          { id: "adr_kerb", type: "question", title: "Атака на сервисы", prompt: "Как называется атака запроса TGS и офлайн-подбора паролей сервисных аккаунтов? (англ., одно слово)", answers: ["kerberoasting"], hints: ["Kerber..."], points: 20 },
+          { id: "adr_flag", type: "flag", title: "🚩 Флаг в песочнице", prompt: "Прочитайте файл Documents\\domain.txt в песочнице и введите флаг.", answers: ["CYBER{ad_recon_ok}"], hints: ["cd Documents, затем type domain.txt", "type Documents\\domain.txt"], points: 25, sandbox: true, caseSensitive: true },
+        ],
+      },
+      {
+        id: "ad_defense",
+        title: "Защита Active Directory",
+        intro: `
+<h3>Как усложнить жизнь атакующему</h3>
+<ul>
+  <li><b>Tiering</b> — разделение админ-уровней (Tier 0/1/2), чтобы админ рабочих станций не был админом DC.</li>
+  <li><b>LAPS</b> — уникальные случайные пароли локального администратора на каждой машине.</li>
+  <li>Мониторинг событий: 4624/4625 (входы), 4768/4769 (Kerberos-тикеты).</li>
+  <li>Защита от <b>Pass-the-Hash</b>: Credential Guard, ограничение RDP админов.</li>
+</ul>
+<div class="callout">🛡️ Минимум привилегий + мониторинг = основа безопасного домена.</div>
+`,
+        tasks: [
+          { id: "add_read", type: "info", title: "Изучить защиту AD", prompt: "Прочитайте о мерах защиты.", points: 5 },
+          { id: "add_laps", type: "question", title: "Уникальные пароли админа", prompt: "Как называется решение для уникальных паролей локального админа? (аббревиатура, 4 буквы)", answers: ["laps"], hints: ["Local Administrator Password Solution."], points: 20 },
+          { id: "add_pth", type: "question", title: "Кража хеша", prompt: "Атака, где похищенный NTLM-хеш переиспользуют без пароля? (2 слова через дефис, англ.)", answers: ["pass-the-hash", "pass the hash", "passthehash"], hints: ["Pass ... Hash"], points: 20 },
+          { id: "add_admins", type: "question", title: "Группа админов домена", prompt: "Как называется группа с полным контролем над доменом? (2 слова, англ.)", answers: ["domain admins"], hints: ["Domain ..."], points: 15 },
+        ],
+      },
+    ],
+  },
+
+  /* ==================== 9. РЕВЕРС-ИНЖИНИРИНГ ==================== */
+  {
+    id: "reverse",
+    title: "Реверс-инжиниринг",
+    icon: "🧬",
+    level: "Сложный",
+    color: "#c94a00",
+    summary: "Анализ исполняемых файлов Windows (PE), статический и динамический разбор, строки и анти-реверс. Требует основ и Windows.",
+    tags: ["reverse", "PE", "assembler"],
+    prereq: ["fundamentals", "windows"],
+    rooms: [
+      {
+        id: "re_intro",
+        title: "Основы реверса",
+        intro: `
+<h3>Разбор программы без исходников</h3>
+<p><b>Реверс-инжиниринг</b> — восстановление логики программы из скомпилированного файла. Два подхода:</p>
+<ul>
+  <li><b>Статический</b> — анализ без запуска (дизассемблер, строки, импорт).</li>
+  <li><b>Динамический</b> — анализ во время выполнения (отладчик, песочница).</li>
+</ul>
+<p>Формат исполняемых файлов Windows — <b>PE</b> (Portable Executable): <code>.exe</code>, <code>.dll</code>. Внутри — секции (.text — код, .data — данные), таблица импорта (какие API вызываются).</p>
+<p>Инструменты: <b>Ghidra</b> (бесплатный), <b>IDA</b>, <b>x64dbg</b> (отладчик).</p>
+<div class="callout">⚖️ Реверсите только своё ПО или то, где это разрешено лицензией/законом.</div>
+`,
+        tasks: [
+          { id: "re_read", type: "info", title: "Изучить основы", prompt: "Прочитайте вступление.", points: 5 },
+          { id: "re_pe", type: "question", title: "Формат exe", prompt: "Как называется формат исполняемых файлов Windows? (аббревиатура, 2 буквы)", answers: ["pe"], hints: ["Portable Executable."], points: 15 },
+          { id: "re_static", type: "question", title: "Без запуска", prompt: "Как называется анализ без запуска программы? (одно слово, рус.)", answers: ["статический"], hints: ["Противоположность динамическому."], points: 15 },
+          { id: "re_tool", type: "question", title: "Дизассемблер", prompt: "Назовите один популярный дизассемблер (напр. G... или I...).", answers: ["ghidra", "ida", "x64dbg", "radare2"], hints: ["Ghidra / IDA / x64dbg"], points: 15 },
+        ],
+      },
+      {
+        id: "re_strings",
+        title: "Строки и секреты в бинаре",
+        intro: `
+<h3>Первый шаг любого разбора — строки</h3>
+<p>Часто пароли, URL, ключи и флаги лежат прямо в бинаре как текст. Их извлекают утилитой <b>strings</b> (Sysinternals <code>strings.exe</code> для Windows).</p>
+<p>Секреты нередко «прячут» простым кодированием — <b>Base64</b>, XOR, ROT13. Это не защита: декодируется мгновенно.</p>
+<div class="callout">🧪 В песочнице попробуйте <code>base64 -d</code> и <code>rot13</code>, чтобы раскодировать строки из заданий.</div>
+`,
+        tasks: [
+          { id: "res_read", type: "info", title: "Изучить строки", prompt: "Прочитайте про строки в бинарях.", points: 5 },
+          { id: "res_tool", type: "question", title: "Извлечь текст", prompt: "Какая утилита извлекает читаемые строки из бинарного файла? (англ., одно слово)", answers: ["strings"], hints: ["Так и называется."], points: 15 },
+          { id: "res_b64", type: "flag", title: "🚩 Раскодируй строку", prompt: "Из бинаря извлекли строку Q1lCRVJ7cmV2X2VuZ19zdHJpbmdzfQ== — раскодируйте её (base64 -d в песочнице) и введите флаг.", answers: ["CYBER{rev_eng_strings}"], hints: ["base64 -d Q1lCRVJ7cmV2X2VuZ19zdHJpbmdzfQ==", "Начинается с CYBER{"], points: 25, sandbox: true, caseSensitive: true },
+          { id: "res_rot", type: "flag", title: "🚩 Сдвинутая строка", prompt: "Строка PLORE{ebg13_qrpbqrq} зашифрована ROT13. Раскодируйте (rot13 в песочнице) и введите результат.", answers: ["CYBER{rot13_decoded}"], hints: ["rot13 PLORE{ebg13_qrpbqrq}", "ROT13 обратим тем же ROT13."], points: 25, sandbox: true, caseSensitive: true },
+        ],
+      },
+      {
+        id: "re_anti",
+        title: "Анти-реверс приёмы",
+        intro: `
+<h3>Как ПО сопротивляется анализу</h3>
+<ul>
+  <li><b>Packing</b> (упаковка) — сжатие/шифрование кода, распаковка в памяти при запуске (UPX и др.).</li>
+  <li><b>Anti-debugging</b> — обнаружение отладчика (<code>IsDebuggerPresent</code>) и изменение поведения.</li>
+  <li><b>Обфускация</b> — запутывание кода и строк.</li>
+</ul>
+<p>Аналитик отвечает: распаковка в памяти, патчинг проверок, эмуляция.</p>
+`,
+        tasks: [
+          { id: "rea_read", type: "info", title: "Изучить анти-реверс", prompt: "Прочитайте про защиту от анализа.", points: 5 },
+          { id: "rea_pack", type: "question", title: "Скрытие кода", prompt: "Как называется сжатие/шифрование бинаря с распаковкой при запуске? (англ., одно слово)", answers: ["packing", "packer", "упаковка"], hints: ["UPX — известный ... "], points: 20 },
+          { id: "rea_dbg", type: "question", title: "Обнаружение отладчика", prompt: "WinAPI-функция проверки наличия отладчика начинается с IsDebugger...? Введите её целиком.", answers: ["isdebuggerpresent"], hints: ["IsDebugger + Present"], points: 20 },
+        ],
+      },
+    ],
+  },
+
+  /* ==================== 10. ФОРЕНЗИКА ==================== */
+  {
+    id: "forensics",
+    title: "Цифровая форензика",
+    icon: "🔬",
+    level: "Сложный",
+    color: "#b84400",
+    summary: "Расследование инцидентов на Windows: сбор доказательств, артефакты системы, анализ памяти. Нужны Windows и Криптография.",
+    tags: ["forensics", "инциденты", "артефакты"],
+    prereq: ["windows", "crypto"],
+    rooms: [
+      {
+        id: "fo_intro",
+        title: "Основы форензики",
+        intro: `
+<h3>Собрать и не испортить доказательства</h3>
+<ul>
+  <li><b>Порядок волатильности</b>: сначала собирают то, что быстрее исчезает (RAM, сеть), потом диск.</li>
+  <li><b>Chain of custody</b> — документированная цепочка владения доказательством.</li>
+  <li><b>Целостность</b>: считают хеш (SHA-256) образа, чтобы доказать неизменность.</li>
+  <li>Работают с <b>копией</b> (образом), а не с оригиналом.</li>
+</ul>
+<div class="callout">🔬 Одна ошибка в обращении с уликой — и она недействительна в расследовании.</div>
+`,
+        tasks: [
+          { id: "fo_read", type: "info", title: "Изучить основы", prompt: "Прочитайте вступление.", points: 5 },
+          { id: "fo_integrity", type: "question", title: "Доказать неизменность", prompt: "Что вычисляют, чтобы подтвердить целостность образа? (одно слово, рус. или англ.)", answers: ["хеш", "hash", "хэш"], hints: ["SHA-256 даёт именно это."], points: 15 },
+          { id: "fo_coc", type: "question", title: "Цепочка владения", prompt: "Как называется документированная цепочка владения уликой? (3 слова, англ.)", answers: ["chain of custody", "chainofcustody"], hints: ["Chain of ..."], points: 20 },
+          { id: "fo_vol", type: "question", title: "Что собирать первым", prompt: "Что собирают в первую очередь по порядку волатильности? (3 буквы, англ.)", answers: ["ram", "озу"], hints: ["Оперативная память."], points: 15 },
+        ],
+      },
+      {
+        id: "fo_artifacts",
+        title: "Артефакты Windows",
+        intro: `
+<h3>Где система хранит следы</h3>
+<ul>
+  <li><b>Реестр (Registry)</b> — автозагрузка (Run-ключи), история USB, недавние документы.</li>
+  <li><b>Event Log</b> — журналы событий (входы, ошибки, аудит) в <code>.evtx</code>.</li>
+  <li><b>Prefetch</b> — следы запуска программ (что и когда запускалось).</li>
+  <li><b>MFT</b> (Master File Table) — таблица файлов NTFS, содержит метаданные и удалённые записи.</li>
+</ul>
+<div class="callout">🧪 В песочнице: найдите флаг в логе командой <code>findstr CYBER Documents\\system.log</code>.</div>
+`,
+        tasks: [
+          { id: "foa_read", type: "info", title: "Изучить артефакты", prompt: "Прочитайте про следы в Windows.", points: 5 },
+          { id: "foa_evtx", type: "question", title: "Журналы событий", prompt: "Какое расширение у файлов журналов событий Windows? (с точкой)", answers: [".evtx", "evtx"], hints: ["Event log → .e____"], points: 15 },
+          { id: "foa_mft", type: "question", title: "Таблица файлов NTFS", prompt: "Как называется главная таблица файлов NTFS? (аббревиатура, 3 буквы)", answers: ["mft"], hints: ["Master File Table."], points: 15 },
+          { id: "foa_flag", type: "flag", title: "🚩 Флаг в логе", prompt: "Найдите флаг в файле Documents\\system.log с помощью findstr и введите его.", answers: ["CYBER{forensics_artifacts}"], hints: ["findstr CYBER Documents\\system.log", "Ищите строку AUDIT."], points: 25, sandbox: true, caseSensitive: true },
+        ],
+      },
+      {
+        id: "fo_memory",
+        title: "Анализ памяти",
+        intro: `
+<h3>RAM помнит то, чего нет на диске</h3>
+<p>В дампе оперативной памяти можно найти запущенные процессы, сетевые соединения, инъекции кода, пароли и ключи шифрования.</p>
+<ul>
+  <li>Снятие дампа: аппаратно, гипервизором или утилитой.</li>
+  <li>Анализ: фреймворк <b>Volatility</b> — плагины <code>pslist</code>, <code>netscan</code>, <code>malfind</code>.</li>
+</ul>
+<div class="callout">🧠 Многие вредоносы живут только в памяти (fileless) — без анализа RAM их не поймать.</div>
+`,
+        tasks: [
+          { id: "fom_read", type: "info", title: "Изучить анализ памяти", prompt: "Прочитайте про дампы RAM.", points: 5 },
+          { id: "fom_vol", type: "question", title: "Фреймворк анализа", prompt: "Назовите популярный фреймворк анализа дампов памяти? (англ., одно слово)", answers: ["volatility"], hints: ["Vola..."], points: 20 },
+          { id: "fom_fileless", type: "question", title: "Только в памяти", prompt: "Как называют вредонос, живущий только в памяти без файла на диске? (англ., одно слово)", answers: ["fileless"], hints: ["file + less"], points: 20 },
         ],
       },
     ],

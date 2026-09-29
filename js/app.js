@@ -108,6 +108,22 @@ const Progress = (() => {
     return { done, total: all.length, pct: all.length ? Math.round((done / all.length) * 100) : 0 };
   }
 
+  // Курс открыт, если все курсы-предпосылки пройдены на 100%
+  function courseUnlocked(course) {
+    if (!course.prereq || !course.prereq.length) return true;
+    return course.prereq.every((pid) => {
+      const pc = COURSES.find((c) => c.id === pid);
+      return pc && courseProgress(pc).pct === 100;
+    });
+  }
+  // Список ещё не пройденных предпосылок (для подсказки)
+  function missingPrereqs(course) {
+    if (!course.prereq) return [];
+    return course.prereq
+      .map((pid) => COURSES.find((c) => c.id === pid))
+      .filter((pc) => pc && courseProgress(pc).pct < 100);
+  }
+
   function overallStats() {
     const allTasks = COURSES.flatMap((c) => c.rooms.flatMap((r) => r.tasks));
     const done = allTasks.filter((t) => state.completed[t.id]).length;
@@ -141,7 +157,7 @@ const Progress = (() => {
 
   return {
     isDone, completeTask, useHint, hintsUsedFor, roomCompleted, roomUsedNoHints,
-    courseProgress, overallStats, level, xpInLevel, xpToNext,
+    courseProgress, courseUnlocked, missingPrereqs, overallStats, level, xpInLevel, xpToNext,
     unlockAchievement, hasAchievement, trackVisit, reset,
     _state: () => state,
   };
@@ -260,7 +276,7 @@ const App = (() => {
 
       <section class="features">
         ${[
-          ["🎯", "Реальные навыки", "Задания построены на настоящих концепциях: SQLi, XSS, Nmap, права Linux, хеши."],
+          ["🎯", "Реальные навыки", "Задания построены на настоящих концепциях: SQLi, XSS, Nmap, cmd/PowerShell, Active Directory, хеши."],
           ["🧩", "Квесты и флаги", "Находи флаги CYBER{...} в песочнице — как в CTF."],
           ["📈", "Система прогрессии", "XP, уровни, серии дней и достижения за каждый шаг."],
           ["💾", "Прогресс локально", "Всё хранится в браузере. Никаких аккаунтов и слежки."],
@@ -286,19 +302,26 @@ const App = (() => {
 
   function courseCard(course) {
     const p = Progress.courseProgress(course);
+    const unlocked = Progress.courseUnlocked(course);
+    const missing = Progress.missingPrereqs(course);
+    const onclick = unlocked
+      ? `App.go('course',{courseId:'${course.id}'})`
+      : `App.toast('🔒 Сначала пройдите: ${missing.map((m) => m.title).join(", ")}')`;
     return `
-      <article class="course-card" style="--c:${course.color}" onclick="App.go('course',{courseId:'${course.id}'})">
+      <article class="course-card ${unlocked ? "" : "locked"} ${p.pct === 100 ? "completed" : ""}" style="--c:${course.color}" onclick="${onclick}">
         <div class="cc-top">
           <span class="cc-icon">${course.icon}</span>
-          <span class="cc-level">${course.level}</span>
+          <span class="cc-level">${unlocked ? course.level : "🔒 " + course.level}</span>
         </div>
         <h3>${course.title}</h3>
         <p>${course.summary}</p>
         <div class="cc-tags">${course.tags.map((t) => `<span>#${t}</span>`).join("")}</div>
+        ${unlocked ? `
         <div class="cc-progress">
           <div class="xp-bar"><span style="width:${p.pct}%"></span></div>
-          <span class="cc-pct">${p.done}/${p.total} · ${p.pct}%</span>
-        </div>
+          <span class="cc-pct">${p.pct === 100 ? "✓ Пройдено" : p.done + "/" + p.total + " · " + p.pct + "%"}</span>
+        </div>`
+        : `<div class="cc-lock">🔒 Требуется: ${missing.map((m) => m.title).join(", ")}</div>`}
       </article>`;
   }
 
@@ -320,6 +343,36 @@ const App = (() => {
     const course = COURSES.find((c) => c.id === courseId);
     if (!course) return go("courses");
     const p = Progress.courseProgress(course);
+
+    if (!Progress.courseUnlocked(course)) {
+      const missing = Progress.missingPrereqs(course);
+      root().innerHTML = `
+        <section class="section">
+          <a class="back" onclick="App.go('courses')">← Все курсы</a>
+          <div class="locked-screen card">
+            <div class="ls-icon">🔒</div>
+            <h1>${course.icon} ${course.title}</h1>
+            <p class="ls-sub">Этот курс уровня «${course.level}» откроется, когда вы завершите предыдущие. Так сложность растёт постепенно.</p>
+            <h3>Нужно пройти на 100%:</h3>
+            <div class="ls-prereq">
+              ${missing.map((m) => {
+                const mp = Progress.courseProgress(m);
+                return `<div class="ls-row" onclick="App.go('course',{courseId:'${m.id}'})">
+                  <span class="cpl-ic">${m.icon}</span>
+                  <div class="cpl-body">
+                    <div class="cpl-head"><b>${m.title}</b><span>${mp.pct}%</span></div>
+                    <div class="xp-bar"><span style="width:${mp.pct}%;background:${m.color}"></span></div>
+                  </div>
+                  <span class="ls-go">Открыть →</span>
+                </div>`;
+              }).join("")}
+            </div>
+          </div>
+        </section>`;
+      highlightNav();
+      return;
+    }
+
     root().innerHTML = `
       <section class="section">
         <a class="back" onclick="App.go('courses')">← Все курсы</a>
@@ -454,12 +507,12 @@ const App = (() => {
         <div class="term-wrap card">
           <div class="term-bar">
             <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
-            <span class="term-title">hacker@cyberpath: ~</span>
+            <span class="term-title">C:\\Users\\hacker — CyberPath Sandbox</span>
           </div>
           <div class="term-body" id="term-body">
             <div id="term-out"></div>
             <div class="term-input-row">
-              <span class="term-prompt">hacker@cyberpath</span>:<span class="term-path">~</span>$
+              <span class="term-path">C:\\Users\\hacker</span><span class="term-prompt">&gt;</span>
               <input type="text" id="term-input" autocomplete="off" spellcheck="false" autofocus>
             </div>
           </div>
@@ -467,7 +520,7 @@ const App = (() => {
         <div class="sandbox-hints card">
           <h3>Быстрый старт</h3>
           <div class="cheat">
-            ${["help — все команды","ls -la — файлы и скрытые","cat secret.txt — читать файл","nmap 10.10.10.5 — скан портов","base64 -d <строка> — декод","rot13 <текст> — шифр"].map(c=>`<code>${c}</code>`).join("")}
+            ${["help — все команды","dir — файлы и папки","type secret.txt — читать файл","findstr CYBER файл — поиск","systeminfo — инфо о системе","nmap 10.10.10.5 — скан портов","base64 -d <строка> — декод","rot13 <текст> — шифр"].map(c=>`<code>${c}</code>`).join("")}
           </div>
         </div>
       </section>`;

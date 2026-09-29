@@ -55,6 +55,7 @@ pre {
   font-size: .88rem;
 }
 pre b { color: var(--orange-2); font-weight: 700; }
+kbd { font-family: var(--mono); background: #fff; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; padding: 1px 6px; font-size: .82em; color: var(--ink); }
 
 /* ---------- Topbar ---------- */
 .topbar {
@@ -194,6 +195,23 @@ main { min-height: 70vh; }
 .cc-progress .xp-bar { flex: 1; margin: 0; }
 .cc-progress.wide { margin-top: 16px; max-width: 460px; }
 .cc-pct { font-size: .78rem; font-weight: 700; color: var(--ink-2); white-space: nowrap; }
+
+.course-card.locked { cursor: not-allowed; opacity: .82; background: var(--bg-2); }
+.course-card.locked::before { background: var(--muted); }
+.course-card.locked:hover { transform: none; box-shadow: var(--shadow); border-color: var(--line); }
+.course-card.completed::before { background: var(--ok); }
+.cc-lock { margin-top: 6px; font-size: .82rem; font-weight: 700; color: var(--muted); background: #fff; border: 1px dashed var(--line); border-radius: 10px; padding: 9px 12px; }
+
+/* ---------- Locked screen ---------- */
+.locked-screen { text-align: center; padding: 48px 28px; }
+.ls-icon { font-size: 3rem; margin-bottom: 8px; }
+.locked-screen h1 { font-size: 1.8rem; }
+.ls-sub { color: var(--ink-2); max-width: 560px; margin: 12px auto 26px; }
+.locked-screen h3 { font-size: 1.05rem; margin-bottom: 14px; color: var(--ink); }
+.ls-prereq { display: flex; flex-direction: column; gap: 12px; max-width: 560px; margin: 0 auto; }
+.ls-row { display: flex; align-items: center; gap: 16px; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 14px 18px; cursor: pointer; text-align: left; transition: box-shadow .2s; }
+.ls-row:hover { box-shadow: var(--shadow); }
+.ls-go { color: var(--orange-dark); font-weight: 700; font-size: .85rem; white-space: nowrap; }
 
 /* ---------- Course head ---------- */
 .course-head {
