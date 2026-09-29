@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberPath — бесплатная платформа по кибербезопасности</title>
+  <meta name="description" content="Бесплатная интерактивная платформа для изучения кибербезопасности: курсы, квесты, песочница-терминал и система прогрессии.">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="logo" onclick="App.go('home')">
+        <span class="logo-mark">🛡️</span>
+        <span class="logo-text">Cyber<span class="accent">Path</span></span>
+      </a>
+      <nav class="main-nav">
+        <a data-view="home" onclick="App.go('home')">Главная</a>
+        <a data-view="courses" onclick="App.go('courses')">Курсы</a>
+        <a data-view="sandbox" onclick="App.go('sandbox')">Песочница</a>
+        <a data-view="profile" onclick="App.go('profile')">Профиль</a>
+      </nav>
+      <div id="nav-stats" class="nav-stats"></div>
+      <button class="burger" onclick="document.body.classList.toggle('nav-open')" aria-label="Меню">☰</button>
+    </div>
+  </header>
+
+  <main id="view"></main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div>
+        <span class="logo-mark">🛡️</span>
+        <b>CyberPath</b> — учись этично, применяй ответственно.
+      </div>
+      <p class="footer-note">Все материалы носят образовательный характер. Тестируйте только свои системы или площадки с разрешением. Прогресс хранится локально в вашем браузере.</p>
+    </div>
+  </footer>
+
+  <div id="toasts" class="toasts"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/terminal.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
