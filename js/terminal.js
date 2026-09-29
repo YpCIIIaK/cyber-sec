@@ -24,6 +24,7 @@ const Sandbox = (() => {
           type: "dir",
           children: {
             "domain.txt": { type: "file", content: "Домен: CYBER.LOCAL\r\nКонтроллер домена: DC01\r\nФлаг: CYBER{ad_recon_ok}\r\n" },
+            "backup.txt": { type: "file", content: "Бэкап настроек (не удалять)\r\nПометка: PLORE{bfvag_ernql}\r\n" },
             "system.log": {
               type: "file",
               content:
@@ -41,6 +42,15 @@ const Sandbox = (() => {
 
   const HOME = "C:\\Users\\hacker";
   let cwd = HOME; // всегда работаем от домашней папки
+  let mode = "cmd"; // "cmd" | "ps"
+
+  // Учебный реестр (для reg query)
+  const REG = {
+    "HKCU\\SOFTWARE\\MICROSOFT\\WINDOWS\\CURRENTVERSION\\RUN": [
+      "    OneDrive    REG_SZ    C:\\Users\\hacker\\AppData\\Local\\Microsoft\\OneDrive\\OneDrive.exe /background",
+      "    updater     REG_SZ    powershell -enc Q1lCRVJ7cGVyc2lzdGVuY2VfZm91bmR9",
+    ],
+  };
   let outEl = null;
   let inputEl = null;
   const history = [];
@@ -63,6 +73,14 @@ const Sandbox = (() => {
         { p: 443, s: "https", v: "IIS 10.0 (TLS)" },
       ],
     },
+  };
+
+  // Учебный DNS для nslookup / ping
+  const DNS = {
+    "target.local": "10.10.10.5",
+    "scanme.local": "10.10.10.7",
+    "dc01.cyber.local": "10.10.10.10",
+    "cyberpath.local": "10.10.10.42",
   };
 
   // Относительная навигация внутри домашней папки
@@ -118,6 +136,13 @@ const Sandbox = (() => {
         "  tasklist       — список процессов (симуляция)",
         "  netstat        — открытые порты и соединения (симуляция)",
         "  findstr <s> <f>— поиск строки в файле (/i — без регистра)",
+        "  reg query <p>  — чтение раздела реестра (симуляция)",
+        "  certutil -decode <b64> — декодировать base64 (как в Windows)",
+        "  ping <host>    — проверка доступности (симуляция)",
+        "  nslookup <host>— разрешение имени в IP (симуляция)",
+        "  Get-Service    — службы Windows (PowerShell)",
+        "  Get-Process    — процессы (PowerShell)",
+        "  powershell / cmd — переключить режим оболочки",
         "  nmap <цель>    — скан портов (10.10.10.5, scanme.local)",
         "  base64 -d <s>  — декодировать base64 (учебный помощник)",
         "  base64 <s>     — кодировать base64",
@@ -282,6 +307,55 @@ const Sandbox = (() => {
       if (hit.some((l) => l.includes("forensics_artifacts"))) Progress.unlockAchievement("terminal_master");
       return hit.length ? hit.join("\n") : "";
     },
+    ping(args) {
+      const host = args.find((a) => !a.startsWith("-")) || "localhost";
+      const ip = DNS[host] || (/^\d+\.\d+\.\d+\.\d+$/.test(host) ? host : "10.10.10.5");
+      const lines = [`Обмен пакетами с ${host} [${ip}] с 32 байтами данных:`];
+      for (let i = 0; i < 4; i++) lines.push(`Ответ от ${ip}: число байт=32 время=${11 + i}мс TTL=128`);
+      lines.push("", `Статистика Ping для ${ip}: Пакетов: отправлено = 4, получено = 4, потеряно = 0 (0% потерь)`, "(учебная симуляция)");
+      return lines.join("\n");
+    },
+    nslookup(args) {
+      const host = args.find((a) => !a.startsWith("-"));
+      if (!host) return "nslookup: укажите имя";
+      const ip = DNS[host];
+      if (!ip) return `*** Не удалось найти ${host}: Non-existent domain\nИзвестные учебные имена: ${Object.keys(DNS).join(", ")}`;
+      return `Server:  dns.cyber.local\nAddress:  10.10.10.1\n\nИмя:     ${host}\nAddress: ${ip}\n(учебная симуляция)`;
+    },
+    reg(args) {
+      if ((args[0] || "").toLowerCase() !== "query") return "Синтаксис: reg query <путь>";
+      const path = (args[1] || "").toUpperCase().replace(/"/g, "");
+      const rows = REG[path];
+      if (!rows) return `ERROR: Не удалось найти указанный раздел реестра.\nПопробуйте: reg query HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run`;
+      return [args[1], ...rows, "", "(учебная симуляция)"].join("\n");
+    },
+    certutil(args) {
+      const flag = (args[0] || "").toLowerCase();
+      if (flag === "-decode" || flag === "-decodehex") {
+        const payload = args.slice(1).join(" ").replace(/^["']|["']$/g, "");
+        if (!payload) return "certutil: укажите строку для декодирования";
+        try {
+          const res = decodeURIComponent(escape(atob(payload)));
+          if (res.includes("persistence_found")) Progress.unlockAchievement("terminal_master");
+          return res + "\nCertUtil: -decode выполнено успешно.";
+        } catch (e) { return "certutil: неверные входные данные"; }
+      }
+      return "certutil (учебный): поддерживается 'certutil -decode <base64>'";
+    },
+    "get-service"() {
+      return [
+        "Status   Name               DisplayName",
+        "------   ----               -----------",
+        "Running  WinDefend          Microsoft Defender Antivirus Service",
+        "Running  Dnscache           DNS Client",
+        "Stopped  RemoteRegistry     Remote Registry",
+        "Running  Spooler            Print Spooler",
+        "(учебная симуляция)",
+      ].join("\n");
+    },
+    "get-process"() { return COMMANDS.tasklist([]); },
+    powershell() { mode = "ps"; syncPrompt(); return "Windows PowerShell (учебный режим). Наберите 'exit' или 'cmd' для возврата."; },
+    exit() { if (mode === "ps") { mode = "cmd"; syncPrompt(); return "Выход из PowerShell."; } return "Для выхода просто закройте вкладку."; },
   };
   // Алиасы PowerShell / привычные
   COMMANDS["ls"] = COMMANDS.dir;
@@ -290,11 +364,22 @@ const Sandbox = (() => {
   COMMANDS["gc"] = COMMANDS.type;
   COMMANDS["clear"] = COMMANDS.cls;
   COMMANDS["ps"] = COMMANDS.tasklist;
+  COMMANDS["cmd"] = COMMANDS.exit;
+  COMMANDS["gsv"] = COMMANDS["get-service"];
+  COMMANDS["gps"] = COMMANDS["get-process"];
+
+  function promptPrefix() { return (mode === "ps" ? "PS " : "") + cwd; }
+  function syncPrompt() {
+    const c = document.getElementById("term-cwd");
+    if (c) c.textContent = promptPrefix();
+    const btn = document.getElementById("shell-toggle");
+    if (btn) btn.textContent = mode === "ps" ? "PowerShell" : "cmd";
+  }
 
   function run(raw) {
     const line = raw.trim();
     if (!line) return;
-    print(`<span class="term-path">${escapeHtml(shortCwd())}</span>&gt; ${escapeHtml(line)}`, "term-cmd");
+    print(`<span class="term-path">${escapeHtml(promptPrefix())}</span>&gt; ${escapeHtml(line)}`, "term-cmd");
     history.push(line);
     histIdx = history.length;
 
@@ -312,7 +397,33 @@ const Sandbox = (() => {
     } else {
       print(`"${escapeHtml(parts[0] || "")}" не является внутренней или внешней командой. Наберите <b>help</b>.`, "term-err");
     }
+    syncPrompt();
     scrollBottom();
+  }
+
+  // Автодополнение по Tab: команды и файлы в текущем каталоге
+  function complete(value) {
+    const parts = value.split(/\s+/);
+    const isFirst = parts.length === 1;
+    const frag = parts[parts.length - 1];
+    let pool;
+    if (isFirst) {
+      pool = Object.keys(COMMANDS).filter((c) => c.startsWith(frag.toLowerCase()));
+    } else {
+      const node = nodeAt(resolveSegs("."));
+      const names = node && node.type === "dir" ? Object.keys(node.children) : [];
+      pool = names.filter((n) => n.toLowerCase().startsWith(frag.toLowerCase()));
+    }
+    if (pool.length === 0) return { value, list: [] };
+    if (pool.length === 1) {
+      parts[parts.length - 1] = pool[0];
+      return { value: parts.join(" "), list: [] };
+    }
+    // общий префикс
+    let prefix = pool[0];
+    for (const p of pool) { while (!p.toLowerCase().startsWith(prefix.toLowerCase())) prefix = prefix.slice(0, -1); }
+    if (prefix.length > frag.length) { parts[parts.length - 1] = prefix; return { value: parts.join(" "), list: [] }; }
+    return { value, list: pool };
   }
 
   function shortCwd() { return cwd; }
@@ -330,19 +441,30 @@ const Sandbox = (() => {
     if (wrap) wrap.scrollTop = wrap.scrollHeight;
   }
 
+  function setMode(m) { mode = m === "ps" ? "ps" : "cmd"; syncPrompt(); if (inputEl) inputEl.focus(); }
+  function toggleMode() { setMode(mode === "ps" ? "cmd" : "ps"); }
+  function getMode() { return mode; }
+
   function init(outputEl, inEl) {
     outEl = outputEl;
     inputEl = inEl;
     cwd = HOME;
     outEl.innerHTML = "";
     print("Microsoft Windows [Version 10.0.19045] — учебная песочница CyberPath 🪟", "term-ok");
-    print("Полностью безопасная учебная среда. Наберите <b>help</b> для списка команд.", "");
+    print("Безопасная учебная среда. <b>help</b> — команды · <b>Tab</b> — автодополнение · переключатель cmd/PowerShell вверху.", "");
     print("", "");
+    syncPrompt();
 
     inputEl.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         run(inputEl.value);
         inputEl.value = "";
+      } else if (e.key === "Tab") {
+        e.preventDefault();
+        const res = complete(inputEl.value);
+        inputEl.value = res.value;
+        if (res.list.length) print(res.list.join("   "));
+        scrollBottom();
       } else if (e.key === "ArrowUp") {
         if (histIdx > 0) { histIdx--; inputEl.value = history[histIdx] || ""; }
         e.preventDefault();
@@ -353,5 +475,5 @@ const Sandbox = (() => {
     });
   }
 
-  return { init, run };
+  return { init, run, setMode, toggleMode, getMode };
 })();

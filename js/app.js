@@ -190,6 +190,25 @@ const Progress = (() => {
       s + r.tasks.reduce((a, t) => a + (state.completed[t.id] ? (state.earned[t.id] ?? t.points ?? 0) : 0), 0), 0);
   }
 
+  /* ---------- Миссии песочницы ---------- */
+  function missionDone(id) { return !!state.completed["mission_" + id]; }
+  function completeMission(mission) {
+    const key = "mission_" + mission.id;
+    if (state.completed[key]) return { already: true };
+    state.completed[key] = true;
+    state.earned[key] = mission.points;
+    state.xp += mission.points;
+    const events = { xpGained: mission.points, newAchievements: [] };
+    Progress_unlock("terminal_master", events);
+    if (state.xp >= 1000) tryAch("hundred_k", events);
+    const lvl = level();
+    if (lvl >= 5) tryAch("level_5", events);
+    if (lvl >= 10) tryAch("level_10", events);
+    save();
+    return events;
+  }
+  function Progress_unlock(id, events) { if (!state.achievements[id]) { state.achievements[id] = Date.now(); events.newAchievements.push(id); } }
+
   /* ---------- Ежедневное задание ---------- */
   function todayStr() { return new Date().toISOString().slice(0, 10); }
   function dayIndex() {
@@ -225,6 +244,7 @@ const Progress = (() => {
     exportData, importData, courseXP, completedAtISO,
     effectivePoints, hintPenalty: () => HINT_PENALTY,
     dailyToday, dailyIsDone, dailyCount, solveDaily,
+    missionDone, completeMission,
     _state: () => state,
   };
 })();
@@ -863,12 +883,13 @@ const App = (() => {
         <div class="term-wrap card">
           <div class="term-bar">
             <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
-            <span class="term-title">C:\\Users\\hacker — CyberPath Sandbox</span>
+            <span class="term-title">CyberPath Sandbox</span>
+            <button id="shell-toggle" class="shell-toggle" onclick="App.toggleShell()" title="Переключить cmd / PowerShell">cmd</button>
           </div>
           <div class="term-body" id="term-body">
             <div id="term-out"></div>
             <div class="term-input-row">
-              <span class="term-path">C:\\Users\\hacker</span><span class="term-prompt">&gt;</span>
+              <span class="term-path" id="term-cwd">C:\\Users\\hacker</span><span class="term-prompt">&gt;</span>
               <input type="text" id="term-input" autocomplete="off" spellcheck="false" autofocus>
             </div>
           </div>
@@ -876,13 +897,60 @@ const App = (() => {
         <div class="sandbox-hints card">
           <h3>Быстрый старт</h3>
           <div class="cheat">
-            ${["help — все команды","dir — файлы и папки","type secret.txt — читать файл","findstr CYBER файл — поиск","systeminfo — инфо о системе","nmap 10.10.10.5 — скан портов","base64 -d <строка> — декод","rot13 <текст> — шифр"].map(c=>`<code>${c}</code>`).join("")}
+            ${["help — все команды","dir / type — файлы","findstr CYBER файл","reg query …Run — реестр","certutil -decode <b64>","nmap 10.10.10.5","nslookup target.local","Tab — автодополнение"].map(c=>`<code>${c}</code>`).join("")}
           </div>
+        </div>
+
+        <h2 class="rooms-title">Квесты-машины</h2>
+        <p class="missions-intro">Многошаговые сценарии: выполняйте команды в терминале выше, находите флаг и вводите его здесь.</p>
+        <div class="mission-list">
+          ${MISSIONS.map(missionCard).join("")}
         </div>
       </section>`;
     highlightNav();
     Sandbox.init(document.getElementById("term-out"), document.getElementById("term-input"));
-    setTimeout(() => document.getElementById("term-input").focus(), 100);
+    setTimeout(() => { const i = document.getElementById("term-input"); if (i) i.focus(); }, 100);
+  }
+
+  function missionCard(m) {
+    const done = Progress.missionDone(m.id);
+    return `
+      <div class="mission-card ${done ? "done" : ""}">
+        <div class="mission-head">
+          <span class="mission-badge">${done ? Icon.ui("check") : Icon.ui("terminal")}</span>
+          <div class="mission-title">
+            <h3>${m.title}</h3>
+            <span class="mission-meta">${m.level} · +${m.points} XP</span>
+          </div>
+          ${done ? `<span class="mission-solved">Пройдено</span>` : ""}
+        </div>
+        <p class="mission-brief">${m.brief}</p>
+        <ol class="mission-steps">${m.steps.map((s) => `<li>${s}</li>`).join("")}</ol>
+        ${done
+          ? `<div class="task-ok">${Icon.ui("check")} Флаг принят (+${m.points} XP)</div>`
+          : `<div class="answer-row mission-row">
+               <input type="text" id="mflag-${m.id}" placeholder="CYBER{...}" onkeydown="if(event.key==='Enter')App.submitMission('${m.id}')">
+               <button class="btn btn-primary btn-sm" onclick="App.submitMission('${m.id}')">Сдать флаг</button>
+             </div>
+             <div class="feedback" id="fb-m-${m.id}"></div>`}
+      </div>`;
+  }
+  function submitMission(id) {
+    const m = MISSIONS.find((x) => x.id === id);
+    const input = document.getElementById(`mflag-${id}`);
+    const fb = document.getElementById(`fb-m-${id}`);
+    if (!input || !input.value.trim()) { if (fb) fb.innerHTML = `<span class="fb-warn">Введите флаг</span>`; return; }
+    if (input.value.trim() === m.flag) {
+      const res = Progress.completeMission(m);
+      celebrate(res);
+      renderSandbox();
+    } else if (fb) {
+      fb.innerHTML = `<span class="fb-err">✗ Неверный флаг. Пройдите шаги в терминале выше.</span>`;
+    }
+  }
+  function toggleShell() {
+    Sandbox.toggleMode();
+    const t = document.querySelector(".term-title");
   }
 
   function renderProfile() {
@@ -1149,6 +1217,7 @@ const App = (() => {
     init, go, submit, markInfo, showHint, toast, toastAchievement, resetConfirm, toggleTheme,
     catalogSearch, catalogLevel, catalogSort, downloadCertificate, exportProgress, importProgress,
     submitChoice, submitMatch, orderPick, orderReset, submitDaily,
+    submitMission, toggleShell,
   };
 })();
 

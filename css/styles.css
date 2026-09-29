@@ -600,6 +600,36 @@ main { min-height: 72vh; }
   flex: 1; background: none; border: none; color: var(--term-fg);
   font-family: var(--mono); font-size: .89rem; outline: none; caret-color: var(--o-400);
 }
+.shell-toggle {
+  margin-left: auto; font-family: var(--mono); font-size: .74rem; font-weight: 600;
+  color: #e7ddd2; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16);
+  border-radius: 7px; padding: 4px 12px; cursor: pointer; transition: background .15s;
+}
+.shell-toggle:hover { background: rgba(255,255,255,.18); }
+
+/* Квесты-машины */
+.missions-intro { color: var(--muted); font-size: .92rem; margin: -6px 0 18px; }
+.mission-list { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.mission-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 22px; box-shadow: var(--sh-sm); transition: box-shadow .2s; }
+.mission-card:hover { box-shadow: var(--sh); }
+.mission-card.done { border-color: color-mix(in srgb, var(--ok) 30%, var(--line)); background: linear-gradient(180deg, var(--ok-bg), var(--surface) 70%); }
+.mission-head { display: flex; align-items: center; gap: 13px; margin-bottom: 12px; }
+.mission-badge { width: 42px; height: 42px; flex-shrink: 0; border-radius: 12px; display: grid; place-items: center; color: var(--o-600); background: var(--o-50); border: 1px solid var(--o-100); }
+.mission-badge svg { width: 22px; height: 22px; }
+.mission-card.done .mission-badge { color: #fff; background: var(--ok); border-color: var(--ok); }
+:root[data-theme="dark"] .mission-card.done .mission-badge { color: #14110d; }
+.mission-title { flex: 1; }
+.mission-title h3 { font-size: 1.1rem; }
+.mission-meta { font-size: .8rem; color: var(--muted); font-weight: 600; }
+.mission-solved { font-size: .75rem; font-weight: 700; color: var(--ok); background: var(--ok-bg); padding: 4px 10px; border-radius: 20px; border: 1px solid color-mix(in srgb, var(--ok) 25%, var(--line)); }
+.mission-brief { color: var(--ink-2); font-size: .9rem; margin-bottom: 12px; }
+.mission-steps { margin: 0 0 14px; padding-left: 4px; list-style: none; counter-reset: ms; }
+.mission-steps li { position: relative; counter-increment: ms; padding-left: 30px; margin: 7px 0; color: var(--ink-2); font-size: .88rem; }
+.mission-steps li::before { content: counter(ms); position: absolute; left: 0; top: 0; width: 20px; height: 20px; border-radius: 6px; background: var(--o-50); color: var(--o-700); border: 1px solid var(--o-100); font-size: .72rem; font-weight: 700; display: grid; place-items: center; }
+.mission-steps code { font-size: .82em; }
+.mission-row { padding-left: 0; }
+.mission-card .feedback { padding-left: 0; }
+
 .sandbox-hints { margin-top: 20px; }
 .sandbox-hints h3 { margin-bottom: 12px; font-size: 1.1rem; }
 .cheat { display: flex; flex-wrap: wrap; gap: 8px; }

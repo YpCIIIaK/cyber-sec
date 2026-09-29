@@ -36,6 +36,38 @@ const DAILY_QUESTIONS = [
 ];
 const DAILY_BONUS = 20;
 
+/* Многошаговые квесты-«машины» для песочницы (решаются в терминале) */
+const MISSIONS = [
+  {
+    id: "m_persistence",
+    title: "Разбор закрепления в системе",
+    level: "Средний",
+    brief: "На рабочей станции подозрение на вредонос, который прописался в автозагрузку. Соберите улики и найдите флаг.",
+    steps: [
+      "Посмотрите активные сетевые соединения: <code>netstat</code> — обратите внимание на исходящее соединение на порт 4444.",
+      "Проверьте ключи автозагрузки пользователя: <code>reg query HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run</code>",
+      "Значение содержит команду с закодированной полезной нагрузкой. Раскодируйте её: <code>certutil -decode &lt;строка&gt;</code> (или <code>base64 -d</code>).",
+      "Введите найденный флаг ниже.",
+    ],
+    flag: "CYBER{persistence_found}",
+    points: 40,
+  },
+  {
+    id: "m_osint",
+    title: "Забытая резервная копия",
+    level: "Новичок",
+    brief: "В документах остался бэкап со «скрытой» строкой. Найдите и раскодируйте её.",
+    steps: [
+      "Загляните в документы: <code>dir Documents</code>",
+      "Прочитайте файл резервной копии: <code>type Documents\\backup.txt</code>",
+      "Строка зашифрована ROT13. Раскодируйте: <code>rot13 &lt;строка&gt;</code>",
+      "Введите полученный флаг ниже.",
+    ],
+    flag: "CYBER{osint_ready}",
+    points: 30,
+  },
+];
+
 /* Каждое задание task:
    { id, type: "question"|"info"|"flag", title, prompt, answer, answers[], hints[], points, caseSensitive }
    type "info" — просто отметить прочитанным (кнопка «Понятно»).
