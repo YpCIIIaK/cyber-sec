@@ -1554,8 +1554,29 @@ const App = (() => {
         e.preventDefault(); openShortcuts();
       }
     });
+    // установка PWA
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault(); deferredInstall = e;
+      const pill = document.getElementById("install-pill");
+      if (pill) pill.hidden = false;
+    });
+    window.addEventListener("appinstalled", () => {
+      const pill = document.getElementById("install-pill");
+      if (pill) pill.hidden = true;
+      toast("Приложение установлено 🎉");
+    });
     current = parseHash();
     render();
+  }
+  let deferredInstall = null;
+  function installApp() {
+    if (!deferredInstall) return;
+    deferredInstall.prompt();
+    deferredInstall.userChoice.finally(() => {
+      deferredInstall = null;
+      const pill = document.getElementById("install-pill");
+      if (pill) pill.hidden = true;
+    });
   }
 
   /* ---------- Справка по горячим клавишам ---------- */
@@ -1591,10 +1612,7 @@ const App = (() => {
     catalogSearch, catalogLevel, catalogSort, downloadCertificate, exportProgress, importProgress,
     submitChoice, submitMatch, orderPick, orderReset, submitDaily,
     submitMission, toggleShell, openShortcuts, closeShortcuts,
-    catalogSearch, catalogLevel, catalogSort, downloadCertificate, exportProgress, importProgress,
-    submitChoice, submitMatch, orderPick, orderReset, submitDaily,
-    submitMission, toggleShell,
-    glossarySearch, submitExam, retryExam, openPalette, palettePick,
+    glossarySearch, submitExam, retryExam, openPalette, palettePick, installApp,
   };
 })();
 
