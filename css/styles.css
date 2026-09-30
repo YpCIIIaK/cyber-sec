@@ -647,6 +647,7 @@ main { min-height: 72vh; }
 .lvl-circle span { position: relative; text-align: center; font-weight: 600; color: var(--muted); font-size: .68rem; line-height: 1.25; }
 .lvl-circle b { font-family: var(--disp); font-size: 1.7rem; color: var(--ink); }
 .pt-stats { display: grid; grid-template-columns: repeat(4, auto); gap: 34px; }
+.pt-share { margin-left: auto; align-self: center; }
 .ps b { display: block; font-family: var(--disp); font-size: 1.7rem; color: var(--ink); font-variant-numeric: tabular-nums; }
 .ps span { color: var(--muted); font-size: .83rem; }
 

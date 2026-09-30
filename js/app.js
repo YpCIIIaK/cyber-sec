@@ -1298,6 +1298,83 @@ const App = (() => {
   }
   function retryExam(courseId) { examState[courseId] = null; renderExam(courseId); window.scrollTo(0, 0); }
 
+  /* ---------- Шеринг: карточка профиля (PNG) ---------- */
+  function buildShareCanvas() {
+    const s = Progress.overallStats();
+    const acc = Progress.accuracyOverall();
+    const W = 1200, H = 630, sc = 2;
+    const cv = document.createElement("canvas");
+    cv.width = W * sc; cv.height = H * sc;
+    const g = cv.getContext("2d"); g.scale(sc, sc);
+    // фон-градиент
+    const grad = g.createLinearGradient(0, 0, W, H);
+    grad.addColorStop(0, "#fff6f0"); grad.addColorStop(1, "#ffe9db");
+    g.fillStyle = grad; g.fillRect(0, 0, W, H);
+    // оранжевая панель слева
+    const p = g.createLinearGradient(0, 0, 360, H);
+    p.addColorStop(0, "#ff8c47"); p.addColorStop(1, "#db5300");
+    g.fillStyle = p; g.fillRect(0, 0, 360, H);
+    // щит на панели
+    g.save(); g.translate(120, 150); g.scale(5, 5);
+    g.strokeStyle = "rgba(255,255,255,.95)"; g.lineWidth = 1.4; g.lineJoin = "round"; g.lineCap = "round";
+    g.beginPath(); g.moveTo(12, 3); g.lineTo(19, 6); g.lineTo(19, 11);
+    g.bezierCurveTo(19, 15.4, 16, 18.6, 12, 20); g.bezierCurveTo(8, 18.6, 5, 15.4, 5, 11); g.lineTo(5, 6); g.closePath(); g.stroke();
+    g.beginPath(); g.moveTo(9, 12); g.lineTo(11, 14); g.lineTo(15, 10); g.stroke(); g.restore();
+    // ранг на панели
+    g.fillStyle = "#fff"; g.textAlign = "center";
+    g.font = "800 34px Sora, Inter, sans-serif"; g.fillText(s.rank.icon || "", 180, 340);
+    g.font = "800 30px Sora, Inter, sans-serif"; g.fillText(s.rank.name, 180, 400);
+    g.font = "600 22px Inter, sans-serif"; g.fillStyle = "rgba(255,255,255,.85)"; g.fillText("LVL " + s.level, 180, 440);
+    // правая часть — заголовок
+    g.textAlign = "left"; g.fillStyle = "#1a1613";
+    g.font = "800 30px Sora, Inter, sans-serif"; g.fillText("CyberPath", 410, 90);
+    g.fillStyle = "#8c8178"; g.font = "600 20px Inter, sans-serif";
+    g.fillText("Мой прогресс в кибербезопасности", 410, 122);
+    // метрики
+    const stats = [
+      [String(s.xp), "всего XP"],
+      [s.tasksDone + "/" + s.tasksTotal, "заданий"],
+      [s.coursesDone + "/" + s.coursesTotal, "курсов"],
+      [(acc.total ? acc.pct + "%" : "—"), "точность"],
+      [s.streak + "🔥", "дней подряд"],
+      [s.achievements + "/" + s.achievementsTotal, "достижений"],
+    ];
+    let x0 = 410, y0 = 180, cw = 250, ch = 130;
+    stats.forEach((st, i) => {
+      const col = i % 3, row = (i / 3) | 0;
+      const x = x0 + col * cw, y = y0 + row * (ch + 20);
+      g.fillStyle = "#fff"; roundRect(g, x, y, cw - 20, ch, 16); g.fill();
+      g.strokeStyle = "#fde3d0"; g.lineWidth = 1.5; roundRect(g, x, y, cw - 20, ch, 16); g.stroke();
+      g.fillStyle = "#db5300"; g.font = "800 40px Sora, Inter, sans-serif"; g.textAlign = "left";
+      g.fillText(st[0], x + 22, y + 60);
+      g.fillStyle = "#8c8178"; g.font = "600 18px Inter, sans-serif"; g.fillText(st[1], x + 22, y + 95);
+    });
+    g.fillStyle = "#b3a99e"; g.font = "500 18px Inter, sans-serif";
+    g.fillText("Бесплатная платформа · учись этично, применяй ответственно", 410, 600);
+    return cv;
+  }
+  function roundRect(g, x, y, w, h, r) {
+    g.beginPath();
+    g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+  }
+  function shareCard() {
+    const cv = buildShareCanvas();
+    cv.toBlob((blob) => {
+      if (!blob) return;
+      const file = new File([blob], "cyberpath-card.png", { type: "image/png" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: "CyberPath", text: "Мой прогресс в CyberPath" }).catch(() => {});
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob); a.download = "cyberpath-card.png";
+        document.body.appendChild(a); a.click();
+        setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 100);
+        toast("Карточка профиля скачана");
+      }
+    }, "image/png");
+  }
+
   /* ---------- Режим повторения (spaced repetition) ---------- */
   let reviewSession = null;
   function renderReview() {
@@ -1608,6 +1685,7 @@ const App = (() => {
             <div class="ps"><b>${s.coursesDone}/${s.coursesTotal}</b><span>курсов пройдено</span></div>
             <div class="ps"><b>${s.streak}</b><span>дней подряд</span></div>
           </div>
+          <button class="btn btn-ghost btn-sm pt-share" onclick="App.shareCard()">${Icon.ui("progress")} Поделиться карточкой</button>
         </div>
 
         ${dashboardSection()}
@@ -1960,7 +2038,7 @@ const App = (() => {
     submitChoice, submitMatch, orderPick, orderReset, submitDaily,
     submitMission, toggleShell, openShortcuts, closeShortcuts,
     glossarySearch, submitExam, retryExam, openPalette, palettePick, installApp,
-    reviewChoose, reviewCheck, reviewNext,
+    reviewChoose, reviewCheck, reviewNext, shareCard,
   };
 })();
 
