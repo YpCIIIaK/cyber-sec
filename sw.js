@@ -1,11 +1,18 @@
 /* CyberPath Service Worker — офлайн-режим (network-first для своих файлов) */
-const CACHE = "cyberpath-v7";
+const CACHE = "cyberpath-v8";
 const CORE = [
   "./",
   "./index.html",
   "./css/styles.css",
   "./js/icons.js",
   "./js/data.js",
+  "./js/en/ad_reverse.js",
+  "./js/en/forensics_phishing.js",
+  "./js/en/fundamentals.js",
+  "./js/en/hardening_blue_malware.js",
+  "./js/en/networking_osint_crypto.js",
+  "./js/en/web_pentest.js",
+  "./js/en/windows.js",
   "./js/i18n.js",
   "./js/labs.js",
   "./js/terminal.js",

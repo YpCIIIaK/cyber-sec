@@ -1149,7 +1149,7 @@ const App = (() => {
         </div>
         <div class="room-columns">
           <div class="lesson-col">
-            <div class="lesson card">${window.I18N && I18N.current() === "en" ? `<div class="lang-note">🌐 Lesson text is currently in Russian — English translation in progress.</div>` : ""}${room.intro}</div>
+            <div class="lesson card">${room.intro}</div>
             ${hasSandbox ? inlineTerminal() : ""}
           </div>
           <div class="tasks">
@@ -2698,7 +2698,7 @@ const App = (() => {
       if (task.sandbox && window.Sandbox && Sandbox.getTranscript) {
         const tr = Sandbox.getTranscript();
         if (!tr.length) return T("Терминал пока пуст — введите команду слева, затем нажмите «Проверить».");
-        if (tr.some((x) => /не найден|not found|не является/i.test(x.out || ""))) return T("В выводе есть ошибка «не найдено» — проверьте текущий каталог (dir) и путь (cd).");
+        if (tr.some((x) => /не найден|не удается|not found|cannot find|is not recognized|не является/i.test(x.out || ""))) return T("В выводе есть ошибка «не найдено» — проверьте текущий каталог (dir) и путь (cd).");
         if (task.type === "flag" && tr.some((x) => /CYBER\{/.test(x.out || ""))) return T("В выводе уже есть флаг — скопируйте его в поле ответа целиком, вместе с CYBER{...}.");
       }
       return "";

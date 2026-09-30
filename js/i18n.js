@@ -393,9 +393,17 @@ const I18N = (() => {
 
   const MISSIONS_EN = {
     m_persistence: { title: "Investigating Persistence", level: "Intermediate",
-      brief: "A workstation is suspected of malware that added itself to autostart. Gather evidence and find the flag." },
+      brief: "A workstation is suspected of malware that added itself to autostart. Gather evidence and find the flag.",
+      steps: ["Look at active network connections: <code>netstat</code> — note the outbound connection to port 4444.",
+        "Check the user's autostart keys: <code>reg query HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run</code>",
+        "The value contains a command with an encoded payload. Decode it: <code>certutil -decode &lt;string&gt;</code> (or <code>base64 -d</code>).",
+        "Enter the flag you found below."] },
     m_osint: { title: "A Forgotten Backup", level: "Beginner",
-      brief: "A backup with a «hidden» string was left in Documents. Find and decode it." },
+      brief: "A backup with a «hidden» string was left in Documents. Find and decode it.",
+      steps: ["Look into the documents: <code>dir Documents</code>",
+        "Read the backup file: <code>type Documents\\backup.txt</code>",
+        "The string is ROT13-encoded. Decode it: <code>rot13 &lt;string&gt;</code>",
+        "Enter the resulting flag below."] },
   };
 
   /* -------- Наложение перевода на объекты «на месте» -------- */
@@ -407,7 +415,14 @@ const I18N = (() => {
     ACHIEVEMENTS.forEach((a) => { a.__ru = { title: a.title, desc: a.desc }; });
     RANKS.forEach((r) => { r.__ru = { name: r.name }; });
     if (typeof DAILY_QUESTIONS !== "undefined") DAILY_QUESTIONS.forEach((d) => { d.__ru = { q: d.q, answers: d.answers.slice() }; });
-    if (typeof MISSIONS !== "undefined") MISSIONS.forEach((m) => { m.__ru = { title: m.title, level: m.level, brief: m.brief }; });
+    if (typeof MISSIONS !== "undefined") MISSIONS.forEach((m) => { m.__ru = { title: m.title, level: m.level, brief: m.brief, steps: (m.steps || []).slice() }; });
+    COURSES.forEach((c) => c.rooms.forEach((r) => {
+      r.__ru = { title: r.title, intro: r.intro };
+      r.tasks.forEach((t) => {
+        t.__ru = { title: t.title, prompt: t.prompt, hints: t.hints && t.hints.slice(), options: t.options && t.options.slice(),
+          answers: t.answers && t.answers.slice(), pairs: t.pairs && t.pairs.map((x) => x.slice()), items: t.items && t.items.slice() };
+      });
+    }));
     stashed = true;
   }
   function toEN() {
@@ -423,7 +438,37 @@ const I18N = (() => {
       if (DAILY_EN[i]) d.q = DAILY_EN[i];
       if (DAILY_EXTRA_ANSWERS[i]) d.answers = Array.from(new Set([...(d.__ru.answers), ...DAILY_EXTRA_ANSWERS[i]]));
     });
-    if (typeof MISSIONS !== "undefined") MISSIONS.forEach((m) => { const e = MISSIONS_EN[m.id]; if (e) { m.title = e.title; m.level = e.level; m.brief = e.brief; } });
+    if (typeof MISSIONS !== "undefined") MISSIONS.forEach((m) => { const e = MISSIONS_EN[m.id]; if (e) { m.title = e.title; m.level = e.level; m.brief = e.brief; if (e.steps) m.steps = e.steps; } });
+    applyContentEN();
+  }
+  /* Контент курсов: window.CONTENT_EN[courseId][roomId] = { t, intro, tasks: { taskId: [title, prompt, hints?, extra?] } }
+     extra: { answers: [доп. EN-ответы], options: [...], pairs: [...], items: [...] } — по позициям RU-версии. */
+  function applyContentEN() {
+    const CE = window.CONTENT_EN || {};
+    COURSES.forEach((c) => c.rooms.forEach((r) => {
+      const er = CE[c.id] && CE[c.id][r.id];
+      if (!er) return;
+      if (er.t) r.title = er.t;
+      if (er.intro) r.intro = er.intro;
+      r.tasks.forEach((t) => {
+        const e = er.tasks && er.tasks[t.id];
+        if (!e) return;
+        const [title, prompt, hints, x] = e;
+        if (title) t.title = title;
+        if (prompt) t.prompt = prompt;
+        if (hints && hints.length) t.hints = hints;
+        const ru = t.__ru;
+        if (x && x.options && ru.options) {
+          t.options = x.options;
+          // правильный вариант — по позиции в RU-версии
+          t.answers = (ru.answers || []).map((a) => x.options[ru.options.indexOf(a)] || a);
+        } else if (x && x.answers && ru.answers) {
+          t.answers = Array.from(new Set([...ru.answers, ...x.answers]));
+        }
+        if (x && x.pairs && ru.pairs && x.pairs.length === ru.pairs.length) t.pairs = x.pairs;
+        if (x && x.items && ru.items && x.items.length === ru.items.length) t.items = x.items;
+      });
+    }));
   }
   function toRU() {
     if (!stashed) return;
@@ -432,7 +477,19 @@ const I18N = (() => {
     ACHIEVEMENTS.forEach((a) => { if (a.__ru) { a.title = a.__ru.title; a.desc = a.__ru.desc; } });
     RANKS.forEach((r) => { if (r.__ru) r.name = r.__ru.name; });
     if (typeof DAILY_QUESTIONS !== "undefined") DAILY_QUESTIONS.forEach((d) => { if (d.__ru) { d.q = d.__ru.q; d.answers = d.__ru.answers.slice(); } });
-    if (typeof MISSIONS !== "undefined") MISSIONS.forEach((m) => { if (m.__ru) { m.title = m.__ru.title; m.level = m.__ru.level; m.brief = m.__ru.brief; } });
+    if (typeof MISSIONS !== "undefined") MISSIONS.forEach((m) => { if (m.__ru) { m.title = m.__ru.title; m.level = m.__ru.level; m.brief = m.__ru.brief; m.steps = m.__ru.steps.slice(); } });
+    COURSES.forEach((c) => c.rooms.forEach((r) => {
+      if (r.__ru) { r.title = r.__ru.title; r.intro = r.__ru.intro; }
+      r.tasks.forEach((t) => {
+        const ru = t.__ru; if (!ru) return;
+        t.title = ru.title; t.prompt = ru.prompt;
+        if (ru.hints) t.hints = ru.hints.slice();
+        if (ru.options) t.options = ru.options.slice();
+        if (ru.answers) t.answers = ru.answers.slice();
+        if (ru.pairs) t.pairs = ru.pairs.map((x) => x.slice());
+        if (ru.items) t.items = ru.items.slice();
+      });
+    }));
   }
 
   /* -------- Статические строки в index.html (data-i18n) -------- */
