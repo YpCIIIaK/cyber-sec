@@ -792,6 +792,25 @@ main { min-height: 72vh; }
 .exam-verdict p { color: var(--ink-2); font-size: .9rem; margin: 4px 0 10px; }
 .exam-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
+/* ---------- Повторение ---------- */
+.review-empty { text-align: center; padding: 44px 28px; }
+.review-empty h3 { font-size: 1.3rem; margin: 6px 0; }
+.review-empty p { color: var(--ink-2); max-width: 520px; margin: 0 auto 12px; }
+.review-stat { color: var(--muted); }
+.review-empty .btn { margin: 6px; }
+.review-progress { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.review-progress .xp-bar { flex: 1; margin: 0; }
+.review-card { padding: 28px; }
+.review-src { font-size: .78rem; color: var(--o-700); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
+.review-q { font-size: 1.25rem; margin-bottom: 18px; line-height: 1.35; }
+.rev-choices { padding-left: 0; }
+.choice-opt.right { border-color: var(--ok); background: var(--ok-bg); }
+.review-fb { margin-top: 14px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.rev-verdict { font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
+.rev-verdict svg { width: 18px; height: 18px; }
+.rev-verdict.ok { color: var(--ok); }
+.rev-verdict.no { color: var(--err); }
+
 /* ---------- Дашборд / графики ---------- */
 .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
 .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 16px 18px; }

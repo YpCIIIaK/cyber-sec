@@ -429,6 +429,7 @@ const App = (() => {
     if (view === "courses") return "#/courses";
     if (view === "glossary") return "#/glossary";
     if (view === "roadmap") return "#/roadmap";
+    if (view === "review") return "#/review";
     return "#/";
   }
   function parseHash() {
@@ -440,6 +441,7 @@ const App = (() => {
     if (parts[0] === "profile") return { view: "profile" };
     if (parts[0] === "glossary") return { view: "glossary" };
     if (parts[0] === "roadmap") return { view: "roadmap" };
+    if (parts[0] === "review") return { view: "review" };
     if (parts[0] === "course" && parts[1]) {
       if (parts[2] === "room" && parts[3])
         return { view: "room", courseId: parts[1], roomId: parts[3] };
@@ -480,6 +482,7 @@ const App = (() => {
       case "profile": renderProfile(); break;
       case "glossary": renderGlossary(); break;
       case "roadmap": renderRoadmap(); break;
+      case "review": renderReview(); break;
       case "exam": renderExam(c.courseId); break;
       default: renderHome();
     }
@@ -525,6 +528,7 @@ const App = (() => {
 
       ${continueBlock()}
       ${dailyCard()}
+      ${reviewCardHome()}
 
       <section class="features">
         ${[
@@ -583,6 +587,25 @@ const App = (() => {
           <button class="btn btn-primary">${started ? "Продолжить" : "Начать"} ${Icon.ui("arrow")}</button>
         </div>
       </section>`;
+  }
+
+  function reviewCardHome() {
+    const due = Progress.srsDueCount();
+    if (!due) return "";
+    return `
+      <section class="section daily-section">
+        <div class="daily-card" style="border-left-color:var(--o-500);cursor:pointer" onclick="App.go('review')">
+          <div class="daily-badge">${Icon.ui("book")} Повторение<span class="daily-bonus" style="background:var(--o-500)">${due}</span></div>
+          <p class="daily-q">К повторению готово ${due} ${plural(due, "карточка", "карточки", "карточек")}. Закрепите слабые темы — интервальное повторение работает.</p>
+          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();App.go('review')">Начать повторение ${Icon.ui("arrow")}</button>
+        </div>
+      </section>`;
+  }
+  function plural(n, one, few, many) {
+    const m10 = n % 10, m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return one;
+    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+    return many;
   }
 
   function dailyCard() {
@@ -1275,6 +1298,96 @@ const App = (() => {
   }
   function retryExam(courseId) { examState[courseId] = null; renderExam(courseId); window.scrollTo(0, 0); }
 
+  /* ---------- Режим повторения (spaced repetition) ---------- */
+  let reviewSession = null;
+  function renderReview() {
+    const total = Progress.srsTotal();
+    const due = Progress.srsDueList();
+    if (!due.length) {
+      root().innerHTML = `
+        <section class="section">
+          <div class="page-title"><h1>Повторение</h1><p>Интервальное повторение слабых тем — как флеш-карты Anki.</p></div>
+          <div class="review-empty card">
+            <div class="cb-icon">${Icon.ui("check")}</div>
+            <h3>${total ? "Всё повторено на сегодня!" : "Карточки появятся автоматически"}</h3>
+            <p>${total
+              ? "Вы разобрали все карточки, готовые к повторению. Возвращайтесь завтра — система напомнит нужное."
+              : "Решайте задания в курсах — вопросы с ответами станут карточками и будут возвращаться на повторение через растущие интервалы."}</p>
+            <p class="review-stat">Всего карточек в колоде: <b>${total}</b></p>
+            <button class="btn btn-primary" onclick="App.go('courses')">${Icon.ui("arrow")} К курсам</button>
+          </div>
+        </section>`;
+      highlightNav();
+      return;
+    }
+    reviewSession = { queue: due.slice(), idx: 0, correct: 0, total: due.length, revealed: false };
+    root().innerHTML = `<section class="section"><div class="page-title"><h1>Повторение</h1><p>Сессия: ${due.length} карточек к повторению.</p></div><div id="review-stage"></div></section>`;
+    highlightNav();
+    renderReviewCard();
+  }
+  function renderReviewCard() {
+    const st = reviewSession;
+    const stage = document.getElementById("review-stage");
+    if (!stage) return;
+    if (st.idx >= st.queue.length) {
+      const pct = Math.round((st.correct / st.total) * 100);
+      stage.innerHTML = `
+        <div class="review-empty card">
+          <div class="cb-icon">${Icon.ui("check")}</div>
+          <h3>Сессия завершена!</h3>
+          <p>Верно: <b>${st.correct}/${st.total}</b> (${pct}%). Карточки перепланированы: правильные вернутся позже, ошибочные — уже завтра.</p>
+          <button class="btn btn-primary" onclick="App.go('review')">Обновить</button>
+          <button class="btn btn-ghost" onclick="App.go('profile')">К дашборду</button>
+        </div>`;
+      renderNav();
+      return;
+    }
+    const id = st.queue[st.idx];
+    const info = Progress.taskInfo(id);
+    const task = info.task;
+    const progressPct = Math.round((st.idx / st.total) * 100);
+    stage.innerHTML = `
+      <div class="review-progress"><div class="xp-bar"><span style="width:${progressPct}%"></span></div><span class="cc-pct">${st.idx + 1}/${st.total}</span></div>
+      <div class="review-card card">
+        <div class="review-src">${info.course.title} · ${info.room.title}</div>
+        <h3 class="review-q">${task.prompt}</h3>
+        ${task.type === "choice"
+          ? `<div class="choice-grid rev-choices">${task.options.map((o) => `<button class="choice-opt" onclick="App.reviewChoose(this,'${escapeAttr(o)}')">${o}</button>`).join("")}</div>`
+          : `<div class="answer-row"><input type="text" id="rev-input" placeholder="Ваш ответ" onkeydown="if(event.key==='Enter')App.reviewCheck()"><button class="btn btn-primary btn-sm" onclick="App.reviewCheck()">Проверить</button></div>`}
+        <div id="rev-fb" class="review-fb"></div>
+      </div>`;
+    setTimeout(() => { const i = document.getElementById("rev-input"); if (i) i.focus(); }, 30);
+  }
+  function reviewGrade(id, ok, correctText) {
+    Progress.srsReview(id, ok);
+    if (ok) reviewSession.correct++;
+    const fb = document.getElementById("rev-fb");
+    if (fb) {
+      fb.innerHTML = `
+        <div class="rev-verdict ${ok ? "ok" : "no"}">${ok ? Icon.ui("check") + " Верно!" : "✗ Правильный ответ: <b>" + correctText + "</b>"}</div>
+        <button class="btn btn-primary btn-sm" onclick="App.reviewNext()">Дальше ${Icon.ui("arrow")}</button>`;
+    }
+    renderNav();
+  }
+  function reviewChoose(btn, val) {
+    const id = reviewSession.queue[reviewSession.idx];
+    const task = Progress.taskInfo(id).task;
+    document.querySelectorAll(".rev-choices .choice-opt").forEach((b) => (b.disabled = true));
+    const ok = checkAnswer(task, val);
+    btn.classList.add(ok ? "right" : "wrong");
+    reviewGrade(id, ok, (task.answers || [])[0] || "");
+  }
+  function reviewCheck() {
+    const id = reviewSession.queue[reviewSession.idx];
+    const task = Progress.taskInfo(id).task;
+    const inp = document.getElementById("rev-input");
+    if (!inp || !inp.value.trim()) return;
+    inp.disabled = true;
+    const ok = checkAnswer(task, inp.value);
+    reviewGrade(id, ok, (task.answers || [])[0] || "");
+  }
+  function reviewNext() { reviewSession.idx++; renderReviewCard(); }
+
   /* ---------- Командная палитра (Ctrl/⌘+K) ---------- */
   const palette = { open: false, items: [], active: 0, filtered: [] };
   function buildPaletteItems() {
@@ -1283,6 +1396,7 @@ const App = (() => {
       { label: "Каталог курсов", sub: "Все курсы", go: () => go("courses") },
       { label: "Путь обучения", sub: "Дорожная карта", go: () => go("roadmap") },
       { label: "Песочница", sub: "Терминал и квесты", go: () => go("sandbox") },
+      { label: "Повторение", sub: "Карточки на повторение", go: () => go("review") },
       { label: "Словарь терминов", sub: "Глоссарий", go: () => go("glossary") },
       { label: "Профиль", sub: "Прогресс и достижения", go: () => go("profile") },
     ];
@@ -1846,6 +1960,7 @@ const App = (() => {
     submitChoice, submitMatch, orderPick, orderReset, submitDaily,
     submitMission, toggleShell, openShortcuts, closeShortcuts,
     glossarySearch, submitExam, retryExam, openPalette, palettePick, installApp,
+    reviewChoose, reviewCheck, reviewNext,
   };
 })();
 
