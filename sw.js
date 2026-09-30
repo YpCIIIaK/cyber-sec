@@ -1,5 +1,5 @@
-/* CyberPath Service Worker — офлайн-режим (app shell + runtime cache) */
-const CACHE = "cyberpath-v2";
+/* CyberPath Service Worker — офлайн-режим (network-first для своих файлов) */
+const CACHE = "cyberpath-v3";
 const CORE = [
   "./",
   "./index.html",
@@ -7,6 +7,7 @@ const CORE = [
   "./js/icons.js",
   "./js/data.js",
   "./js/i18n.js",
+  "./js/labs.js",
   "./js/terminal.js",
   "./js/app.js",
   "./manifest.json",
@@ -35,17 +36,29 @@ self.addEventListener("fetch", (e) => {
   // Навигация — сеть с откатом на кэшированный index (SPA)
   if (req.mode === "navigate") {
     e.respondWith(
-      fetch(req).catch(() => caches.match("./index.html"))
+      fetch(req).then((res) => { const c = res.clone(); caches.open(CACHE).then((x) => x.put("./index.html", c)); return res; })
+        .catch(() => caches.match("./index.html"))
     );
     return;
   }
 
-  // Остальное — cache-first, затем сеть с дозаписью в кэш (в т.ч. шрифты)
+  // Свои файлы (js/css/etc) — network-first: свежий код онлайн, кэш офлайн
+  if (url.origin === location.origin) {
+    e.respondWith(
+      fetch(req).then((res) => {
+        if (res && res.status === 200) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
+        return res;
+      }).catch(() => caches.match(req))
+    );
+    return;
+  }
+
+  // Сторонние (шрифты, cdn) — cache-first
   e.respondWith(
     caches.match(req).then((hit) => {
       if (hit) return hit;
       return fetch(req).then((res) => {
-        if (res && res.status === 200 && (url.origin === location.origin || url.hostname.includes("gstatic") || url.hostname.includes("googleapis"))) {
+        if (res && res.status === 200 && (url.hostname.includes("gstatic") || url.hostname.includes("googleapis"))) {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(req, copy));
         }

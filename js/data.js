@@ -212,6 +212,7 @@ const COURSES = [
           { id: "pw_2fa", type: "question", title: "Второй фактор", prompt: "Как называется аббревиатура для двухфакторной аутентификации? (англ., 3 символа)", answers: ["2fa"], hints: ["Two-Factor Authentication.", "Цифра + две буквы."], points: 10 },
           { id: "pw_attack", type: "question", title: "Атака по утёкшим базам", prompt: "Как называется атака, где утёкшие пары логин/пароль подставляют на другие сайты? (англ., 2 слова)", answers: ["credential stuffing", "credentialstuffing"], hints: ["Credential ...", "Начинается с 'credential'."], points: 15 },
           { id: "pw_best", type: "question", title: "Лучшая практика", prompt: "Что использовать, чтобы хранить уникальные пароли для каждого сайта? (2 слова, рус.)", answers: ["менеджер паролей"], hints: ["Специальная программа-хранилище."], points: 10 },
+          { id: "pw_lab", type: "lab", lab: "passmeter", title: "Лаборатория: надёжный пароль", prompt: "Соберите пароль уровня «Отличный» в интерактивном измерителе ниже.", points: 20 },
         ],
       },
       {
@@ -458,6 +459,7 @@ const COURSES = [
           { id: "sql_read", type: "info", title: "Изучить SQLi", prompt: "Прочитайте про инъекции.", points: 5 },
           { id: "sql_payload", type: "question", title: "Классический пейлоад", prompt: "Введите классическое условие, всегда истинное: ' OR '1'='... (закончите: цифра)", answers: ["1", "'1"], hints: ["'1'='1"], points: 15 },
           { id: "sql_defense", type: "question", title: "Главная защита", prompt: "Как называются запросы с плейсхолдерами вместо конкатенации? (2 слова, англ.)", answers: ["prepared statements", "parameterized queries", "prepared statement"], hints: ["Prepared ...", "'prepared statements' или 'parameterized queries'"], points: 20 },
+          { id: "sql_lab", type: "lab", lab: "sqli", title: "Лаборатория: обход входа SQLi", prompt: "Войдите как admin через SQL-инъекцию в учебной форме.", points: 25 },
         ],
       },
       {
@@ -484,6 +486,7 @@ const COURSES = [
           { id: "xss_stored", type: "question", title: "Самый опасный тип", prompt: "Какой тип XSS сохраняется в БД и бьёт всех посетителей? (англ., 1 слово)", answers: ["stored"], hints: ["Хранимый."], points: 15 },
           { id: "xss_csp", type: "question", title: "Заголовок защиты", prompt: "Какая политика (аббревиатура, 3 буквы) ограничивает источники скриптов?", answers: ["csp"], hints: ["Content Security Policy."], points: 15 },
           { id: "xss_cookie", type: "question", title: "Защита cookie", prompt: "Какой атрибут cookie запрещает доступ к ней из JS? (1 слово, англ.)", answers: ["httponly"], hints: ["Http____"], points: 15 },
+          { id: "xss_lab", type: "lab", lab: "xss", title: "Лаборатория: reflected XSS", prompt: "Внедрите скрипт в поле комментария учебного сайта.", points: 25 },
         ],
       },
     ],
@@ -984,6 +987,7 @@ const COURSES = [
           { id: "phh_read", type: "info", title: "Изучить заголовки", prompt: "Прочитайте о разборе заголовков.", points: 5 },
           { id: "phh_ar", type: "question", title: "Где итоги проверок", prompt: "В каком заголовке лежат результаты SPF/DKIM/DMARC? (англ., через дефис)", answers: ["authentication-results", "authentication results"], hints: ["Authentication-..."], points: 20 },
           { id: "phh_mismatch", type: "question", title: "Признак спуфинга", prompt: "Несовпадение From и какого поля (адрес возврата) — красный флаг? (англ., через дефис)", answers: ["return-path", "return path", "returnpath"], hints: ["Return-..."], points: 15 },
+          { id: "phh_lab", type: "lab", lab: "phish", title: "Лаборатория: разбор письма", prompt: "Отметьте все красные флаги в заголовках письма.", points: 25 },
         ],
       },
     ],
@@ -1041,6 +1045,7 @@ const COURSES = [
           { id: "hdw_smb", type: "question", title: "Отключить протокол", prompt: "Какой устаревший протокол (вектор WannaCry) надо отключить? (англ., включая версию)", answers: ["smbv1", "smb1"], hints: ["SMB + версия 1."], points: 15 },
           { id: "hdw_bitlocker", type: "question", title: "Шифрование диска", prompt: "Штатное шифрование диска в Windows? (англ., 1 слово)", answers: ["bitlocker"], hints: ["Bit..."], points: 15 },
           { id: "hdw_applock", type: "question", title: "Белые списки приложений", prompt: "Назовите технологию контроля запуска приложений в Windows (App... или WDAC).", answers: ["applocker", "wdac"], hints: ["AppLocker / WDAC"], points: 15 },
+          { id: "hdw_lab", type: "lab", lab: "harden", title: "Лаборатория: харденинг Windows", prompt: "Выберите безопасную конфигурацию в чек-листе.", points: 25 },
         ],
       },
       {
@@ -1093,6 +1098,7 @@ const COURSES = [
           { id: "bts_siem", type: "question", title: "Корреляция логов", prompt: "Система сбора и корреляции логов с алертами? (аббревиатура, 4 буквы)", answers: ["siem"], hints: ["Security Information and Event Management."], points: 15 },
           { id: "bts_edr", type: "question", title: "Защита конечных точек", prompt: "Телеметрия и реагирование на конечных точках? (аббревиатура, 3 буквы)", answers: ["edr"], hints: ["Endpoint Detection & Response."], points: 15 },
           { id: "bts_ioc", type: "question", title: "След компрометации", prompt: "Аббревиатура индикатора компрометации (3 буквы)?", answers: ["ioc"], hints: ["Indicator of Compromise."], points: 15 },
+          { id: "bts_lab", type: "lab", lab: "logtriage", title: "Лаборатория: триаж логов", prompt: "Найдите строки атаки в журнале SOC.", points: 25 },
         ],
       },
       {

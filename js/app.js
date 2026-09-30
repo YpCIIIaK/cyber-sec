@@ -34,13 +34,47 @@ const Progress = (() => {
   let state = load();
 
   function load() {
+    let s;
     try {
       const raw = localStorage.getItem(KEY);
-      if (!raw) return structuredClone(defaultState);
-      return Object.assign(structuredClone(defaultState), JSON.parse(raw));
+      s = raw ? Object.assign(structuredClone(defaultState), JSON.parse(raw)) : structuredClone(defaultState);
     } catch (e) {
-      return structuredClone(defaultState);
+      s = structuredClone(defaultState);
     }
+    return migrate(s);
+  }
+
+  // Бэкфилл аналитики для прогресса, накопленного до появления трекинга
+  function migrate(s) {
+    if (s.migratedV2) return s;
+    const completedIds = Object.keys(s.completed || {});
+    const day = Math.floor(Date.now() / 86400000);
+    const today = new Date().toISOString().slice(0, 10);
+    // История XP: если пусто, но XP есть — одну запись «сегодня», чтобы график не был пустым
+    if ((!s.xpLog || !s.xpLog.length) && s.xp > 0) s.xpLog = [{ d: day, a: s.xp }];
+    // Активные дни: отметить сегодня и день последнего визита
+    if (!s.activeDays) s.activeDays = {};
+    if (s.xp > 0 && s.activeDays[today] === undefined) s.activeDays[today] = s.xp;
+    if (s.lastVisit && s.activeDays[s.lastVisit] === undefined) s.activeDays[s.lastVisit] = 0;
+    // индекс типов заданий из COURSES (TASK_INDEX ещё не готов на этом этапе)
+    const typeById = {};
+    COURSES.forEach((c) => c.rooms.forEach((r) => r.tasks.forEach((tk) => (typeById[tk.id] = tk.type))));
+    // Попытки: считаем каждое выполненное проверяемое задание как верную попытку
+    if (!s.attempts) s.attempts = {};
+    // SRS: завести карточки для выполненных вопросов/выбора
+    if (!s.srs) s.srs = {};
+    completedIds.forEach((id) => {
+      const ty = typeById[id];
+      if (!ty) return;
+      if ((ty === "question" || ty === "choice" || ty === "flag" || ty === "lab") && !s.attempts[id]) {
+        s.attempts[id] = { c: 1, w: 0 };
+      }
+      if ((ty === "question" || ty === "choice") && !s.srs[id]) {
+        s.srs[id] = { box: 2, due: day + 2, reps: 1, lapses: 0 };
+      }
+    });
+    s.migratedV2 = true;
+    return s;
   }
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(state)); }
@@ -983,6 +1017,21 @@ const App = (() => {
         Sandbox.setHook((cmd, output) => autoCheckSandbox(course, room, cmd, output));
       }
     }
+    // Монтируем интерактивные лаборатории
+    room.tasks.forEach((tk) => {
+      if (tk.type !== "lab" || Progress.isDone(tk.id)) return;
+      const box = document.getElementById("lab-" + tk.id);
+      if (box && window.Labs) Labs.mount(tk.lab, box, () => {
+        if (Progress.isDone(tk.id)) return;
+        Progress.recordAttempt(tk.id, true);
+        const res = Progress.completeTask(tk, course.id);
+        celebrate(res);
+        toast("✓ " + tk.title);
+        const el = document.getElementById("task-" + tk.id);
+        if (el) el.outerHTML = taskBlock(course, tk);
+        if (Progress.roomCompleted(room)) setTimeout(() => renderRoom(course.id, room.id), 900);
+      });
+    });
 
     // проверка "без подсказок"
     if (Progress.roomCompleted(room) && Progress.roomUsedNoHints(room)) {
@@ -1149,6 +1198,8 @@ const App = (() => {
     switch (task.type) {
       case "info":
         return `<button class="btn btn-primary btn-sm" onclick="App.markInfo('${cid}','${tid}')">${T("Понятно, дальше")}</button>`;
+      case "lab":
+        return `<div class="lab-box" id="lab-${tid}"></div>`;
       case "choice":
         return `
           <div class="choice-grid">
