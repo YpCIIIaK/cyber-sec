@@ -149,6 +149,7 @@ const Sandbox = (() => {
         "  base64 -d <s>  — декодировать base64 (учебный помощник)",
         "  base64 <s>     — кодировать base64",
         "  rot13 <s>      — шифр ROT13",
+        "  hex -d <s>     — декодировать hex в текст",
         "  echo <текст>   — вывести текст",
         "  cls            — очистить экран",
         "  help           — эта справка",
@@ -283,6 +284,14 @@ const Sandbox = (() => {
       } catch (e) {
         return "base64: неверный ввод";
       }
+    },
+    hex(args) {
+      const decode = args[0] === "-d";
+      const payload = args.slice(decode ? 1 : 0).join("");
+      if (!payload) return "hex: укажите строку (hex -d 4359...)";
+      if (!decode) return Array.from(payload).map((c) => c.charCodeAt(0).toString(16).padStart(2, "0")).join("");
+      if (!/^([0-9a-fA-F]{2})+$/.test(payload)) return "hex: неверный ввод";
+      return payload.match(/../g).map((h) => String.fromCharCode(parseInt(h, 16))).join("");
     },
     rot13(args) {
       const s = args.join(" ");

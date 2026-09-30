@@ -2381,20 +2381,6 @@ const App = (() => {
     setTimeout(() => { t.classList.remove("show"); setTimeout(() => t.remove(), 300); }, 3600);
   }
 
-  function confetti(n) {
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const box = document.createElement("div");
-    box.className = "confetti";
-    const cols = ["var(--o-500)", "#ffd166", "#06d6a0", "#118ab2", "#ef476f"];
-    for (let i = 0; i < n; i++) {
-      const p = document.createElement("i");
-      p.style.cssText = `left:${Math.random() * 100}%;background:${cols[i % cols.length]};--dx:${(Math.random() - .5) * 240}px;--r:${Math.random() * 720}deg;animation-delay:${Math.random() * .25}s;animation-duration:${1.4 + Math.random()}s`;
-      box.appendChild(p);
-    }
-    document.body.appendChild(box);
-    setTimeout(() => box.remove(), 3000);
-  }
-
   function resetConfirm() {
     if (confirm("Точно сбросить весь прогресс? Это необратимо.")) {
       Progress.reset();
