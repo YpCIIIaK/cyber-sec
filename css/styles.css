@@ -1265,3 +1265,11 @@ a.crumb:hover { background: var(--o-50); color: var(--o-700); }
 .hist-t tr.best td { background: var(--o-50); font-weight: 700; }
 @media (max-width: 680px) { .cr-stats { grid-template-columns: 1fr 1fr; } }
 .chal-q .answer-row { margin-left: 0; margin-top: 14px; } .chal-q .hint-btn { margin-top: 10px; }
+/* v6 fix: текст в узлах дерева не вылезает за карточку */
+.st-node { grid-template-columns: 38px minmax(0, 1fr); overflow: hidden; }
+.st-name { min-width: 0; font-size: .78rem; overflow-wrap: anywhere; hyphens: auto; }
+.st-ring { min-width: 0; overflow: hidden; }
+.st-ring b { flex: none; }
+.st-ring i { min-width: 0; flex: 1 1 auto; font-size: .6rem; }
+/* отступ между «Заданием дня» и недельным ивентом */
+.weekly-home { padding-top: 0; margin-top: 18px; }

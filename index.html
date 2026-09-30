@@ -32,9 +32,9 @@
         <a data-view="profile" onclick="App.go('profile')" data-i18n="Профиль">Профиль</a>
       </nav>
       <div id="nav-stats" class="nav-stats"></div>
-      <button id="lang-toggle" class="theme-toggle lang-toggle" onclick="App.toggleLang()" aria-label="Language RU/EN" title="Язык / Language">EN</button>
-      <button class="cmdk-btn" onclick="App.openPalette()" aria-label="Поиск (Ctrl+K)" title="Быстрый переход — Ctrl/⌘ + K"><span class="cmdk-ic"></span><kbd>⌘K</kbd></button>
-      <button id="theme-toggle" class="theme-toggle" onclick="App.toggleTheme()" aria-label="Переключить тему" title="Светлая / тёмная тема"></button>
+      <button id="lang-toggle" class="theme-toggle lang-toggle" onclick="App.toggleLang()" aria-label="Language RU/EN" title="Язык / Language" data-i18n-title="Язык / Language">EN</button>
+      <button class="cmdk-btn" onclick="App.openPalette()" aria-label="Поиск (Ctrl+K)" title="Быстрый переход — Ctrl/⌘ + K" data-i18n-title="Быстрый переход — Ctrl/⌘ + K"><span class="cmdk-ic"></span><kbd>⌘K</kbd></button>
+      <button id="theme-toggle" class="theme-toggle" onclick="App.toggleTheme()" aria-label="Переключить тему" title="Светлая / тёмная тема" data-i18n-title="Светлая / тёмная тема"></button>
       <button class="burger" onclick="document.body.classList.toggle('nav-open')" aria-label="Меню">☰</button>
     </div>
   </header>
@@ -45,9 +45,9 @@
     <div class="footer-inner">
       <div>
         <span class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3z"/></svg></span>
-        <b>CyberPath</b> — учись этично, применяй ответственно.
+        <b>CyberPath</b> <span data-i18n="— учись этично, применяй ответственно.">— учись этично, применяй ответственно.</span>
       </div>
-      <p class="footer-note">Все материалы носят образовательный характер. Тестируйте только свои системы или площадки с разрешением. Прогресс хранится локально в вашем браузере.</p>
+      <p class="footer-note" data-i18n="Все материалы носят образовательный характер. Тестируйте только свои системы или площадки с разрешением. Прогресс хранится локально в вашем браузере.">Все материалы носят образовательный характер. Тестируйте только свои системы или площадки с разрешением. Прогресс хранится локально в вашем браузере.</p>
     </div>
   </footer>
 

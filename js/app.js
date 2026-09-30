@@ -657,12 +657,12 @@ const App = (() => {
     if (nav) {
       nav.innerHTML = `
         <button class="rank-chip tier-${s.rank.tier}" title="${T("Открыть лестницу званий")}" onclick="App.openRanks()">${rankBadge(s.rank, 22)}<span>${s.rank.name}</span></button>
-        <div class="nav-xp" title="Ваш уровень и опыт">
+        <div class="nav-xp" title="${T("Ваш уровень и опыт")}">
           <span class="lvl-badge">LVL ${s.level}</span>
           <div class="xp-bar-mini"><span style="width:${(s.xpInLevel)}%"></span></div>
           <span class="xp-text">${s.xp} XP</span>
         </div>
-        ${s.streak > 0 ? `<span class="streak" title="Серия дней подряд">${Icon.ui("flame")}${s.streak}</span>` : ""}
+        ${s.streak > 0 ? `<span class="streak" title="${T("Серия дней подряд")}">${Icon.ui("flame")}${s.streak}</span>` : ""}
       `;
       displayedXP = s.xp;
     }
@@ -824,11 +824,11 @@ const App = (() => {
         <div class="continue-card" style="--c:${n.course.color}" onclick="App.go('room',{courseId:'${n.course.id}',roomId:'${n.room.id}'})">
           <span class="cont-ic">${Icon.course(n.course.id)}</span>
           <div class="cont-body">
-            <span class="cont-label">${started ? "Продолжить обучение" : "Начните здесь"}</span>
+            <span class="cont-label">${started ? T("Продолжить обучение") : T("Начните здесь")}</span>
             <h3>${n.course.title}</h3>
-            <p>${n.room.title} · курс пройден на ${n.pct}%</p>
+            <p>${n.room.title} · ${T("курс пройден на")} ${n.pct}%</p>
           </div>
-          <button class="btn btn-primary">${started ? "Продолжить" : "Начать"} ${Icon.ui("arrow")}</button>
+          <button class="btn btn-primary">${started ? T("Продолжить") : T("Начать")} ${Icon.ui("arrow")}</button>
         </div>
       </section>`;
   }
@@ -839,9 +839,9 @@ const App = (() => {
     return `
       <section class="section daily-section">
         <div class="daily-card" style="border-left-color:var(--o-500);cursor:pointer" onclick="App.go('review')">
-          <div class="daily-badge">${Icon.ui("book")} Повторение<span class="daily-bonus" style="background:var(--o-500)">${due}</span></div>
+          <div class="daily-badge">${Icon.ui("book")} ${T("Повторение")}<span class="daily-bonus" style="background:var(--o-500)">${due}</span></div>
           <p class="daily-q">К повторению готово ${due} ${plural(due, "карточка", "карточки", "карточек")}. Закрепите слабые темы — интервальное повторение работает.</p>
-          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();App.go('review')">Начать повторение ${Icon.ui("arrow")}</button>
+          <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();App.go('review')">${T("Начать повторение")} ${Icon.ui("arrow")}</button>
         </div>
       </section>`;
   }
@@ -858,15 +858,15 @@ const App = (() => {
     return `
       <section class="section daily-section">
         <div class="daily-card ${done ? "done" : ""}">
-          <div class="daily-badge">${Icon.ui("flame")} Задание дня<span class="daily-bonus">+${DAILY_BONUS} XP</span></div>
+          <div class="daily-badge">${Icon.ui("flame")} ${T("Задание дня")}<span class="daily-bonus">+${DAILY_BONUS} XP</span></div>
           ${done
-            ? `<p class="daily-done">${Icon.ui("check")} Решено сегодня! Возвращайтесь завтра за новым заданием. Решено всего: ${Progress.dailyCount()}.</p>`
+            ? `<p class="daily-done">${Icon.ui("check")} ${T("Решено сегодня! Возвращайтесь завтра за новым заданием. Решено всего:")} ${Progress.dailyCount()}.</p>`
             : `
               <p class="daily-q">${q.q}</p>
               <div class="answer-row daily-row">
-                <input type="text" id="daily-input" placeholder="Ваш ответ"
+                <input type="text" id="daily-input" placeholder="${T("Ваш ответ")}"
                        onkeydown="if(event.key==='Enter')App.submitDaily()">
-                <button class="btn btn-primary btn-sm" onclick="App.submitDaily()">Ответить</button>
+                <button class="btn btn-primary btn-sm" onclick="App.submitDaily()">${T("Ответить")}</button>
               </div>
               <div class="feedback" id="fb-daily"></div>`}
         </div>
@@ -875,7 +875,7 @@ const App = (() => {
   function submitDaily() {
     const input = document.getElementById("daily-input");
     const fb = document.getElementById("fb-daily");
-    if (!input || !input.value.trim()) { if (fb) fb.innerHTML = `<span class="fb-warn">Введите ответ</span>`; return; }
+    if (!input || !input.value.trim()) { if (fb) fb.innerHTML = `<span class="fb-warn">${T("Введите ответ")}</span>`; return; }
     const q = Progress.dailyToday();
     if (checkAnswer({ answers: q.answers }, input.value)) {
       const res = Progress.solveDaily();
@@ -991,8 +991,8 @@ const App = (() => {
           <div class="locked-screen card">
             <div class="ls-icon">${Icon.ui("lock")}</div>
             <h1><span class="ls-course-ic" style="color:${course.color}">${Icon.course(course.id)}</span> ${course.title}</h1>
-            <p class="ls-sub">Этот курс уровня «${course.level}» откроется, когда вы завершите предыдущие. Так сложность растёт постепенно.</p>
-            <h3>Нужно пройти на 100%:</h3>
+            <p class="ls-sub">${T("Этот курс уровня")} «${T(course.level)}» ${T("откроется, когда вы завершите предыдущие. Так сложность растёт постепенно.")}</p>
+            <h3>${T("Нужно пройти на 100%:")}</h3>
             <div class="ls-prereq">
               ${missing.map((m) => {
                 const mp = Progress.courseProgress(m);
@@ -1002,7 +1002,7 @@ const App = (() => {
                     <div class="cpl-head"><b>${m.title}</b><span>${mp.pct}%</span></div>
                     <div class="xp-bar"><span style="width:${mp.pct}%;background:${m.color}"></span></div>
                   </div>
-                  <span class="ls-go">Открыть →</span>
+                  <span class="ls-go">${T("Открыть")} →</span>
                 </div>`;
               }).join("")}
             </div>
@@ -1023,7 +1023,7 @@ const App = (() => {
             <p>${course.summary}</p>
             <div class="cc-progress wide">
               <div class="xp-bar"><span style="width:${p.pct}%"></span></div>
-              <span class="cc-pct">${p.done}/${p.total} заданий · ${p.pct}%</span>
+              <span class="cc-pct">${p.done}/${p.total} ${T("заданий")} · ${p.pct}%</span>
             </div>
           </div>
         </div>
@@ -1094,16 +1094,16 @@ const App = (() => {
   function certificateCard(course) {
     return `
       <div class="cert-card" style="--c:${course.color}">
-        <div class="cert-ribbon">${Icon.ui("check")} Курс пройден</div>
+        <div class="cert-ribbon">${Icon.ui("check")} ${T("Курс пройден")}</div>
         <div class="cert-ic">${Icon.course(course.id)}</div>
         <div class="cert-body">
-          <h3>Поздравляем!</h3>
-          <p>Вы завершили курс «${course.title}» и заработали ${Progress.courseXP(course)} XP.${Progress.examPassed(course.id) ? " Экзамен сдан на " + Progress.examBest(course.id) + "%." : ""}</p>
+          <h3>${T("Поздравляем!")}</h3>
+          <p>${T("Вы завершили курс")} «${course.title}» ${T("и заработали")} ${Progress.courseXP(course)} XP.${Progress.examPassed(course.id) ? " " + T("Экзамен сдан на") + " " + Progress.examBest(course.id) + "%." : ""}</p>
         </div>
         <div class="cert-actions">
-          <button class="btn btn-ghost btn-sm" onclick="App.go('exam',{courseId:'${course.id}'})">${Icon.ui("quest")} ${Progress.examPassed(course.id) ? "Пересдать экзамен" : "Сдать экзамен"}</button>
+          <button class="btn btn-ghost btn-sm" onclick="App.go('exam',{courseId:'${course.id}'})">${Icon.ui("quest")} ${Progress.examPassed(course.id) ? T("Пересдать экзамен") : T("Сдать экзамен")}</button>
           <button class="btn btn-ghost btn-sm" onclick="App.go('boss',{courseId:'${course.id}'})">⚔️ ${T("Боссфайт")}</button>
-          <button class="btn btn-primary btn-sm" onclick="App.downloadCertificate('${course.id}')">${Icon.ui("progress")} Сертификат</button>
+          <button class="btn btn-primary btn-sm" onclick="App.downloadCertificate('${course.id}')">${Icon.ui("progress")} ${T("Сертификат")}</button>
         </div>
       </div>`;
   }
@@ -1119,7 +1119,7 @@ const App = (() => {
         <span class="rr-num">${complete ? Icon.ui("check") : locked ? Icon.ui("lock") : i + 1}</span>
         <div class="rr-body">
           <h3>${room.title}</h3>
-          <span class="rr-meta">${done}/${total} заданий</span>
+          <span class="rr-meta">${done}/${total} ${T("заданий")}</span>
         </div>
         <div class="rr-bar"><span style="width:${total ? (done / total) * 100 : 0}%"></span></div>
       </div>`;
@@ -1265,7 +1265,7 @@ const App = (() => {
     stopRoomTimer();
     const el = document.getElementById("room-timer");
     if (!el) return;
-    if (frozen) { el.textContent = "готово"; return; }
+    if (frozen) { el.textContent = T("готово"); return; }
     roomStartTs = Date.now();
     const tick = () => {
       const s = Math.floor((Date.now() - roomStartTs) / 1000);
@@ -1338,7 +1338,7 @@ const App = (() => {
           <div class="task-title">
             <h4>${task.title}</h4>
             <span class="task-points">+${task.points} XP</span>
-            ${task.sandbox ? `<span class="task-sandbox" title="Решается в песочнице">${Icon.ui("terminal")} песочница</span>` : ""}
+            ${task.sandbox ? `<span class="task-sandbox" title="${T("Решается в песочнице")}">${Icon.ui("terminal")} ${T("песочница")}</span>` : ""}
           </div>
         </div>
         <p class="task-prompt">${task.prompt}</p>
@@ -1370,7 +1370,7 @@ const App = (() => {
                 <span class="match-left">${p[0]}</span>
                 <span class="match-arrow">${Icon.ui("arrow")}</span>
                 <select class="match-sel" data-left="${escapeAttr(p[0])}">
-                  <option value="">— выбрать —</option>
+                  <option value="">${T("— выбрать —")}</option>
                   ${rights.map((r) => `<option value="${escapeAttr(r)}">${r}</option>`).join("")}
                 </select>
               </div>`).join("")}
@@ -1385,7 +1385,7 @@ const App = (() => {
           <div class="order-pool" id="order-pool-${tid}">
             ${shuffled.map((it) => `<button class="order-tok" onclick="App.orderPick('${cid}','${tid}',this)">${it}</button>`).join("")}
           </div>
-          <button class="hint-btn" onclick="App.orderReset('${tid}')">Сбросить</button>
+          <button class="hint-btn" onclick="App.orderReset('${tid}')">${T("Сбросить")}</button>
           <div class="feedback" id="fb-${tid}"></div>`;
       }
       default: { // question / flag
@@ -1449,14 +1449,14 @@ const App = (() => {
     root().innerHTML = `
       <section class="section">
         <div class="page-title">
-          <h1>Песочница</h1>
-          <p>Безопасный учебный терминал. Отрабатывайте команды и ищите флаги. Наберите <code>help</code>.</p>
+          <h1>${T("Песочница")}</h1>
+          <p>${T("Безопасный учебный терминал. Отрабатывайте команды и ищите флаги. Наберите")} <code>help</code>.</p>
         </div>
         <div class="term-wrap card">
           <div class="term-bar">
             <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
             <span class="term-title">CyberPath Sandbox</span>
-            <button id="shell-toggle" class="shell-toggle" onclick="App.toggleShell()" title="Переключить cmd / PowerShell">cmd</button>
+            <button id="shell-toggle" class="shell-toggle" onclick="App.toggleShell()" title="${T("Переключить cmd / PowerShell")}">cmd</button>
           </div>
           <div class="term-body" id="term-body">
             <div id="term-out"></div>
@@ -1469,12 +1469,12 @@ const App = (() => {
         <div class="sandbox-hints card">
           <h3>${T("Быстрый старт")}</h3>
           <div class="cheat">
-            ${["help — все команды","dir / type — файлы","findstr CYBER файл","reg query …Run — реестр","certutil -decode <b64>","nmap 10.10.10.5","nslookup target.local","Tab — автодополнение"].map(c=>`<code>${c}</code>`).join("")}
+            ${["help — все команды","dir / type — файлы","findstr CYBER файл","reg query …Run — реестр","certutil -decode <b64>","nmap 10.10.10.5","nslookup target.local","Tab — автодополнение"].map(c=>`<code>${T(c)}</code>`).join("")}
           </div>
         </div>
 
         <h2 class="rooms-title">${T("Квесты-машины")}</h2>
-        <p class="missions-intro">Многошаговые сценарии: выполняйте команды в терминале выше, находите флаг и вводите его здесь.</p>
+        <p class="missions-intro">${T("Многошаговые сценарии: выполняйте команды в терминале выше, находите флаг и вводите его здесь.")}</p>
         <div class="mission-list">
           ${MISSIONS.map(missionCard).join("")}
         </div>
@@ -1518,7 +1518,7 @@ const App = (() => {
           ? `<div class="task-ok">${Icon.ui("check")} Флаг принят (+${m.points} XP)</div>`
           : `<div class="answer-row mission-row">
                <input type="text" id="mflag-${m.id}" placeholder="CYBER{...}" onkeydown="if(event.key==='Enter')App.submitMission('${m.id}')">
-               <button class="btn btn-primary btn-sm" onclick="App.submitMission('${m.id}')">Сдать флаг</button>
+               <button class="btn btn-primary btn-sm" onclick="App.submitMission('${m.id}')">${T("Сдать флаг")}</button>
              </div>
              <div class="feedback" id="fb-m-${m.id}"></div>`}
       </div>`;
@@ -1547,7 +1547,7 @@ const App = (() => {
       <section class="section">
         <div class="page-title">
           <h1>${T("Словарь терминов")}</h1>
-          <p>${GLOSSARY.length} определений ключевых понятий кибербезопасности — по реальным стандартам.</p>
+          <p>${GLOSSARY.length} ${T("определений ключевых понятий кибербезопасности — по реальным стандартам.")}</p>
         </div>
         <div class="catalog-toolbar">
           <div class="search-box">
@@ -1593,14 +1593,14 @@ const App = (() => {
       <section class="section">
         <div class="page-title">
           <h1>${T("Путь обучения")}</h1>
-          <p>Курсы выстроены по сложности: продвинутые открываются по мере прохождения предыдущих. Ваше звание — ${s.rank.icon} <b>${s.rank.name}</b>.</p>
+          <p>${T("Курсы выстроены по сложности: продвинутые открываются по мере прохождения предыдущих. Ваше звание —")} ${s.rank.icon} <b>${s.rank.name}</b>.</p>
         </div>
         ${skillTree()}
         <h2 class="rooms-title">${T("По уровням сложности")}</h2>
         <div class="roadmap">
           ${["Новичок", "Средний", "Сложный"].map((tier) => `
             <div class="tier">
-              <div class="tier-label"><span>${tier}</span></div>
+              <div class="tier-label"><span>${T(tier)}</span></div>
               <div class="tier-courses">
                 ${tiers[tier].map((c) => {
                   const p = Progress.courseProgress(c);
@@ -1608,10 +1608,10 @@ const App = (() => {
                   const state = p.pct === 100 ? "done" : unlocked ? "open" : "locked";
                   return `<button class="rm-node ${state}" style="--c:${c.color}"
                             onclick="App.go('course',{courseId:'${c.id}'})"
-                            title="${unlocked ? c.title : "Требуется: " + Progress.missingPrereqs(c).map((m) => m.title).join(", ")}">
+                            title="${unlocked ? c.title : T("Требуется") + ": " + Progress.missingPrereqs(c).map((m) => m.title).join(", ")}">
                     <span class="rm-ic">${state === "locked" ? Icon.ui("lock") : Icon.course(c.id)}</span>
                     <span class="rm-name">${c.title}</span>
-                    <span class="rm-pct">${state === "done" ? "✓ 100%" : unlocked ? p.pct + "%" : "заблокировано"}</span>
+                    <span class="rm-pct">${state === "done" ? "✓ 100%" : unlocked ? p.pct + "%" : T("заблокировано")}</span>
                     <span class="rm-bar"><span style="width:${p.pct}%"></span></span>
                   </button>`;
                 }).join("")}
@@ -1632,7 +1632,7 @@ const App = (() => {
     { key: "re", name: "Анализ ПО", color: "#7c3aed", ids: ["reverse", "malware"] },
   ];
   function skillTree() {
-    const colW = 206, rowH = 150, nodeW = 184, nodeH = 84, padT = 8;
+    const colW = 222, rowH = 150, nodeW = 204, nodeH = 88, padT = 8;
     const branchOf = {};
     TREE_BRANCHES.forEach((br, i) => br.ids.forEach((id) => (branchOf[id] = { ...br, i })));
     const depthMemo = {};
@@ -1678,10 +1678,10 @@ const App = (() => {
       const st = pr.pct === 100 ? "done" : unlocked ? "open" : "locked";
       const miss = unlocked ? "" : T("Требуется") + ": " + Progress.missingPrereqs(c).map((m) => m.title).join(", ");
       return `<button class="st-node ${st}" style="left:${p.x}px;top:${p.y}px;width:${nodeW}px;height:${nodeH}px;--bc:${p.b.color};--cc:${c.color}"
-          onclick="App.go('course',{courseId:'${c.id}'})" title="${escapeAttr(miss || c.title)}">
+          onclick="App.go('course',{courseId:'${c.id}'})" title="${escapeAttr(miss || c.title)}" lang="${window.I18N && I18N.current() === "en" ? "en" : "ru"}">
         <span class="st-ic">${st === "locked" ? Icon.ui("lock") : Icon.course(c.id)}</span>
         <span class="st-name">${c.title}</span>
-        <span class="st-ring" style="--p:${pr.pct}"><b>${st === "done" ? "✓" : pr.pct + "%"}</b><i>${T(p.b.name)}</i></span>
+        <span class="st-ring" style="--p:${pr.pct}"><b>${st === "done" ? "✓" : pr.pct + "%"}</b><i title="${escapeAttr(T(p.b.name))}">${T(p.b.name)}</i></span>
       </button>`;
     }).join("");
     return `<div class="st-card card">
@@ -1895,8 +1895,8 @@ const App = (() => {
       <section class="section exam-view">
         ${crumbs([["home", T("Главная")], ["courses", T("Курсы")], [{ courseId: course.id }, course.title], [null, T("Экзамен")]])}
         <div class="page-title">
-          <h1>Экзамен: ${course.title}</h1>
-          <p>Ответьте на ${ex.qs.length} вопросов. Порог сдачи — 80%. ${Progress.examPassed(courseId) ? "Лучший результат: " + Progress.examBest(courseId) + "%." : ""}</p>
+          <h1>${T("Экзамен")}: ${course.title}</h1>
+          <p>${T("Ответьте на")} ${ex.qs.length} ${T("вопросов. Порог сдачи — 80%.")} ${Progress.examPassed(courseId) ? T("Лучший результат:") + " " + Progress.examBest(courseId) + "%." : ""}</p>
         </div>
         <div class="exam-list">
           ${ex.qs.map((q, i) => `
@@ -1905,10 +1905,10 @@ const App = (() => {
               <p class="task-prompt" style="padding-left:0">${q.prompt}</p>
               ${q.type === "choice"
                 ? `<div class="exam-choices">${q.options.map((o) => `<label class="exam-opt"><input type="radio" name="eq-${i}" value="${escapeAttr(o)}"> ${o}</label>`).join("")}</div>`
-                : `<input class="exam-input" type="text" name="eq-${i}" placeholder="Ваш ответ">`}
+                : `<input class="exam-input" type="text" name="eq-${i}" placeholder="${T("Ваш ответ")}">`}
             </div>`).join("")}
         </div>
-        <button class="btn btn-primary btn-lg" onclick="App.submitExam('${courseId}')">Завершить экзамен</button>
+        <button class="btn btn-primary btn-lg" onclick="App.submitExam('${courseId}')">${T("Завершить экзамен")}</button>
         <div id="exam-result" class="exam-result"></div>
       </section>`;
     highlightNav();
@@ -2035,15 +2035,15 @@ const App = (() => {
     if (!due.length) {
       root().innerHTML = `
         <section class="section">
-          <div class="page-title"><h1>${T("Повторение")}</h1><p>Интервальное повторение слабых тем — как флеш-карты Anki.</p></div>
+          <div class="page-title"><h1>${T("Повторение")}</h1><p>${T("Интервальное повторение слабых тем — как флеш-карты Anki.")}</p></div>
           <div class="review-empty card">
             <div class="cb-icon">${Icon.ui("check")}</div>
-            <h3>${total ? "Всё повторено на сегодня!" : "Карточки появятся автоматически"}</h3>
+            <h3>${total ? T("Всё повторено на сегодня!") : T("Карточки появятся автоматически")}</h3>
             <p>${total
-              ? "Вы разобрали все карточки, готовые к повторению. Возвращайтесь завтра — система напомнит нужное."
-              : "Решайте задания в курсах — вопросы с ответами станут карточками и будут возвращаться на повторение через растущие интервалы."}</p>
-            <p class="review-stat">Всего карточек в колоде: <b>${total}</b></p>
-            <button class="btn btn-primary" onclick="App.go('courses')">${Icon.ui("arrow")} К курсам</button>
+              ? T("Вы разобрали все карточки, готовые к повторению. Возвращайтесь завтра — система напомнит нужное.")
+              : T("Решайте задания в курсах — вопросы с ответами станут карточками и будут возвращаться на повторение через растущие интервалы.")}</p>
+            <p class="review-stat">${T("Всего карточек в колоде:")} <b>${total}</b></p>
+            <button class="btn btn-primary" onclick="App.go('courses')">${Icon.ui("arrow")} ${T("К курсам")}</button>
           </div>
         </section>`;
       highlightNav();
@@ -2399,7 +2399,7 @@ const App = (() => {
     const bars = data.map((v, i) => {
       const h = Math.round((v / max) * (H - pad - 24));
       const x = pad + i * bw + bw * 0.18, y = H - 24 - h, w = bw * 0.64;
-      const lbl = i === data.length - 1 ? "сейчас" : (data.length - 1 - i) + "н";
+      const lbl = i === data.length - 1 ? T("сейчас") : (data.length - 1 - i) + T("н");
       return `<g>
         <rect x="${x.toFixed(1)}" y="${y}" width="${w.toFixed(1)}" height="${Math.max(h, 2)}" rx="4" fill="var(--o-500)"><title>${v} XP</title></rect>
         ${v > 0 ? `<text x="${(x + w / 2).toFixed(1)}" y="${y - 5}" class="c-val">${v}</text>` : ""}
@@ -2596,22 +2596,22 @@ const App = (() => {
         <h2 class="rooms-title">${T("Данные и синхронизация")}</h2>
         <div class="data-zone card">
           <div>
-            <h3>Перенос прогресса</h3>
-            <p>Прогресс хранится локально в этом браузере. Скачайте файл, чтобы перенести его на другое устройство или сделать резервную копию.</p>
+            <h3>${T("Перенос прогресса")}</h3>
+            <p>${T("Прогресс хранится локально в этом браузере. Скачайте файл, чтобы перенести его на другое устройство или сделать резервную копию.")}</p>
           </div>
           <div class="data-actions">
-            <button class="btn btn-ghost" onclick="App.exportProgress()">${Icon.ui("progress")} Скачать прогресс</button>
-            <button class="btn btn-ghost" onclick="document.getElementById('import-file').click()">${Icon.ui("book")} Загрузить из файла</button>
+            <button class="btn btn-ghost" onclick="App.exportProgress()">${Icon.ui("progress")} ${T("Скачать прогресс")}</button>
+            <button class="btn btn-ghost" onclick="document.getElementById('import-file').click()">${Icon.ui("book")} ${T("Загрузить из файла")}</button>
             <input id="import-file" type="file" accept="application/json,.json" hidden onchange="App.importProgress(this.files[0])">
           </div>
         </div>
 
         <div class="danger-zone card">
           <div>
-            <h3>Сброс прогресса</h3>
-            <p>Удалит весь локальный прогресс без возможности восстановления.</p>
+            <h3>${T("Сброс прогресса")}</h3>
+            <p>${T("Удалит весь локальный прогресс без возможности восстановления.")}</p>
           </div>
-          <button class="btn btn-danger" onclick="App.resetConfirm()">Сбросить всё</button>
+          <button class="btn btn-danger" onclick="App.resetConfirm()">${T("Сбросить всё")}</button>
         </div>
       </section>`;
     highlightNav();
