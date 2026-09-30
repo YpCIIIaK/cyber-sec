@@ -18,8 +18,13 @@ const Progress = (() => {
     dailyDate: null,      // дата последнего решённого ежедневного задания
     dailySolved: 0,       // сколько всего решено ежедневных
     exams: {},            // courseId -> { passed, best }
+    xpLog: [],            // [{d: dayIndex, a: amount}] — история начислений XP
+    activeDays: {},       // 'YYYY-MM-DD' -> суммарный XP за день (для календаря)
+    attempts: {},         // taskId -> { c: верных, w: неверных }
+    srs: {},              // taskId -> { box, due(dayIndex), reps, lapses }
     createdAt: Date.now(),
   };
+  const SRS_INTERVALS = [0, 1, 2, 4, 8, 16]; // дни по номеру box (1..5)
   const EXAM_PASS = 0.8;   // порог сдачи
   const EXAM_BONUS = 30;   // бонус XP за первую сдачу
 
@@ -55,10 +60,21 @@ const Progress = (() => {
   }
 
   // Начислить XP и заполнить события уровня/ранга/милстоунов
+  function logXP(amount) {
+    if (!amount) return;
+    if (!Array.isArray(state.xpLog)) state.xpLog = [];
+    state.xpLog.push({ d: dayIndex(), a: amount });
+    if (state.xpLog.length > 3000) state.xpLog = state.xpLog.slice(-3000);
+    if (!state.activeDays) state.activeDays = {};
+    const t = todayStr();
+    state.activeDays[t] = (state.activeDays[t] || 0) + amount;
+  }
+
   function awardXP(amount, events) {
     const beforeLvl = level();
     const beforeRank = rankForLevel(beforeLvl).name;
     state.xp += amount;
+    logXP(amount);
     const afterLvl = level();
     if (afterLvl > beforeLvl) events.levelUp = afterLvl;
     const afterRank = rankForLevel(afterLvl).name;
@@ -77,6 +93,7 @@ const Progress = (() => {
     const events = { xpGained: gained, newAchievements: [] };
     if (Object.keys(state.completed).length === 1) tryAch("first_blood", events);
     awardXP(gained, events);
+    srsEnsure(task);
     checkCourseCompletion(courseId, events);
 
     save();
@@ -169,6 +186,8 @@ const Progress = (() => {
     if (state.lastVisit === yesterday) state.streak = (state.streak || 0) + 1;
     else state.streak = 1;
     state.lastVisit = today;
+    if (!state.activeDays) state.activeDays = {};
+    if (state.activeDays[today] === undefined) state.activeDays[today] = 0; // отметка визита
     if (state.streak >= 3) tryAch("streak_3");
     if (state.streak >= 7) tryAch("streak_7");
     save();
@@ -260,6 +279,108 @@ const Progress = (() => {
     return { pct, passed: score >= EXAM_PASS, firstPass, events };
   }
 
+  /* ---------- Попытки / точность ---------- */
+  function recordAttempt(taskId, ok) {
+    if (!state.attempts) state.attempts = {};
+    const a = state.attempts[taskId] || { c: 0, w: 0 };
+    if (ok) a.c++; else a.w++;
+    state.attempts[taskId] = a;
+    save();
+  }
+  function accuracyOverall() {
+    let c = 0, w = 0;
+    Object.values(state.attempts || {}).forEach((a) => { c += a.c || 0; w += a.w || 0; });
+    const total = c + w;
+    return { correct: c, wrong: w, total, pct: total ? Math.round((c / total) * 100) : 0 };
+  }
+
+  /* ---------- Индекс задач и справочники ---------- */
+  const TASK_INDEX = (() => {
+    const map = {};
+    COURSES.forEach((c) => c.rooms.forEach((r) => r.tasks.forEach((t) => {
+      map[t.id] = { task: t, course: c, room: r };
+    })));
+    return map;
+  })();
+  function taskInfo(id) { return TASK_INDEX[id] || null; }
+
+  /* ---------- Spaced repetition (Leitner) ---------- */
+  function srsEligible(task) { return task && (task.type === "question" || task.type === "choice"); }
+  function srsEnsure(task) {
+    if (!srsEligible(task)) return;
+    if (!state.srs) state.srs = {};
+    if (!state.srs[task.id]) state.srs[task.id] = { box: 1, due: dayIndex() + 1, reps: 0, lapses: 0 };
+  }
+  function srsDueList() {
+    const today = dayIndex();
+    return Object.keys(state.srs || {})
+      .filter((id) => TASK_INDEX[id] && state.srs[id].due <= today)
+      .sort((a, b) => state.srs[a].due - state.srs[b].due);
+  }
+  function srsDueCount() { return srsDueList().length; }
+  function srsTotal() { return Object.keys(state.srs || {}).length; }
+  function srsReview(taskId, ok) {
+    const card = state.srs[taskId];
+    if (!card) return;
+    if (ok) {
+      card.box = Math.min(5, card.box + 1);
+      card.reps = (card.reps || 0) + 1;
+    } else {
+      card.box = 1;
+      card.lapses = (card.lapses || 0) + 1;
+    }
+    card.due = dayIndex() + SRS_INTERVALS[card.box];
+    recordAttempt(taskId, ok);
+    save();
+  }
+
+  /* ---------- Слабые места (адаптивность) ---------- */
+  function weakTasks(limit) {
+    const rows = Object.keys(state.attempts || {}).map((id) => {
+      const a = state.attempts[id]; const total = (a.c || 0) + (a.w || 0);
+      const info = TASK_INDEX[id];
+      return info ? { id, wrong: a.w || 0, total, acc: total ? a.c / total : 1, info } : null;
+    }).filter(Boolean).filter((r) => r.wrong > 0);
+    rows.sort((a, b) => (b.wrong - a.wrong) || (a.acc - b.acc));
+    return limit ? rows.slice(0, limit) : rows;
+  }
+  function weakCourses() {
+    const agg = {};
+    weakTasks().forEach((r) => {
+      const cid = r.info.course.id;
+      agg[cid] = agg[cid] || { course: r.info.course, wrong: 0 };
+      agg[cid].wrong += r.wrong;
+    });
+    return Object.values(agg).sort((a, b) => b.wrong - a.wrong);
+  }
+
+  /* ---------- Аналитика для дашборда ---------- */
+  function xpByWeek(weeks) {
+    weeks = weeks || 8;
+    const today = dayIndex();
+    const buckets = Array.from({ length: weeks }, () => 0);
+    (state.xpLog || []).forEach((e) => {
+      const ago = today - e.d;
+      const wi = weeks - 1 - Math.floor(ago / 7);
+      if (wi >= 0 && wi < weeks) buckets[wi] += e.a;
+    });
+    return buckets;
+  }
+  function activityMap(days) {
+    days = days || 84;
+    const out = [];
+    const now = new Date(todayStr() + "T00:00:00");
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 86400000);
+      const key = d.toISOString().slice(0, 10);
+      out.push({ date: key, xp: (state.activeDays || {})[key] || 0, dow: (d.getDay() + 6) % 7 });
+    }
+    return out;
+  }
+  function skillRadar() {
+    return COURSES.map((c) => ({ id: c.id, title: c.title, color: c.color, pct: courseProgress(c).pct }));
+  }
+
   return {
     isDone, completeTask, useHint, hintsUsedFor, roomCompleted, roomUsedNoHints,
     courseProgress, courseUnlocked, missingPrereqs, overallStats, level, xpInLevel, xpToNext,
@@ -269,6 +390,9 @@ const Progress = (() => {
     dailyToday, dailyIsDone, dailyCount, solveDaily,
     missionDone, completeMission,
     examPassed, examBest, recordExam,
+    recordAttempt, accuracyOverall, taskInfo,
+    srsEnsure, srsDueList, srsDueCount, srsTotal, srsReview, srsEligible,
+    weakTasks, weakCourses, xpByWeek, activityMap, skillRadar,
     _state: () => state,
   };
 })();
@@ -1250,6 +1374,108 @@ const App = (() => {
     });
   }
 
+  /* ---------- Дашборд: графики (inline SVG) ---------- */
+  function dashboardSection() {
+    const acc = Progress.accuracyOverall();
+    const due = Progress.srsDueCount();
+    const active = Object.keys(Progress._state().activeDays || {}).length;
+    const weak = Progress.weakCourses().slice(0, 4);
+    const kpis = [
+      ["Точность ответов", acc.total ? acc.pct + "%" : "—", acc.total ? acc.correct + "/" + acc.total : "нет данных"],
+      ["На повторение", String(due), due ? "карточек готово" : "всё повторено"],
+      ["Активных дней", String(active), "с начала обучения"],
+      ["Всего попыток", String(acc.total), acc.wrong + " с ошибкой"],
+    ];
+    return `
+      <h2 class="rooms-title">Аналитика</h2>
+      <div class="kpi-row">
+        ${kpis.map(([t, v, s]) => `<div class="kpi"><span class="kpi-t">${t}</span><b class="kpi-v">${v}</b><span class="kpi-s">${s}</span></div>`).join("")}
+      </div>
+      <div class="dash-grid">
+        <div class="card chart-card">
+          <div class="chart-head"><h3>XP по неделям</h3><span class="chart-sub">последние 8 недель</span></div>
+          ${xpBarsSVG()}
+        </div>
+        <div class="card chart-card">
+          <div class="chart-head"><h3>Радар навыков</h3><span class="chart-sub">% прохождения курсов</span></div>
+          ${radarSVG()}
+        </div>
+        <div class="card chart-card wide">
+          <div class="chart-head"><h3>Календарь активности</h3><span class="chart-sub">последние 12 недель</span></div>
+          ${heatmapSVG()}
+        </div>
+        ${weak.length ? `
+        <div class="card chart-card wide">
+          <div class="chart-head"><h3>Слабые места</h3><span class="chart-sub">где чаще ошибки — стоит повторить</span></div>
+          <div class="weak-list">
+            ${weak.map((w) => `<div class="weak-row" onclick="App.go('course',{courseId:'${w.course.id}'})">
+              <span class="cpl-ic" style="color:${w.course.color}">${Icon.course(w.course.id)}</span>
+              <span class="weak-name">${w.course.title}</span>
+              <span class="weak-count">${w.wrong} ошибок</span>
+            </div>`).join("")}
+          </div>
+        </div>` : ""}
+      </div>`;
+  }
+
+  function xpBarsSVG() {
+    const data = Progress.xpByWeek(8);
+    const max = Math.max(1, ...data);
+    const W = 460, H = 170, pad = 26, bw = (W - pad * 2) / data.length;
+    const bars = data.map((v, i) => {
+      const h = Math.round((v / max) * (H - pad - 24));
+      const x = pad + i * bw + bw * 0.18, y = H - 24 - h, w = bw * 0.64;
+      const lbl = i === data.length - 1 ? "сейчас" : (data.length - 1 - i) + "н";
+      return `<g>
+        <rect x="${x.toFixed(1)}" y="${y}" width="${w.toFixed(1)}" height="${Math.max(h, 2)}" rx="4" fill="var(--o-500)"><title>${v} XP</title></rect>
+        ${v > 0 ? `<text x="${(x + w / 2).toFixed(1)}" y="${y - 5}" class="c-val">${v}</text>` : ""}
+        <text x="${(x + w / 2).toFixed(1)}" y="${H - 8}" class="c-axis">${lbl}</text>
+      </g>`;
+    }).join("");
+    return `<svg viewBox="0 0 ${W} ${H}" class="chart-svg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="XP по неделям">
+      <line x1="${pad}" y1="${H - 24}" x2="${W - pad}" y2="${H - 24}" class="c-base"/>${bars}</svg>`;
+  }
+
+  function radarSVG() {
+    const data = Progress.skillRadar();
+    const W = 460, H = 300, cx = W / 2, cy = H / 2 + 6, R = 108;
+    const n = data.length;
+    const pt = (i, r) => {
+      const ang = -Math.PI / 2 + (i / n) * Math.PI * 2;
+      return [cx + Math.cos(ang) * r, cy + Math.sin(ang) * r];
+    };
+    const rings = [0.25, 0.5, 0.75, 1].map((f) =>
+      `<polygon points="${data.map((_, i) => pt(i, R * f).map((v) => v.toFixed(1)).join(",")).join(" ")}" class="c-ring"/>`).join("");
+    const spokes = data.map((_, i) => { const [x, y] = pt(i, R); return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="c-spoke"/>`; }).join("");
+    const poly = data.map((d, i) => pt(i, R * (d.pct / 100)).map((v) => v.toFixed(1)).join(",")).join(" ");
+    const dots = data.map((d, i) => { const [x, y] = pt(i, R * (d.pct / 100)); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="var(--o-600)"><title>${d.title}: ${d.pct}%</title></circle>`; }).join("");
+    return `<svg viewBox="0 0 ${W} ${H}" class="chart-svg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Радар навыков">
+      ${rings}${spokes}
+      <polygon points="${poly}" fill="var(--o-500)" fill-opacity="0.18" stroke="var(--o-500)" stroke-width="2"/>
+      ${dots}</svg>`;
+  }
+
+  function heatmapSVG() {
+    const days = Progress.activityMap(84);
+    const cell = 15, gap = 4, cols = Math.ceil(days.length / 7);
+    const W = cols * (cell + gap) + 8, H = 7 * (cell + gap) + 8;
+    const xps = days.filter((d) => d.xp > 0).map((d) => d.xp);
+    const max = Math.max(1, ...xps);
+    const lvl = (xp) => xp <= 0 ? 0 : Math.min(4, 1 + Math.floor((xp / max) * 3.999));
+    const shades = ["var(--bg-3)", "var(--o-200)", "var(--o-300)", "var(--o-400)", "var(--o-600)"];
+    const cells = days.map((d, i) => {
+      const col = Math.floor(i / 7), row = i % 7;
+      const x = 4 + col * (cell + gap), y = 4 + row * (cell + gap);
+      const has = (Progress._state().activeDays || {})[d.date] !== undefined;
+      const fill = d.xp > 0 ? shades[lvl(d.xp)] : (has ? "var(--o-100)" : "var(--bg-3)");
+      return `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="3" fill="${fill}"><title>${d.date}: ${d.xp} XP</title></rect>`;
+    }).join("");
+    return `<div class="heatmap-wrap"><svg viewBox="0 0 ${W} ${H}" class="chart-svg heatmap" role="img" aria-label="Календарь активности">${cells}</svg>
+      <div class="heat-legend"><span>меньше</span>
+        ${[0,1,2,3,4].map((l)=>`<span class="heat-key" style="background:${shades[l]}"></span>`).join("")}
+        <span>больше</span></div></div>`;
+  }
+
   function renderProfile() {
     const s = Progress.overallStats();
     root().innerHTML = `
@@ -1269,6 +1495,8 @@ const App = (() => {
             <div class="ps"><b>${s.streak}</b><span>дней подряд</span></div>
           </div>
         </div>
+
+        ${dashboardSection()}
 
         <h2 class="rooms-title">Прогресс по курсам</h2>
         <div class="course-progress-list">
@@ -1349,7 +1577,9 @@ const App = (() => {
     const fb = document.getElementById(`fb-${taskId}`);
     if (!input.trim()) { fb.innerHTML = `<span class="fb-warn">Введите ответ</span>`; return; }
 
-    if (checkAnswer(task, input)) {
+    const ok = checkAnswer(task, input);
+    if (!Progress.isDone(taskId)) Progress.recordAttempt(taskId, ok);
+    if (ok) {
       const res = Progress.completeTask(task, courseId);
       celebrate(res);
       const roomId = course.rooms.find((r) => r.tasks.includes(task)).id;
@@ -1387,7 +1617,9 @@ const App = (() => {
 
   function submitChoice(courseId, taskId, btn) {
     const { task } = findTask(courseId, taskId);
-    if (checkAnswer(task, btn.textContent)) solveTask(courseId, taskId);
+    const ok = checkAnswer(task, btn.textContent);
+    if (!Progress.isDone(taskId)) Progress.recordAttempt(taskId, ok);
+    if (ok) solveTask(courseId, taskId);
     else { btn.classList.add("wrong"); setTimeout(() => btn.classList.remove("wrong"), 600); wrongFx(taskId); }
   }
 
@@ -1404,6 +1636,7 @@ const App = (() => {
       if (!ok) allRight = false;
     });
     if (!allFilled) { wrongFx(taskId, "Заполните все пары."); return; }
+    if (!Progress.isDone(taskId)) Progress.recordAttempt(taskId, allRight);
     if (allRight) solveTask(courseId, taskId);
     else wrongFx(taskId, "Есть ошибки в сопоставлении.");
   }
