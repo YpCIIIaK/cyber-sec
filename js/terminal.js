@@ -384,6 +384,7 @@ const Sandbox = (() => {
     print(`<span class="term-path">${escapeHtml(promptPrefix())}</span>&gt; ${escapeHtml(line)}`, "term-cmd");
     history.push(line);
     histIdx = history.length;
+    try { if (window.Progress) Progress.bumpStat("cmds"); } catch (e) {}
 
     const parts = line.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
     const cmd = (parts[0] || "").toLowerCase();

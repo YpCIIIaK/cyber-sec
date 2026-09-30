@@ -131,6 +131,10 @@ const Progress = (() => {
     awardXP(gained, events);
     srsEnsure(task);
     checkCourseCompletion(courseId, events);
+    const hr = new Date().getHours();
+    if (hr < 5) tryAch("night_owl", events);
+    else if (hr < 8) tryAch("early_bird", events);
+    checkMeta(events);
 
     save();
     return events;
@@ -146,6 +150,43 @@ const Progress = (() => {
       }
     }
     if (doneCourses >= 3) tryAch("three_courses", events);
+  }
+
+  /* ---------- Метрики для достижений с прогрессом ---------- */
+  function stats() { if (!state.stats) state.stats = { cmds: 0, reviews: 0, combo: 0, bestCombo: 0 }; return state.stats; }
+  function bumpStat(name, n) {
+    const st = stats();
+    st[name] = (st[name] || 0) + (n || 1);
+    const ev = { xpGained: 0, newAchievements: [] };
+    checkMeta(ev);
+    save();
+    if (window.App) ev.newAchievements.forEach((id) => App.toastAchievement(id));
+  }
+  function metric(name) {
+    const st = stats();
+    const tasks = () => COURSES.reduce((n, c) => n + c.rooms.reduce((m, r) => m + r.tasks.filter((t) => state.completed[t.id]).length, 0), 0);
+    switch (name) {
+      case "tasks": return tasks();
+      case "rooms": return COURSES.reduce((n, c) => n + c.rooms.filter((r) => r.tasks.length && roomCompleted(r)).length, 0);
+      case "courses": return COURSES.filter((c) => courseProgress(c).pct === 100).length;
+      case "level": return level();
+      case "xp": return state.xp;
+      case "streak": return state.streak || 0;
+      case "combo": return st.bestCombo || 0;
+      case "reviews": return st.reviews || 0;
+      case "cmds": return st.cmds || 0;
+      case "labs": return COURSES.reduce((n, c) => n + c.rooms.reduce((m, r) => m + r.tasks.filter((t) => t.type === "lab" && state.completed[t.id]).length, 0), 0);
+      case "exams": return Object.values(state.exams || {}).filter((e) => e.passed).length;
+    }
+    return 0;
+  }
+  function checkMeta(events) {
+    ACHIEVEMENTS.forEach((a) => { if (a.metric && metric(a.metric) >= a.goal) tryAch(a.id, events); });
+    const full = (id) => { const c = COURSES.find((x) => x.id === id); return c && courseProgress(c).pct === 100; };
+    if (["web", "pentest", "ad"].every(full)) tryAch("red_team", events);
+    if (["blueteam", "forensics", "hardening"].every(full)) tryAch("blue_team", events);
+    if (COURSES.every((c) => full(c.id))) tryAch("all_courses", events);
+    if (typeof MISSIONS !== "undefined" && MISSIONS.length && MISSIONS.every((m) => state.completed["mission_" + m.id])) tryAch("missions_all", events);
   }
 
   function tryAch(id, events) {
@@ -226,6 +267,7 @@ const Progress = (() => {
     if (state.activeDays[today] === undefined) state.activeDays[today] = 0; // отметка визита
     if (state.streak >= 3) tryAch("streak_3");
     if (state.streak >= 7) tryAch("streak_7");
+    checkMeta(null);
     save();
   }
 
@@ -265,6 +307,7 @@ const Progress = (() => {
     const events = { xpGained: mission.points, newAchievements: [] };
     tryAch("terminal_master", events);
     awardXP(mission.points, events);
+    checkMeta(events);
     save();
     return events;
   }
@@ -309,6 +352,7 @@ const Progress = (() => {
       events.xpGained = EXAM_BONUS;
     }
     if (score === 1) tryAch("flawless", events);
+    checkMeta(events);
     // все курсы пройдены (комнаты) — отдельная ачивка
     if (COURSES.every((c) => courseProgress(c).pct === 100)) tryAch("all_courses", events);
     save();
@@ -330,6 +374,9 @@ const Progress = (() => {
     const a = state.attempts[taskId] || { c: 0, w: 0 };
     if (ok) a.c++; else a.w++;
     state.attempts[taskId] = a;
+    const st = stats();
+    st.combo = ok ? (st.combo || 0) + 1 : 0;
+    st.bestCombo = Math.max(st.bestCombo || 0, st.combo);
     save();
   }
   function accuracyOverall() {
@@ -375,6 +422,7 @@ const Progress = (() => {
       card.lapses = (card.lapses || 0) + 1;
     }
     card.due = dayIndex() + SRS_INTERVALS[card.box];
+    stats().reviews = (stats().reviews || 0) + 1;
     recordAttempt(taskId, ok);
     save();
   }
@@ -414,11 +462,14 @@ const Progress = (() => {
   function activityMap(days) {
     days = days || 84;
     const out = [];
-    const now = new Date(todayStr() + "T00:00:00");
+    // Ключи дней — в UTC (как todayStr), поэтому и арифметика в UTC, иначе в часовых поясах восточнее
+    // Гринвича календарь «съезжал» на день и сегодняшняя активность не отображалась.
+    const now = new Date(todayStr() + "T00:00:00Z");
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(now.getTime() - i * 86400000);
       const key = d.toISOString().slice(0, 10);
-      out.push({ date: key, xp: (state.activeDays || {})[key] || 0, dow: (d.getDay() + 6) % 7 });
+      const ad = state.activeDays || {};
+      out.push({ date: key, xp: ad[key] || 0, visited: ad[key] !== undefined, dow: (d.getUTCDay() + 6) % 7, day: d.getUTCDate(), month: d.getUTCMonth() });
     }
     return out;
   }
@@ -439,6 +490,7 @@ const Progress = (() => {
     getDraft, setDraft, clearDraft,
     srsEnsure, srsDueList, srsDueCount, srsTotal, srsReview, srsEligible,
     weakTasks, weakCourses, xpByWeek, activityMap, skillRadar,
+    metric, bumpStat, stats,
     _state: () => state,
   };
 })();
@@ -508,7 +560,7 @@ const App = (() => {
     const nav = document.getElementById("nav-stats");
     if (nav) {
       nav.innerHTML = `
-        <button class="rank-chip" title="${T("Открыть лестницу званий")}" onclick="App.openRanks()">${s.rank.icon} ${s.rank.name}</button>
+        <button class="rank-chip tier-${s.rank.tier}" title="${T("Открыть лестницу званий")}" onclick="App.openRanks()">${rankBadge(s.rank, 22)}<span>${s.rank.name}</span></button>
         <div class="nav-xp" title="Ваш уровень и опыт">
           <span class="lvl-badge">LVL ${s.level}</span>
           <div class="xp-bar-mini"><span style="width:${(s.xpInLevel)}%"></span></div>
@@ -835,7 +887,7 @@ const App = (() => {
       const missing = Progress.missingPrereqs(course);
       root().innerHTML = `
         <section class="section">
-          <a class="back" onclick="App.go('courses')">← Все курсы</a>
+          ${crumbs([["home", T("Главная")], ["courses", T("Курсы")], [null, course.title]])}
           <div class="locked-screen card">
             <div class="ls-icon">${Icon.ui("lock")}</div>
             <h1><span class="ls-course-ic" style="color:${course.color}">${Icon.course(course.id)}</span> ${course.title}</h1>
@@ -862,7 +914,7 @@ const App = (() => {
 
     root().innerHTML = `
       <section class="section">
-        <a class="back" onclick="App.go('courses')">← Все курсы</a>
+        ${crumbs([["home", T("Главная")], ["courses", T("Курсы")], [null, course.title]])}
         <div class="course-head" style="--c:${course.color}">
           <span class="ch-icon">${Icon.course(course.id)}</span>
           <div>
@@ -982,7 +1034,7 @@ const App = (() => {
 
     root().innerHTML = `
       <section class="section room-view">
-        <a class="back" onclick="App.go('course',{courseId:'${course.id}'})">← ${course.title}</a>
+        ${crumbs([["home", T("Главная")], ["courses", T("Курсы")], [{ courseId: course.id }, course.title], [null, room.title]])}
         <div class="room-header">
           <span class="rh-tag">${T("Комната")} ${idx + 1}/${course.rooms.length}</span>
           <h1>${room.title}</h1>
@@ -1484,7 +1536,7 @@ const App = (() => {
     const ex = examState[courseId];
     root().innerHTML = `
       <section class="section exam-view">
-        <a class="back" onclick="App.go('course',{courseId:'${course.id}'})">← ${course.title}</a>
+        ${crumbs([["home", T("Главная")], ["courses", T("Курсы")], [{ courseId: course.id }, course.title], [null, T("Экзамен")]])}
         <div class="page-title">
           <h1>Экзамен: ${course.title}</h1>
           <p>Ответьте на ${ex.qs.length} вопросов. Порог сдачи — 80%. ${Progress.examPassed(courseId) ? "Лучший результат: " + Progress.examBest(courseId) + "%." : ""}</p>
@@ -1808,6 +1860,45 @@ const App = (() => {
     });
   }
 
+  /* ---------- Хлебные крошки ---------- */
+  function crumbs(items) {
+    const parts = items.map(([to, label], i) => {
+      const last = i === items.length - 1;
+      if (last || to === null) return `<span class="crumb cur" aria-current="page">${label}</span>`;
+      const act = typeof to === "string" ? `App.go('${to}')` : `App.go('course',{courseId:'${to.courseId}'})`;
+      return `<a class="crumb" onclick="${act}">${i === 0 ? '<svg class="crumb-home" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>' : ""}<span>${label}</span></a>`;
+    });
+    return `<nav class="crumbs" aria-label="breadcrumb">${parts.join('<span class="crumb-sep" aria-hidden="true">/</span>')}</nav>`;
+  }
+
+  /* ---------- Значки званий (SVG-шеврон, цвет по «лиге») ---------- */
+  const TIER_COLORS = {
+    iron: ["#b4bac2", "#5d646d"], bronze: ["#f0b27a", "#9a5a2a"], silver: ["#eef1f5", "#8d97a5"],
+    gold: ["#ffe08a", "#c68a08"], platinum: ["#b8f1ec", "#2f8f96"], diamond: ["#d3c6ff", "#5a3fd8"], legend: ["#ffb35c", "#d2312a"],
+  };
+  let badgeSeq = 0;
+  function rankBadge(r, size, locked) {
+    size = size || 44;
+    const id = "rb" + (++badgeSeq);
+    const [a, b] = locked ? ["#d5d8dd", "#9aa0a8"] : TIER_COLORS[r.tier] || TIER_COLORS.iron;
+    const idx = RANKS.indexOf(r);
+    const stars = Math.min(3, idx % 3 + 1);
+    const pips = locked ? "" : Array.from({ length: stars }, (_, k) =>
+      `<circle cx="${50 + (k - (stars - 1) / 2) * 11}" cy="98" r="3.4" fill="${b}"/>`).join("");
+    const wings = !locked && (r.tier === "diamond" || r.tier === "legend")
+      ? `<path d="M14 40 L2 30 L6 52 L14 58Z M86 40 L98 30 L94 52 L86 58Z" fill="${b}" opacity=".85"/>` : "";
+    return `<span class="rbadge tier-${locked ? "locked" : r.tier}" style="width:${size}px;height:${size}px">
+      <svg viewBox="0 0 100 106" aria-hidden="true">
+        <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs>
+        ${wings}
+        <path d="M50 4 L88 20 L88 56 Q88 80 50 94 Q12 80 12 56 L12 20 Z" fill="url(#${id})" stroke="${b}" stroke-width="3"/>
+        <path d="M50 13 L79 25 L79 55 Q79 73 50 85 Q21 73 21 55 L21 25 Z" fill="rgba(255,255,255,.22)"/>
+        ${pips}
+      </svg>
+      <span class="rbadge-ic" style="font-size:${Math.round(size * 0.36)}px">${locked ? "🔒" : r.icon}</span>
+    </span>`;
+  }
+
   /* ---------- Дашборд: графики (inline SVG) ---------- */
   function dashboardSection() {
     const acc = Progress.accuracyOverall();
@@ -1835,7 +1926,7 @@ const App = (() => {
           ${radarSVG()}
         </div>
         <div class="card chart-card wide">
-          <div class="chart-head"><h3>${T("Календарь активности")}</h3><span class="chart-sub">${T("последние 12 недель")}</span></div>
+          <div class="chart-head"><h3>${T("Календарь активности")}</h3><span class="chart-sub">${T("последние 17 недель")}</span></div>
           ${heatmapSVG()}
         </div>
         ${weak.length ? `
@@ -1872,42 +1963,153 @@ const App = (() => {
 
   function radarSVG() {
     const data = Progress.skillRadar();
-    const W = 460, H = 300, cx = W / 2, cy = H / 2 + 6, R = 108;
+    const W = 560, H = 400, cx = W / 2, cy = H / 2, R = 132;
     const n = data.length;
     const pt = (i, r) => {
       const ang = -Math.PI / 2 + (i / n) * Math.PI * 2;
       return [cx + Math.cos(ang) * r, cy + Math.sin(ang) * r];
     };
+    const f1 = (v) => v.toFixed(1);
     const rings = [0.25, 0.5, 0.75, 1].map((f) =>
-      `<polygon points="${data.map((_, i) => pt(i, R * f).map((v) => v.toFixed(1)).join(",")).join(" ")}" class="c-ring"/>`).join("");
-    const spokes = data.map((_, i) => { const [x, y] = pt(i, R); return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="c-spoke"/>`; }).join("");
-    const poly = data.map((d, i) => pt(i, R * (d.pct / 100)).map((v) => v.toFixed(1)).join(",")).join(" ");
-    const dots = data.map((d, i) => { const [x, y] = pt(i, R * (d.pct / 100)); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="var(--o-600)"><title>${d.title}: ${d.pct}%</title></circle>`; }).join("");
-    return `<svg viewBox="0 0 ${W} ${H}" class="chart-svg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Радар навыков">
+      `<polygon points="${data.map((_, i) => pt(i, R * f).map(f1).join(",")).join(" ")}" class="c-ring"/>
+       <text x="${cx + 4}" y="${f1(cy - R * f - 3)}" class="c-ring-lbl">${f * 100}%</text>`).join("");
+    const spokes = data.map((_, i) => { const [x, y] = pt(i, R); return `<line x1="${cx}" y1="${cy}" x2="${f1(x)}" y2="${f1(y)}" class="c-spoke"/>`; }).join("");
+    const poly = data.map((d, i) => pt(i, Math.max(3, R * (d.pct / 100))).map(f1).join(",")).join(" ");
+    const dots = data.map((d, i) => { const [x, y] = pt(i, R * (d.pct / 100)); return d.pct ? `<circle cx="${f1(x)}" cy="${f1(y)}" r="4" fill="${d.color}" stroke="var(--surface)" stroke-width="1.5"><title>${d.title}: ${d.pct}%</title></circle>` : ""; }).join("");
+    const labels = data.map((d, i) => {
+      const [x, y] = pt(i, R + 20);
+      const c = Math.cos(-Math.PI / 2 + (i / n) * Math.PI * 2);
+      const anchor = Math.abs(c) < 0.2 ? "middle" : c > 0 ? "start" : "end";
+      const name = d.title.length > 16 ? d.title.slice(0, 15) + "…" : d.title;
+      return `<g class="radar-lbl" onclick="App.go('course',{courseId:'${d.id}'})"><title>${d.title}: ${d.pct}%</title>
+        <text x="${f1(x)}" y="${f1(y)}" text-anchor="${anchor}" class="c-lbl">${name}</text>
+        <text x="${f1(x)}" y="${f1(y + 13)}" text-anchor="${anchor}" class="c-lbl-pct ${d.pct === 100 ? "full" : ""}">${d.pct}%</text></g>`;
+    }).join("");
+    const empty = data.every((d) => !d.pct);
+    return `<svg viewBox="0 0 ${W} ${H}" class="chart-svg radar" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${T("Радар навыков")}">
       ${rings}${spokes}
-      <polygon points="${poly}" fill="var(--o-500)" fill-opacity="0.18" stroke="var(--o-500)" stroke-width="2"/>
-      ${dots}</svg>`;
+      <polygon points="${poly}" class="radar-area"/>
+      ${dots}${labels}
+      ${empty ? `<text x="${cx}" y="${cy + 4}" text-anchor="middle" class="c-empty">${T("Решите первые задания — радар оживёт")}</text>` : ""}</svg>`;
   }
 
   function heatmapSVG() {
-    const days = Progress.activityMap(84);
-    const cell = 15, gap = 4, cols = Math.ceil(days.length / 7);
-    const W = cols * (cell + gap) + 8, H = 7 * (cell + gap) + 8;
-    const xps = days.filter((d) => d.xp > 0).map((d) => d.xp);
-    const max = Math.max(1, ...xps);
+    const days = Progress.activityMap(119);
+    const cell = 14, gap = 4, left = 30, top = 20;
+    const offset = days[0].dow; // выравниваем по дням недели: строка = Пн..Вс
+    const cols = Math.ceil((days.length + offset) / 7);
+    const W = left + cols * (cell + gap) + 4, H = top + 7 * (cell + gap) + 4;
+    const max = Math.max(1, ...days.map((d) => d.xp));
     const lvl = (xp) => xp <= 0 ? 0 : Math.min(4, 1 + Math.floor((xp / max) * 3.999));
-    const shades = ["var(--bg-3)", "var(--o-200)", "var(--o-300)", "var(--o-400)", "var(--o-600)"];
+    const shades = ["var(--heat-0)", "var(--o-200)", "var(--o-300)", "var(--o-500)", "var(--o-700)"];
+    const MONTHS = I18N_MONTHS();
+    let lastMonth = -1, monthLbls = "";
     const cells = days.map((d, i) => {
-      const col = Math.floor(i / 7), row = i % 7;
-      const x = 4 + col * (cell + gap), y = 4 + row * (cell + gap);
-      const has = (Progress._state().activeDays || {})[d.date] !== undefined;
-      const fill = d.xp > 0 ? shades[lvl(d.xp)] : (has ? "var(--o-100)" : "var(--bg-3)");
-      return `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="3" fill="${fill}"><title>${d.date}: ${d.xp} XP</title></rect>`;
+      const pos = i + offset, col = Math.floor(pos / 7), row = pos % 7;
+      const x = left + col * (cell + gap), y = top + row * (cell + gap);
+      if ((row === 0 || i === 0) && d.month !== lastMonth) {
+        monthLbls += `<text x="${x}" y="12" class="c-axis-l">${MONTHS[d.month]}</text>`; lastMonth = d.month;
+      }
+      const fill = d.xp > 0 ? shades[lvl(d.xp)] : d.visited ? "var(--o-100)" : shades[0];
+      const today = i === days.length - 1;
+      return `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="3" fill="${fill}" class="hm-cell${today ? " today" : ""}" style="--i:${col}"><title>${d.date}: ${d.xp} XP${d.visited && !d.xp ? " (" + T("визит") + ")" : ""}</title></rect>`;
     }).join("");
-    return `<div class="heatmap-wrap"><svg viewBox="0 0 ${W} ${H}" class="chart-svg heatmap" role="img" aria-label="Календарь активности">${cells}</svg>
-      <div class="heat-legend"><span>меньше</span>
-        ${[0,1,2,3,4].map((l)=>`<span class="heat-key" style="background:${shades[l]}"></span>`).join("")}
-        <span>больше</span></div></div>`;
+    const dows = [[0, T("Пн")], [2, T("Ср")], [4, T("Пт")], [6, T("Вс")]].map(([r, l]) =>
+      `<text x="0" y="${top + r * (cell + gap) + 11}" class="c-axis-l">${l}</text>`).join("");
+    // Сводка
+    const active = days.filter((d) => d.xp > 0 || d.visited).length;
+    const best = days.reduce((m, d) => d.xp > m.xp ? d : m, { xp: 0 });
+    let run = 0, bestRun = 0;
+    days.forEach((d) => { run = d.xp > 0 || d.visited ? run + 1 : 0; bestRun = Math.max(bestRun, run); });
+    const total = days.reduce((n, d) => n + d.xp, 0);
+    return `<div class="heatmap-wrap">
+      <div class="hm-stats">
+        <div><b>${active}</b><span>${T("активных дней")}</span></div>
+        <div><b>${total}</b><span>${T("XP за период")}</span></div>
+        <div><b>${best.xp || "—"}</b><span>${T("лучший день")}${best.date ? " · " + best.date.slice(5) : ""}</span></div>
+        <div><b>${bestRun}</b><span>${T("макс. серия дней")}</span></div>
+      </div>
+      <div class="hm-scroll"><svg viewBox="0 0 ${W} ${H}" class="heatmap" role="img" aria-label="${T("Календарь активности")}">${monthLbls}${dows}${cells}</svg></div>
+      <div class="heat-legend"><span>${T("меньше")}</span>
+        ${[0, 1, 2, 3, 4].map((l) => `<span class="heat-key" style="background:${shades[l]}"></span>`).join("")}
+        <span>${T("больше")}</span></div></div>`;
+  }
+  function I18N_MONTHS() {
+    return (window.I18N && I18N.get() === "en")
+      ? ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+      : ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+  }
+
+  /* ---------- Карточка игрока (уникальный вид на каждой лиге) ---------- */
+  function playerCard(s) {
+    const r = s.rank, next = s.nextRank;
+    const prevMin = r.min, nextMin = next ? next.min : r.min;
+    const rankPct = next ? Math.round(((s.level - prevMin) + s.xpInLevel / 100) / (nextMin - prevMin) * 100) : 100;
+    const rIdx = RANKS.indexOf(r);
+    return `
+      <div class="player-card tier-${r.tier}">
+        <div class="pc-glow"></div>
+        <div class="pc-left">
+          <button class="pc-badge" onclick="App.openRanks()" title="${T("Лестница званий")}">${rankBadge(r, 112)}</button>
+          <span class="pc-tier">${T(TIER_NAMES[r.tier])} · ${rIdx + 1}/${RANKS.length}</span>
+        </div>
+        <div class="pc-main">
+          <span class="pc-kicker">${T("Оператор CyberPath")}</span>
+          <h2 class="pc-rank">${r.name}</h2>
+          <div class="pc-lvl"><b>LVL ${s.level}</b><span>${s.xp} XP</span></div>
+          <div class="pc-bar" title="${T("до следующего уровня")}"><span style="width:${s.xpInLevel}%"></span></div>
+          <div class="pc-bar-meta"><span>${T("до следующего уровня")}</span><span>${s.xpToNext} XP</span></div>
+          <div class="pc-next">${next
+            ? `${T("Следующее звание")}: ${next.icon} <b>${next.name}</b> · LVL ${next.min}<div class="pc-bar thin"><span style="width:${Math.max(3, Math.min(100, rankPct))}%"></span></div>`
+            : `<b>${T("Высшее звание достигнуто")}</b>`}</div>
+        </div>
+        <div class="pc-stats">
+          <div class="ps"><b>${s.tasksDone}<small>/${s.tasksTotal}</small></b><span>${T("заданий")}</span></div>
+          <div class="ps"><b>${s.coursesDone}<small>/${s.coursesTotal}</small></b><span>${T("курсов пройдено")}</span></div>
+          <div class="ps"><b>${s.streak}🔥</b><span>${T("дней подряд")}</span></div>
+          <div class="ps"><b>${s.achievements}<small>/${s.achievementsTotal}</small></b><span>${T("Достижения")}</span></div>
+        </div>
+        <div class="pc-actions">
+          <button class="btn btn-ghost btn-sm" onclick="App.openRanks()">${T("Звания")}</button>
+          <button class="btn btn-ghost btn-sm" onclick="App.shareCard()">${Icon.ui("progress")} ${T("Поделиться карточкой")}</button>
+        </div>
+      </div>`;
+  }
+
+  /* ---------- Достижения: редкость, прогресс, фильтр ---------- */
+  let achFilter = "all";
+  function achGrid() {
+    const RL = { common: T("Обычное"), rare: T("Редкое"), epic: T("Эпическое"), legendary: T("Легендарное") };
+    const st = Progress._state();
+    const list = ACHIEVEMENTS.map((a) => {
+      const got = Progress.hasAchievement(a.id);
+      const cur = a.metric ? Math.min(a.goal, Progress.metric(a.metric)) : 0;
+      return { a, got, cur, rar: ACH_RARITY[a.id] || "common" };
+    }).filter((x) => achFilter === "all" || (achFilter === "got" ? x.got : !x.got));
+    const order = { legendary: 0, epic: 1, rare: 2, common: 3 };
+    list.sort((x, y) => (y.got - x.got) || (y.cur / (y.a.goal || 1) - x.cur / (x.a.goal || 1)) || order[x.rar] - order[y.rar]);
+    return list.map(({ a, got, cur, rar }) => {
+      const when = got && typeof st.achievements[a.id] === "number" ? new Date(st.achievements[a.id]).toLocaleDateString() : "";
+      return `<div class="ach r-${rar} ${got ? "got" : "locked"}" title="${a.desc}" onmousemove="App.tilt(event,this)" onmouseleave="this.style.transform=''">
+        <span class="ach-rar">${RL[rar]}</span>
+        <span class="ach-ic">${a.icon}</span>
+        <b>${a.title}</b>
+        <span class="ach-desc">${a.desc}</span>
+        ${got ? `<span class="ach-when">✓ ${when}</span>`
+          : a.metric ? `<div class="ach-prog"><span style="width:${Math.round(cur / a.goal * 100)}%"></span></div><span class="ach-when">${cur} / ${a.goal}</span>` : ""}
+      </div>`;
+    }).join("") || `<p class="muted">${T("Пока пусто")}</p>`;
+  }
+  function achSetFilter(f) {
+    achFilter = f;
+    document.querySelectorAll(".ach-tabs button").forEach((b) => b.classList.toggle("on", b.dataset.f === f));
+    const g = document.getElementById("ach-grid"); if (g) g.innerHTML = achGrid();
+  }
+  function tilt(e, el) {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const r = el.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+    el.style.transform = `perspective(600px) rotateX(${(-y * 8).toFixed(2)}deg) rotateY(${(x * 10).toFixed(2)}deg) translateY(-3px)`;
   }
 
   function renderProfile() {
@@ -1916,23 +2118,7 @@ const App = (() => {
       <section class="section">
         <div class="page-title"><h1>${T("Профиль и прогресс")}</h1></div>
 
-        <div class="profile-top card">
-          <div class="pt-level">
-            <div class="lvl-circle" style="--pct:${s.xpInLevel}">
-              <span>LVL<br><b>${s.level}</b></span>
-            </div>
-          </div>
-          <div class="pt-stats">
-            <div class="ps"><b>${s.xp}</b><span>${T("всего XP")}</span></div>
-            <div class="ps"><b>${s.tasksDone}/${s.tasksTotal}</b><span>${T("заданий")}</span></div>
-            <div class="ps"><b>${s.coursesDone}/${s.coursesTotal}</b><span>${T("курсов пройдено")}</span></div>
-            <div class="ps"><b>${s.streak}</b><span>${T("дней подряд")}</span></div>
-          </div>
-          <div class="pt-actions">
-            <button class="btn btn-ghost btn-sm" onclick="App.openRanks()">${s.rank.icon} ${T("Звания")}</button>
-            <button class="btn btn-ghost btn-sm" onclick="App.shareCard()">${Icon.ui("progress")} ${T("Поделиться карточкой")}</button>
-          </div>
-        </div>
+        ${playerCard(s)}
 
         ${dashboardSection()}
 
@@ -1951,16 +2137,10 @@ const App = (() => {
         </div>
 
         <h2 class="rooms-title">${T("Достижения")} (${s.achievements}/${s.achievementsTotal})</h2>
-        <div class="ach-grid">
-          ${ACHIEVEMENTS.map((a) => {
-            const got = Progress.hasAchievement(a.id);
-            return `<div class="ach ${got ? "got" : "locked"}" title="${a.desc}">
-              <span class="ach-ic">${got ? a.icon : "🔒"}</span>
-              <b>${a.title}</b>
-              <span class="ach-desc">${a.desc}</span>
-            </div>`;
-          }).join("")}
+        <div class="ach-tabs">
+          ${[["all", T("Все")], ["got", T("Получены")], ["todo", T("В процессе")]].map(([f, l]) => `<button data-f="${f}" class="${achFilter === f ? "on" : ""}" onclick="App.achSetFilter('${f}')">${l}</button>`).join("")}
         </div>
+        <div class="ach-grid" id="ach-grid">${achGrid()}</div>
 
         <h2 class="rooms-title">${T("Данные и синхронизация")}</h2>
         <div class="data-zone card">
@@ -2192,10 +2372,27 @@ const App = (() => {
     if (!a) return;
     const t = document.createElement("div");
     t.className = "toast toast-ach";
-    t.innerHTML = `<span class="ta-ic">${a.icon}</span><div><b>Достижение!</b><br>${a.title}</div>`;
+    const rar = ACH_RARITY[a.id] || "common";
+    t.classList.add("r-" + rar);
+    t.innerHTML = `<span class="ta-ic">${a.icon}</span><div><b>${T("Достижение!")}</b><br>${a.title}</div>`;
+    if (rar === "epic" || rar === "legendary") confetti(rar === "legendary" ? 90 : 50);
     document.getElementById("toasts").appendChild(t);
     setTimeout(() => t.classList.add("show"), 10);
     setTimeout(() => { t.classList.remove("show"); setTimeout(() => t.remove(), 300); }, 3600);
+  }
+
+  function confetti(n) {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const box = document.createElement("div");
+    box.className = "confetti";
+    const cols = ["var(--o-500)", "#ffd166", "#06d6a0", "#118ab2", "#ef476f"];
+    for (let i = 0; i < n; i++) {
+      const p = document.createElement("i");
+      p.style.cssText = `left:${Math.random() * 100}%;background:${cols[i % cols.length]};--dx:${(Math.random() - .5) * 240}px;--r:${Math.random() * 720}deg;animation-delay:${Math.random() * .25}s;animation-duration:${1.4 + Math.random()}s`;
+      box.appendChild(p);
+    }
+    document.body.appendChild(box);
+    setTimeout(() => box.remove(), 3000);
   }
 
   function resetConfirm() {
@@ -2225,12 +2422,13 @@ const App = (() => {
     const root = document.documentElement;
     root.classList.add("theme-anim");
     applyTheme(next);
+    if (next === "dark") Progress.unlockAchievement("dark_side");
     clearTimeout(toggleTheme._t);
     toggleTheme._t = setTimeout(() => root.classList.remove("theme-anim"), 360);
   }
 
   function toggleLang() {
-    if (window.I18N) { I18N.toggle(); render(); }
+    if (window.I18N) { I18N.toggle(); render(); Progress.unlockAchievement("polyglot"); }
   }
 
   /* ---------- Инициализация ---------- */
@@ -2324,13 +2522,16 @@ const App = (() => {
     if (ov) ov.remove(); // пересобираем с актуальным состоянием
     ov = document.createElement("div");
     ov.id = "ranks-modal"; ov.className = "modal-overlay";
+    let lastTier = "";
     const rows = RANKS.map((r) => {
       const reached = lvl >= r.min;
       const isCur = r.name === curName;
-      return `<div class="rank-row ${reached ? "reached" : "locked"} ${isCur ? "current" : ""}">
-        <span class="rank-ic">${reached ? r.icon : "🔒"}</span>
+      const head = r.tier !== lastTier ? `<div class="tier-head tier-${r.tier}"><span></span>${T(TIER_NAMES[r.tier])}<span></span></div>` : "";
+      lastTier = r.tier;
+      return `${head}<div class="rank-row ${reached ? "reached" : "locked"} ${isCur ? "current" : ""} tier-${r.tier}">
+        ${rankBadge(r, 40, !reached)}
         <span class="rank-name">${r.name}</span>
-        <span class="rank-req">${T("с уровня")} ${r.min}${isCur ? " · " + T("сейчас") : ""}</span>
+        <span class="rank-req">${isCur ? `<em>${T("сейчас")}</em>` : ""}LVL ${r.min}</span>
       </div>`;
     }).join("");
     ov.innerHTML = `
@@ -2357,9 +2558,9 @@ const App = (() => {
     submitMission, toggleShell, openShortcuts, closeShortcuts,
     glossarySearch, submitExam, retryExam, openPalette, palettePick, installApp,
     reviewChoose, reviewCheck, reviewNext, shareCard, saveDraft, toggleLang,
-    openRanks, closeRanks,
+    openRanks, closeRanks, achSetFilter, tilt,
   };
 })();
 
-try { window.App = App; } catch (e) {}
+try { window.App = App; window.Progress = Progress; } catch (e) {}
 document.addEventListener("DOMContentLoaded", App.init);
