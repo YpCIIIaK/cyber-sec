@@ -535,6 +535,7 @@ main { min-height: 72vh; }
   font-family: var(--sans); font-size: .94rem; background: var(--bg-2); transition: border-color .15s, background .15s;
 }
 .answer-row input:focus { outline: none; border-color: var(--o-400); background: var(--surface); box-shadow: 0 0 0 4px var(--o-50); }
+.sandbox-check-hint { padding-left: 39px; margin-top: 8px; font-size: .8rem; color: var(--muted); }
 .feedback { padding-left: 39px; min-height: 20px; margin-top: 8px; font-size: .88rem; font-weight: 600; }
 .fb-err { color: var(--err); }
 .fb-warn { color: var(--o-700); }

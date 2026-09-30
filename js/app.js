@@ -1014,7 +1014,7 @@ const App = (() => {
       const out = document.getElementById("term-out"), inp = document.getElementById("term-input");
       if (out && inp) {
         Sandbox.init(out, inp);
-        Sandbox.setHook((cmd, output) => autoCheckSandbox(course, room, cmd, output));
+        Sandbox.setHook(null); // без авто-проверки — проверяем по кнопке «Проверить»
       }
     }
     // Монтируем интерактивные лаборатории
@@ -1233,16 +1233,19 @@ const App = (() => {
           <button class="hint-btn" onclick="App.orderReset('${tid}')">Сбросить</button>
           <div class="feedback" id="fb-${tid}"></div>`;
       }
-      default: // question / flag
+      default: { // question / flag
+        const ph = task.sandbox ? T("Ответ или выполните в терминале") : (task.type === "flag" ? "CYBER{...}" : T("Ваш ответ"));
         return `
           <div class="answer-row">
-            <input type="text" id="ans-${tid}" placeholder="${task.type === "flag" ? "CYBER{...}" : "Ваш ответ"}"
+            <input type="text" id="ans-${tid}" placeholder="${ph}"
                    value="${escapeAttr(Progress.getDraft(tid))}"
                    oninput="App.saveDraft('${tid}',this.value)"
                    onkeydown="if(event.key==='Enter')App.submit('${cid}','${tid}')">
             <button class="btn btn-primary btn-sm" onclick="App.submit('${cid}','${tid}')">${T("Проверить")}</button>
           </div>
+          ${task.sandbox ? `<div class="sandbox-check-hint">${T("Выполните команду в терминале слева — затем нажмите «Проверить».")}</div>` : ""}
           <div class="feedback" id="fb-${tid}"></div>`;
+      }
     }
   }
 
@@ -1322,7 +1325,7 @@ const App = (() => {
       </section>`;
     highlightNav();
     Sandbox.init(document.getElementById("term-out"), document.getElementById("term-input"));
-    Sandbox.setHook((cmd, output) => autoCheckMissions(output));
+    Sandbox.setHook(null); // миссии сдаются по кнопке «Сдать флаг»
     setTimeout(() => { const i = document.getElementById("term-input"); if (i) i.focus(); }, 100);
   }
 
@@ -2005,22 +2008,41 @@ const App = (() => {
   }
 
   /* ---------- Действия ---------- */
+  // Проверка по журналу терминала (для sandbox-заданий) — вызывается по кнопке
+  function terminalSatisfies(task) {
+    if (!window.Sandbox || !Sandbox.getTranscript) return false;
+    const tr = Sandbox.getTranscript();
+    if (!tr.length) return false;
+    const answers = task.answers || (task.answer ? [task.answer] : []);
+    if (task.type === "flag") {
+      const outAll = tr.map((x) => x.out || "").join("\n");
+      return answers.some((a) => task.caseSensitive ? outAll.includes(a) : outAll.toLowerCase().includes(String(a).toLowerCase()));
+    }
+    const cmds = tr.map((x) => (x.cmd || "").toLowerCase());
+    return answers.some((a) => { const x = String(a).toLowerCase(); return cmds.some((c) => c.split(/\s+/).includes(x) || c.includes(x)); });
+  }
+
   function submit(courseId, taskId) {
     const course = COURSES.find((c) => c.id === courseId);
     const task = course.rooms.flatMap((r) => r.tasks).find((t) => t.id === taskId);
     const input = document.getElementById(`ans-${taskId}`).value;
     const fb = document.getElementById(`fb-${taskId}`);
-    if (!input.trim()) { fb.innerHTML = `<span class="fb-warn">Введите ответ</span>`; return; }
+    const raw = input.trim();
+    if (!raw && !task.sandbox) { fb.innerHTML = `<span class="fb-warn">${T("Введите ответ")}</span>`; return; }
 
-    const ok = checkAnswer(task, input);
-    if (!Progress.isDone(taskId)) Progress.recordAttempt(taskId, ok);
+    let ok = raw && checkAnswer(task, input);
+    if (!ok && task.sandbox) ok = terminalSatisfies(task); // проверяем то, что сделано в терминале
+    if (!Progress.isDone(taskId)) Progress.recordAttempt(taskId, !!ok);
     if (ok) {
       const res = Progress.completeTask(task, courseId);
       celebrate(res);
       const roomId = course.rooms.find((r) => r.tasks.includes(task)).id;
-      renderRoom(courseId, roomId);
+      afterSolve(course, task, roomId);
     } else {
-      fb.innerHTML = `<span class="fb-err">✗ Неверно, попробуйте ещё раз.</span>`;
+      const msg = (!raw && task.sandbox)
+        ? T("Выполните команду в терминале и нажмите «Проверить».")
+        : T("Неверно, попробуйте ещё раз.");
+      fb.innerHTML = `<span class="fb-err">✗ ${msg}</span>`;
       const el = document.getElementById(`task-${taskId}`);
       el.classList.remove("shake"); void el.offsetWidth; el.classList.add("shake");
     }
@@ -2039,10 +2061,18 @@ const App = (() => {
     return { course, task, roomId };
   }
   function solveTask(courseId, taskId) {
-    const { task, roomId } = findTask(courseId, taskId);
+    const { course, task, roomId } = findTask(courseId, taskId);
     const res = Progress.completeTask(task, courseId);
     celebrate(res);
-    renderRoom(courseId, roomId);
+    afterSolve(course, task, roomId);
+  }
+  // Обновление после решения: на месте (сохраняя терминал), полный ререндер — при завершении комнаты
+  function afterSolve(course, task, roomId) {
+    const room = course.rooms.find((r) => r.id === roomId);
+    if (room && Progress.roomCompleted(room)) { renderRoom(course.id, roomId); return; }
+    const el = document.getElementById("task-" + task.id);
+    if (el) el.outerHTML = taskBlock(course, task);
+    else renderRoom(course.id, roomId);
   }
   function wrongFx(taskId, msg) {
     const fb = document.getElementById(`fb-${taskId}`);

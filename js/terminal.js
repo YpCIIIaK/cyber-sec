@@ -43,7 +43,8 @@ const Sandbox = (() => {
   const HOME = "C:\\Users\\hacker";
   let cwd = HOME; // всегда работаем от домашней папки
   let mode = "cmd"; // "cmd" | "ps"
-  let hook = null;  // (commandLine, outputText) => void — авто-проверка заданий
+  let hook = null;  // (commandLine, outputText) => void — необязательный слушатель
+  let transcript = []; // [{cmd, out}] за текущую сессию — для проверки по кнопке
 
   // Учебный реестр (для reg query)
   const REG = {
@@ -401,6 +402,8 @@ const Sandbox = (() => {
     }
     syncPrompt();
     scrollBottom();
+    transcript.push({ cmd: line, out: outText });
+    if (transcript.length > 300) transcript = transcript.slice(-300);
     if (hook) { try { hook(line, outText); } catch (e) {} }
   }
 
@@ -452,6 +455,7 @@ const Sandbox = (() => {
     outEl = outputEl;
     inputEl = inEl;
     cwd = HOME;
+    transcript = [];
     outEl.innerHTML = "";
     print("Microsoft Windows [Version 10.0.19045] — учебная песочница CyberPath 🪟", "term-ok");
     print("Безопасная учебная среда. <b>help</b> — команды · <b>Tab</b> — автодополнение · переключатель cmd/PowerShell вверху.", "");
@@ -479,5 +483,7 @@ const Sandbox = (() => {
   }
 
   function setHook(fn) { hook = typeof fn === "function" ? fn : null; }
-  return { init, run, setMode, toggleMode, getMode, setHook };
+  function getTranscript() { return transcript.slice(); }
+  return { init, run, setMode, toggleMode, getMode, setHook, getTranscript };
 })();
+try { window.Sandbox = Sandbox; } catch (e) {}
