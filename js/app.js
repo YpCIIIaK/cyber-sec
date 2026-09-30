@@ -152,6 +152,35 @@ const Progress = (() => {
     if (doneCourses >= 3) tryAch("three_courses", events);
   }
 
+  /* ---------- Испытания: боссфайты и недельный ивент ---------- */
+  function weekKey() { const w = Math.floor((dayIndex() + 3) / 7); return "w" + w; } // недели с понедельника
+  function challenges() { if (!state.challenges) state.challenges = {}; return state.challenges; }
+  function challengeRec(key) { return challenges()[key] || null; }
+  // kind: "boss" | "weekly"; passed — достаточно ли верных ответов для «зачёта»
+  function recordChallenge(kind, key, correct, total, secs, passed, bonus, limit) {
+    const all = challenges();
+    const rec = all[key] || { kind, best: 0, bestTime: null, attempts: 0, cleared: false, history: [] };
+    // скорость даёт бонус до 150 очков, но только пропорционально точности — угадывать быстро невыгодно
+    const score = correct * 100 + Math.round(150 * Math.max(0, 1 - secs / (limit || 600)) * (total ? correct / total : 0));
+    rec.attempts++;
+    rec.history.unshift({ ts: Date.now(), correct, total, secs, score });
+    rec.history = rec.history.slice(0, 10);
+    if (score > rec.best) { rec.best = score; rec.bestTime = secs; rec.bestCorrect = correct; }
+    const events = { xpGained: 0, newAchievements: [] };
+    if (passed && !rec.cleared) {
+      rec.cleared = true;
+      awardXP(bonus, events);
+      events.xpGained = bonus;
+      tryAch(kind === "boss" ? "boss_first" : "weekly_first", events);
+    }
+    all[key] = rec;
+    const bosses = Object.values(all).filter((r) => r.kind === "boss" && r.cleared).length;
+    if (bosses >= 5) tryAch("boss_5", events);
+    if (passed && correct === total && kind === "boss") tryAch("boss_perfect", events);
+    save();
+    return { rec, score, events };
+  }
+
   /* ---------- Заметки ---------- */
   function notes() { if (!Array.isArray(state.notes)) state.notes = []; return state.notes; }
   function addNote(n) {
@@ -550,7 +579,7 @@ const Progress = (() => {
     getDraft, setDraft, clearDraft,
     srsEnsure, srsDueList, srsDueCount, srsTotal, srsReview, srsEligible,
     weakTasks, weakCourses, xpByWeek, activityMap, skillRadar, courseMastery,
-    metric, bumpStat, stats, notes, addNote, updateNote, deleteNote,
+    metric, bumpStat, stats, weekKey, challengeRec, recordChallenge, challenges, notes, addNote, updateNote, deleteNote,
     _state: () => state,
   };
 })();
@@ -592,6 +621,8 @@ const App = (() => {
     if (view === "roadmap") return "#/roadmap";
     if (view === "review") return "#/review";
     if (view === "notes") return "#/notes";
+    if (view === "boss") return `#/course/${params.courseId}/boss`;
+    if (view === "weekly") return "#/weekly";
     return "#/";
   }
   function parseHash() {
@@ -605,11 +636,14 @@ const App = (() => {
     if (parts[0] === "roadmap") return { view: "roadmap" };
     if (parts[0] === "review") return { view: "review" };
     if (parts[0] === "notes") return { view: "notes" };
+    if (parts[0] === "weekly") return { view: "weekly" };
     if (parts[0] === "course" && parts[1]) {
       if (parts[2] === "room" && parts[3])
         return { view: "room", courseId: parts[1], roomId: parts[3] };
       if (parts[2] === "exam")
         return { view: "exam", courseId: parts[1] };
+      if (parts[2] === "boss")
+        return { view: "boss", courseId: parts[1] };
       return { view: "course", courseId: parts[1] };
     }
     return { view: "home" };
@@ -685,6 +719,8 @@ const App = (() => {
       case "roadmap": renderRoadmap(); break;
       case "review": renderReview(); break;
       case "notes": renderNotes(); break;
+      case "boss": renderBoss(c.courseId); break;
+      case "weekly": renderWeekly(); break;
       case "exam": renderExam(c.courseId); break;
       default: renderHome();
     }
@@ -735,6 +771,7 @@ const App = (() => {
 
       ${continueBlock()}
       ${dailyCard()}
+      ${weeklyCard()}
       ${reviewCardHome()}
 
       <section class="features">
@@ -990,7 +1027,7 @@ const App = (() => {
             </div>
           </div>
         </div>
-        ${p.pct === 100 ? certificateCard(course) + nextCourseCard(course) : ""}
+        ${p.pct === 100 ? certificateCard(course) + nextCourseCard(course) : p.pct >= 50 ? bossBanner(course) : ""}
         <h2 class="rooms-title">${T("Комнаты курса")}</h2>
         <div class="room-list">
           ${course.rooms.map((room, i) => roomRow(course, room, i)).join("")}
@@ -1065,6 +1102,7 @@ const App = (() => {
         </div>
         <div class="cert-actions">
           <button class="btn btn-ghost btn-sm" onclick="App.go('exam',{courseId:'${course.id}'})">${Icon.ui("quest")} ${Progress.examPassed(course.id) ? "Пересдать экзамен" : "Сдать экзамен"}</button>
+          <button class="btn btn-ghost btn-sm" onclick="App.go('boss',{courseId:'${course.id}'})">⚔️ ${T("Боссфайт")}</button>
           <button class="btn btn-primary btn-sm" onclick="App.downloadCertificate('${course.id}')">${Icon.ui("progress")} Сертификат</button>
         </div>
       </div>`;
@@ -1656,6 +1694,184 @@ const App = (() => {
         <svg class="st-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">${edges.join("")}</svg>
         ${nodes}
       </div></div></div>`;
+  }
+
+  /* ---------- Испытания (боссфайт / недельный ивент) ---------- */
+  function seededRand(seed) {
+    let x = 0;
+    for (const ch of String(seed)) x = (x * 31 + ch.charCodeAt(0)) >>> 0;
+    return () => { x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; };
+  }
+  function challengePool(courses) {
+    // только задания с проверяемым текстовым ответом, решаемые без терминала
+    return courses.flatMap((c) => c.rooms.flatMap((r) => r.tasks
+      .filter((t) => (t.type === "question" || t.type === "flag") && !t.sandbox && (t.answers || t.answer))
+      .map((t) => ({ t, c }))));
+  }
+  function pickN(arr, n, rnd) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a.slice(0, n);
+  }
+  const BOSS = { n: 6, limit: 480, pass: 5, bonus: 50 };
+  const WEEKLY = { n: 8, limit: 600, pass: 6, bonus: 40 };
+  let chal = null;
+  function fmtTime(sec) { return String(Math.floor(sec / 60)).padStart(2, "0") + ":" + String(sec % 60).padStart(2, "0"); }
+
+  function bossBanner(course) {
+    const rec = Progress.challengeRec("boss_" + course.id);
+    return `<div class="boss-banner card" style="--c:${course.color}">
+      <span class="bb-ic">⚔️</span>
+      <div><b>${T("Боссфайт курса")}</b><p>${T("6 вопросов, 8 минут, без подсказок. Проверьте себя до конца курса.")}</p></div>
+      ${rec ? `<span class="bb-best">${T("Рекорд")}: ${rec.best}</span>` : ""}
+      <button class="btn btn-primary btn-sm" onclick="App.go('boss',{courseId:'${course.id}'})">${T("В бой")}</button>
+    </div>`;
+  }
+  function weeklyCard() {
+    const rec = Progress.challengeRec(Progress.weekKey());
+    return `<section class="section weekly-home"><div class="weekly-card card">
+      <div class="wk-l"><span class="wk-kicker">${T("Недельный ивент")}</span>
+        <h3>${T("CTF недели")}: ${WEEKLY.n} ${T("вопросов из всех курсов")}</h3>
+        <p>${T("Набор вопросов одинаковый всю неделю и меняется каждый понедельник. Очки = верные ответы × 100 + бонус за скорость.")}</p></div>
+      <div class="wk-r">${rec ? `<div class="wk-best"><b>${rec.best}</b><span>${T("ваш рекорд недели")}</span></div>` : ""}
+        <button class="btn btn-primary" onclick="App.go('weekly')">${rec ? T("Улучшить результат") : T("Участвовать")}</button></div>
+    </div></section>`;
+  }
+
+  function startChallenge(kind, course) {
+    const cfg = kind === "boss" ? BOSS : WEEKLY;
+    const key = kind === "boss" ? "boss_" + course.id : Progress.weekKey();
+    const pool = challengePool(kind === "boss" ? [course] : COURSES);
+    const rnd = kind === "boss" ? seededRand(Date.now()) : seededRand(key);
+    chal = { kind, key, cfg, course, items: pickN(pool, cfg.n, rnd), i: 0, answers: [], start: Date.now(), timer: null, done: false };
+    drawChallenge();
+    clearInterval(chal.timer);
+    chal.timer = setInterval(() => {
+      if (!chal || chal.done) return;
+      const el = document.getElementById("chal-time");
+      if (!el) { clearInterval(chal.timer); return; } // ушли со страницы
+      const left = chal.cfg.limit - Math.floor((Date.now() - chal.start) / 1000);
+      el.textContent = fmtTime(Math.max(0, left));
+      el.classList.toggle("low", left <= 60);
+      if (left <= 0) finishChallenge(true);
+    }, 250);
+  }
+  function drawChallenge() {
+    const st = document.getElementById("chal-stage");
+    if (!st || !chal) return;
+    const it = chal.items[chal.i];
+    st.innerHTML = `
+      <div class="chal-top">
+        <div class="chal-steps">${chal.items.map((_, k) => `<span class="${k < chal.i ? (chal.answers[k].ok ? "ok" : "bad") : k === chal.i ? "cur" : ""}"></span>`).join("")}</div>
+        <span class="chal-timer" id="chal-time">${fmtTime(chal.cfg.limit)}</span>
+      </div>
+      <div class="chal-q card">
+        <span class="chal-num">${T("Вопрос")} ${chal.i + 1} / ${chal.items.length}${chal.kind === "weekly" ? " · " + it.c.title : ""}</span>
+        <h3>${it.t.title}</h3>
+        <p>${it.t.prompt}</p>
+        <form class="answer-row" onsubmit="event.preventDefault();App.chalAnswer()">
+          <input class="answer-input" id="chal-in" autocomplete="off" spellcheck="false" placeholder="${T("Ваш ответ")}">
+          <button class="btn btn-primary">${T("Ответить")}</button>
+        </form>
+        <button class="hint-btn" onclick="App.chalSkip()">${T("Пропустить")}</button>
+      </div>`;
+    const inp = document.getElementById("chal-in"); if (inp) inp.focus();
+  }
+  function chalAnswer(skip) {
+    if (!chal || chal.done) return;
+    const it = chal.items[chal.i];
+    const v = skip ? "" : (document.getElementById("chal-in") || {}).value || "";
+    const ok = !!v.trim() && checkAnswer(it.t, v);
+    chal.answers.push({ ok, v });
+    const card = document.querySelector(".chal-q");
+    if (card) card.classList.add(ok ? "flash-ok" : "flash-bad");
+    setTimeout(() => {
+      chal.i++;
+      if (chal.i >= chal.items.length) finishChallenge(false); else drawChallenge();
+    }, 380);
+  }
+  function chalSkip() { chalAnswer(true); }
+  function finishChallenge(timeout) {
+    if (!chal || chal.done) return;
+    chal.done = true; clearInterval(chal.timer);
+    while (chal.answers.length < chal.items.length) chal.answers.push({ ok: false, v: "" });
+    const secs = Math.min(chal.cfg.limit, Math.round((Date.now() - chal.start) / 1000));
+    const correct = chal.answers.filter((a) => a.ok).length;
+    const passed = correct >= chal.cfg.pass;
+    const { rec, score, events } = Progress.recordChallenge(chal.kind, chal.key, correct, chal.items.length, secs, passed, chal.cfg.bonus, chal.cfg.limit);
+    celebrate(events);
+    const st = document.getElementById("chal-stage");
+    if (!st) return;
+    st.innerHTML = `
+      <div class="chal-result card ${passed ? "win" : "lose"}">
+        <div class="cr-ic">${passed ? "🏆" : timeout ? "⏱️" : "💥"}</div>
+        <h2>${passed ? (chal.kind === "boss" ? T("Босс повержен!") : T("Зачёт недели!")) : timeout ? T("Время вышло") : T("Не хватило совсем немного")}</h2>
+        <div class="cr-stats">
+          <div><b>${correct}/${chal.items.length}</b><span>${T("верно")}</span></div>
+          <div><b>${fmtTime(secs)}</b><span>${T("время")}</span></div>
+          <div><b>${score}</b><span>${T("очки")}</span></div>
+          <div><b>${rec.best}</b><span>${T("рекорд")}</span></div>
+        </div>
+        ${events.xpGained ? `<p class="cr-xp">+${events.xpGained} XP ${T("за первое прохождение")}</p>` : ""}
+        <p class="muted">${T("Для зачёта нужно")} ${chal.cfg.pass}/${chal.items.length}.</p>
+        <details class="cr-review"><summary>${T("Разбор ответов")}</summary>
+          ${chal.items.map((it, k) => {
+            const a = chal.answers[k];
+            const right = (it.t.answers || [it.t.answer])[0];
+            return `<div class="crr ${a.ok ? "ok" : "bad"}"><b>${a.ok ? "✓" : "✗"} ${it.t.title}</b>
+              <span>${T("Ваш ответ")}: ${escapeHtml(a.v || "—")}${a.ok ? "" : ` · ${T("верно")}: <code>${escapeHtml(right)}</code>`}</span></div>`;
+          }).join("")}
+        </details>
+        <div class="cr-actions">
+          <button class="btn btn-primary" onclick="App.chalRestart()">${T("Ещё раз")}</button>
+          ${chal.kind === "boss" ? `<button class="btn btn-ghost" onclick="App.go('course',{courseId:'${chal.course.id}'})">${T("К курсу")}</button>` : `<button class="btn btn-ghost" onclick="App.go('home')">${T("На главную")}</button>`}
+        </div>
+      </div>
+      ${historyTable(rec)}`;
+  }
+  function historyTable(rec) {
+    if (!rec || !rec.history.length) return "";
+    return `<h2 class="rooms-title">${T("Ваши попытки")}</h2>
+      <div class="card hist"><table class="hist-t"><thead><tr><th>#</th><th>${T("Дата")}</th><th>${T("Верно")}</th><th>${T("Время")}</th><th>${T("Очки")}</th></tr></thead><tbody>
+      ${rec.history.slice().sort((a, b) => b.score - a.score).map((h, i) => `<tr class="${h.score === rec.best ? "best" : ""}"><td>${i + 1}</td><td>${new Date(h.ts).toLocaleString()}</td><td>${h.correct}/${h.total}</td><td>${fmtTime(h.secs)}</td><td><b>${h.score}</b></td></tr>`).join("")}
+      </tbody></table></div>`;
+  }
+  function chalRestart() { if (chal) startChallenge(chal.kind, chal.course); }
+  function introChallenge(kind, course) {
+    const cfg = kind === "boss" ? BOSS : WEEKLY;
+    const key = kind === "boss" ? "boss_" + course.id : Progress.weekKey();
+    const rec = Progress.challengeRec(key);
+    const pool = challengePool(kind === "boss" ? [course] : COURSES);
+    return `<div id="chal-stage">
+      <div class="chal-intro card">
+        <div class="ci-ic">${kind === "boss" ? "⚔️" : "🗓️"}</div>
+        <ul class="ci-rules">
+          <li><b>${cfg.n}</b> ${T("вопросов")} ${kind === "boss" ? T("из этого курса") : T("из всех курсов")}</li>
+          <li><b>${cfg.limit / 60} ${T("мин")}</b> ${T("на всё")}</li>
+          <li>${T("Без подсказок и без повторной попытки")}</li>
+          <li>${T("Зачёт")}: <b>${cfg.pass}/${cfg.n}</b> · ${T("первое прохождение")}: <b>+${cfg.bonus} XP</b></li>
+        </ul>
+        ${pool.length < cfg.n ? `<p class="muted">${T("В этом курсе мало подходящих вопросов — их будет")} ${pool.length}.</p>` : ""}
+        <button class="btn btn-primary btn-lg" onclick="App.chalStart('${kind}','${course ? course.id : ""}')">${T("Начать")}</button>
+      </div>
+      ${historyTable(rec)}
+    </div>`;
+  }
+  function chalStart(kind, cid) { startChallenge(kind, COURSES.find((c) => c.id === cid)); }
+  function renderBoss(courseId) {
+    const course = COURSES.find((c) => c.id === courseId);
+    if (!course) return go("courses");
+    root().innerHTML = `<section class="section">
+      ${crumbs([["home", T("Главная")], ["courses", T("Курсы")], [{ courseId: course.id }, course.title], [null, T("Боссфайт")]])}
+      <div class="page-title"><h1>⚔️ ${T("Боссфайт")}: ${course.title}</h1><p>${T("Испытание на время по материалу курса. Вопросы каждый раз разные.")}</p></div>
+      ${introChallenge("boss", course)}</section>`;
+  }
+  function renderWeekly() {
+    const d = new Date(), dow = (d.getUTCDay() + 6) % 7, left = 7 - dow;
+    root().innerHTML = `<section class="section">
+      ${crumbs([["home", T("Главная")], [null, T("Недельный ивент")]])}
+      <div class="page-title"><h1>🗓️ ${T("CTF недели")}</h1><p>${T("Один набор вопросов на всю неделю — улучшайте свой рекорд. До смены набора")}: <b>${left} ${T("дн.")}</b></p></div>
+      ${introChallenge("weekly", null)}</section>`;
   }
 
   /* ---------- Финальный экзамен курса ---------- */
@@ -2823,7 +3039,7 @@ const App = (() => {
     submitMission, toggleShell, openShortcuts, closeShortcuts,
     glossarySearch, submitExam, retryExam, openPalette, palettePick, installApp,
     reviewChoose, reviewCheck, reviewNext, shareCard, saveDraft, toggleLang,
-    openRanks, closeRanks, achSetFilter, tilt, notesFilter, noteComment, noteDelete, exportNotes,
+    openRanks, closeRanks, achSetFilter, tilt, chalStart, chalAnswer, chalSkip, chalRestart, notesFilter, noteComment, noteDelete, exportNotes,
   };
 })();
 
