@@ -364,6 +364,32 @@ main { min-height: 72vh; }
 .catalog-meta { color: var(--muted); font-size: .84rem; font-weight: 600; margin-bottom: 18px; }
 .empty-state { grid-column: 1 / -1; text-align: center; padding: 48px; color: var(--muted); background: var(--bg-2); border: 1px dashed var(--line); border-radius: var(--r); }
 
+/* ---------- Колонка урока + встроенный терминал ---------- */
+.lesson-col { display: flex; flex-direction: column; gap: 20px; }
+.inline-term { position: sticky; top: 78px; }
+.inline-term .term-body.inline { height: 250px; font-size: .85rem; padding: 14px; }
+
+/* ---------- Карточка следующего курса ---------- */
+.next-course-card {
+  display: flex; align-items: center; gap: 18px; margin-top: 16px; cursor: pointer;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--c, var(--o-500)) 8%, var(--surface)), var(--surface) 70%);
+  border: 1px solid color-mix(in srgb, var(--c, var(--o-500)) 25%, var(--line));
+  border-radius: var(--r); padding: 22px 24px; box-shadow: var(--sh-sm);
+  transition: transform .16s, box-shadow .22s;
+}
+.next-course-card:hover { transform: translateY(-2px); box-shadow: var(--sh-lg); }
+.next-course-card.locked { cursor: pointer; background: var(--bg-2); border-style: dashed; }
+.next-course-card.all-done { background: linear-gradient(135deg, var(--ok-bg), var(--surface) 70%); border-color: color-mix(in srgb, var(--ok) 30%, var(--line)); cursor: default; }
+.next-course-card.all-done:hover { transform: none; box-shadow: var(--sh-sm); }
+.nc-ic { width: 56px; height: 56px; flex-shrink: 0; border-radius: 15px; display: grid; place-items: center; color: var(--c, var(--o-600)); background: color-mix(in srgb, var(--c, var(--o-500)) 12%, var(--tint)); border: 1px solid color-mix(in srgb, var(--c, var(--o-500)) 22%, var(--tint)); }
+.nc-ic svg { width: 28px; height: 28px; }
+.next-course-card.all-done .nc-ic { color: var(--ok); background: var(--ok-bg); border-color: color-mix(in srgb, var(--ok) 25%, var(--line)); }
+.nc-body { flex: 1; min-width: 0; }
+.nc-label { color: var(--o-600); font-weight: 700; font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; }
+.nc-body h3 { font-size: 1.2rem; margin: 3px 0; }
+.nc-body p { color: var(--muted); font-size: .88rem; }
+.next-course-card .btn { flex-shrink: 0; }
+
 /* ---------- Продолжить обучение ---------- */
 .continue-section { padding-top: 40px; padding-bottom: 0; }
 .continue-card {

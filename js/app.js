@@ -835,13 +835,68 @@ const App = (() => {
             </div>
           </div>
         </div>
-        ${p.pct === 100 ? certificateCard(course) : ""}
+        ${p.pct === 100 ? certificateCard(course) + nextCourseCard(course) : ""}
         <h2 class="rooms-title">${T("Комнаты курса")}</h2>
         <div class="room-list">
           ${course.rooms.map((room, i) => roomRow(course, room, i)).join("")}
         </div>
       </section>`;
     highlightNav();
+  }
+
+  // Рекомендация следующего курса по сложности
+  function recommendNext(excludeId) {
+    const order = { "Новичок": 0, "Средний": 1, "Сложный": 2 };
+    const idx = (c) => COURSES.indexOf(c);
+    const incomplete = COURSES.filter((c) => c.id !== excludeId && Progress.courseProgress(c).pct < 100);
+    const unlocked = incomplete.filter((c) => Progress.courseUnlocked(c))
+      .sort((a, b) => (order[a.level] - order[b.level]) || (idx(a) - idx(b)));
+    if (unlocked.length) return { course: unlocked[0], unlocked: true };
+    // ничего не открыто — покажем ближайший заблокированный (нужно добить предпосылки)
+    const locked = incomplete
+      .sort((a, b) => (order[a.level] - order[b.level]) || (idx(a) - idx(b)));
+    if (locked.length) return { course: locked[0], unlocked: false };
+    return null;
+  }
+
+  function nextCourseCard(currentCourse) {
+    const rec = recommendNext(currentCourse.id);
+    if (!rec) {
+      return `
+        <div class="next-course-card all-done">
+          <span class="nc-ic">${Icon.ui("shield")}</span>
+          <div class="nc-body">
+            <span class="nc-label">${T("Поздравляем!")}</span>
+            <h3>${T("Вы прошли все курсы платформы")}</h3>
+            <p>${T("Так держать — вернитесь к повторению, чтобы закрепить знания.")}</p>
+          </div>
+          <button class="btn btn-primary" onclick="App.go('review')">${T("Повторение")} ${Icon.ui("arrow")}</button>
+        </div>`;
+    }
+    const c = rec.course, p = Progress.courseProgress(c);
+    if (rec.unlocked) {
+      return `
+        <div class="next-course-card" style="--c:${c.color}" onclick="App.go('course',{courseId:'${c.id}'})">
+          <span class="nc-ic" style="color:${c.color}">${Icon.course(c.id)}</span>
+          <div class="nc-body">
+            <span class="nc-label">${T("Следующий курс по сложности")}</span>
+            <h3>${c.title}</h3>
+            <p>${TL(c.level)} · ${c.summary}</p>
+          </div>
+          <button class="btn btn-primary" onclick="event.stopPropagation();App.go('course',{courseId:'${c.id}'})">${p.done > 0 ? T("Продолжить") : T("Начать курс")} ${Icon.ui("arrow")}</button>
+        </div>`;
+    }
+    const missing = Progress.missingPrereqs(c);
+    return `
+      <div class="next-course-card locked" style="--c:${c.color}" onclick="App.go('course',{courseId:'${c.id}'})">
+        <span class="nc-ic">${Icon.ui("lock")}</span>
+        <div class="nc-body">
+          <span class="nc-label">${T("Дальше открывается")}</span>
+          <h3>${c.title}</h3>
+          <p>${T("Требуется")}: ${missing.map((m) => m.title).join(", ")}</p>
+        </div>
+        <button class="btn btn-ghost" onclick="event.stopPropagation();App.go('course',{courseId:'${c.id}'})">${T("Подробнее")} ${Icon.ui("arrow")}</button>
+      </div>`;
   }
 
   function certificateCard(course) {
@@ -883,6 +938,7 @@ const App = (() => {
     if (!room) return go("course", { courseId });
     const idx = course.rooms.indexOf(room);
     const nextRoom = course.rooms[idx + 1];
+    const hasSandbox = room.tasks.some((t) => t.sandbox);
 
     root().innerHTML = `
       <section class="section room-view">
@@ -898,7 +954,10 @@ const App = (() => {
           </div>
         </div>
         <div class="room-columns">
-          <div class="lesson card">${window.I18N && I18N.current() === "en" ? `<div class="lang-note">🌐 Lesson text is currently in Russian — English translation in progress.</div>` : ""}${room.intro}</div>
+          <div class="lesson-col">
+            <div class="lesson card">${window.I18N && I18N.current() === "en" ? `<div class="lang-note">🌐 Lesson text is currently in Russian — English translation in progress.</div>` : ""}${room.intro}</div>
+            ${hasSandbox ? inlineTerminal() : ""}
+          </div>
           <div class="tasks">
             <h2>${T("Задания")}</h2>
             <div id="task-list">
@@ -911,11 +970,34 @@ const App = (() => {
     highlightNav();
     addCopyButtons();
     startRoomTimer(Progress.roomCompleted(room));
+    if (hasSandbox) {
+      const out = document.getElementById("term-out"), inp = document.getElementById("term-input");
+      if (out && inp) { Sandbox.init(out, inp); }
+    }
 
     // проверка "без подсказок"
     if (Progress.roomCompleted(room) && Progress.roomUsedNoHints(room)) {
       Progress.unlockAchievement("no_hints");
     }
+  }
+
+  // Встроенный в комнату терминал (для заданий с песочницей)
+  function inlineTerminal() {
+    return `
+      <div class="term-wrap card inline-term">
+        <div class="term-bar">
+          <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+          <span class="term-title">${T("Попробуйте команды прямо здесь")}</span>
+          <button id="shell-toggle" class="shell-toggle" onclick="App.toggleShell()" title="cmd / PowerShell">cmd</button>
+        </div>
+        <div class="term-body inline" id="term-body">
+          <div id="term-out"></div>
+          <div class="term-input-row">
+            <span class="term-path" id="term-cwd">C:\\Users\\hacker</span><span class="term-prompt">&gt;</span>
+            <input type="text" id="term-input" autocomplete="off" spellcheck="false">
+          </div>
+        </div>
+      </div>`;
   }
 
   // Кнопка «копировать» на блоках кода в уроке
@@ -1105,14 +1187,15 @@ const App = (() => {
   function escapeAttr(s) { return String(s).replace(/"/g, "&quot;"); }
 
   function completionBanner(course, room, nextRoom) {
+    const courseDone = Progress.courseProgress(course).pct === 100;
     return `
       <div class="complete-banner">
         <div class="cb-icon">${Icon.ui("check")}</div>
         <h3>${T("Комната пройдена!")}</h3>
-        <p>Отличная работа. ${nextRoom ? "Готовы к следующей?" : "Это была последняя комната курса!"}</p>
+        <p>${T("Отличная работа.")} ${nextRoom ? T("Готовы к следующей?") : (courseDone ? T("Курс полностью пройден!") : T("Это была последняя комната курса!"))}</p>
         ${nextRoom
           ? `<button class="btn btn-primary" onclick="App.go('room',{courseId:'${course.id}',roomId:'${nextRoom.id}'})">${T("Следующая комната")} ${Icon.ui("arrow")}</button>`
-          : `<button class="btn btn-primary" onclick="App.go('course',{courseId:'${course.id}'})">К обзору курса</button>`}
+          : `<button class="btn btn-primary" onclick="App.go('course',{courseId:'${course.id}'})">${T("К обзору курса")}</button>`}
       </div>`;
   }
 

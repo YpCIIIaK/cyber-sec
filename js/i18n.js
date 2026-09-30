@@ -89,6 +89,15 @@ const I18N = (() => {
     "Комната пройдена!": "Room complete!", "Верно! Решено": "Correct! Solved",
     "Комната": "Room", "Ваш ответ": "Your answer",
     "Без подсказок": "No hints", "Подсказки использованы": "Hints used",
+    "Отличная работа.": "Great job.", "Готовы к следующей?": "Ready for the next one?",
+    "Курс полностью пройден!": "Course fully completed!",
+    "Это была последняя комната курса!": "That was the course's last room!",
+    "К обзору курса": "Course overview", "Начать курс": "Start course",
+    "Следующий курс по сложности": "Next course by difficulty",
+    "Дальше открывается": "Unlocks next", "Подробнее": "Details",
+    "Поздравляем!": "Congratulations!", "Вы прошли все курсы платформы": "You've completed every course",
+    "Так держать — вернитесь к повторению, чтобы закрепить знания.": "Keep it up — come back to Review to reinforce what you've learned.",
+    "Попробуйте команды прямо здесь": "Try commands right here",
     "Введите флаг": "Enter the flag", "Неверно, попробуйте ещё раз.": "Wrong, try again.",
   };
 
