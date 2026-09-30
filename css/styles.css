@@ -770,6 +770,24 @@ main { min-height: 72vh; }
 .sc-row kbd { min-width: 118px; text-align: center; }
 .sc-row span { color: var(--ink-2); font-size: .92rem; }
 
+/* ---------- Лестница званий ---------- */
+.rank-chip { border: 1px solid var(--o-100); cursor: pointer; font-family: var(--sans); transition: border-color .15s, background .15s; }
+.rank-chip:hover { border-color: var(--o-300); background: var(--o-100); }
+.ranks-panel { width: min(460px, 94vw); }
+.ranks-sub { padding: 12px 20px 4px; color: var(--ink-2); font-size: .88rem; }
+.ranks-sub b { color: var(--ink); }
+.ranks-list { padding: 12px 16px 18px; max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.rank-row { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 10px; border: 1px solid transparent; }
+.rank-row.reached { background: var(--bg-2); }
+.rank-row.locked { opacity: .5; }
+.rank-row.current { background: var(--o-50); border-color: var(--o-200); }
+.rank-ic { width: 30px; text-align: center; font-size: 1.15rem; }
+.rank-name { flex: 1; font-weight: 700; font-size: .95rem; }
+.rank-row.locked .rank-name { font-weight: 600; }
+.rank-req { font-size: .76rem; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.rank-row.current .rank-req { color: var(--o-700); }
+.pt-actions { margin-left: auto; align-self: center; display: flex; gap: 8px; flex-wrap: wrap; }
+
 /* ---------- Confetti ---------- */
 .confetti-canvas { position: fixed; inset: 0; z-index: 180; pointer-events: none; }
 
@@ -892,10 +910,25 @@ main { min-height: 72vh; }
 @keyframes pillIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
 
 /* ---------- Responsive ---------- */
-@media (max-width: 1120px) {
+/* Порядок «отбрасывания» элементов хедера по мере сужения */
+@media (max-width: 1180px) {
   .rank-chip { display: none; }
   .cmdk-btn kbd { display: none; }
   .cmdk-btn { padding: 0 10px; }
+}
+@media (max-width: 1024px) {
+  /* Меню сворачивается в бургер заранее, чтобы шапка не переполнялась */
+  .main-nav {
+    display: none; position: absolute; top: 100%; left: 0; right: 0;
+    flex-direction: column; gap: 2px; background: var(--surface); padding: 12px;
+    border-bottom: 1px solid var(--line); box-shadow: var(--sh);
+  }
+  body.nav-open .main-nav { display: flex; }
+  .main-nav a { padding: 11px 14px; }
+  .burger { display: block; order: 5; }
+  .topbar-inner { gap: 12px; }
+  .nav-stats { margin-left: auto; }
+  .cmdk-btn { display: none; }
 }
 @media (max-width: 960px) {
   .hero-inner { grid-template-columns: 1fr; gap: 34px; }
@@ -903,22 +936,18 @@ main { min-height: 72vh; }
   .features { grid-template-columns: 1fr 1fr; }
   .course-grid { grid-template-columns: 1fr 1fr; }
   .room-columns { grid-template-columns: 1fr; }
+  .inline-term { position: static; }
   .tier { grid-template-columns: 1fr; gap: 10px; }
   .tier-label { position: static; }
 }
 @media (max-width: 680px) {
   .section { padding: 40px 18px; }
-  .main-nav {
-    display: none; position: absolute; top: 61px; left: 0; right: 0;
-    flex-direction: column; background: var(--surface); padding: 12px; border-bottom: 1px solid var(--line); box-shadow: var(--sh);
-  }
-  body.nav-open .main-nav { display: flex; }
-  .topbar-inner { gap: 10px; }
-  .burger { display: block; }
-  .nav-stats { margin-left: auto; gap: 8px; }
-  .xp-bar-mini { display: none; }
-  .cmdk-btn { display: none; }
-  .theme-toggle { width: 34px; height: 34px; }
+  .topbar-inner { gap: 8px; padding: 11px 16px; }
+  .logo { font-size: 1.1rem; }
+  .nav-stats { gap: 8px; }
+  .xp-bar-mini, .xp-text { display: none; }
+  .theme-toggle, .lang-toggle { width: 34px; height: 34px; }
+  .pt-actions { margin-left: 0; width: 100%; }
   .features, .course-grid { grid-template-columns: 1fr; }
   .hero-text h1 { font-size: 2.1rem; }
   .hero-inner { padding: 48px 18px; }

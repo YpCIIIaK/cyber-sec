@@ -474,7 +474,7 @@ const App = (() => {
     const nav = document.getElementById("nav-stats");
     if (nav) {
       nav.innerHTML = `
-        <span class="rank-chip" title="Ваше звание">${s.rank.icon} ${s.rank.name}</span>
+        <button class="rank-chip" title="${T("Открыть лестницу званий")}" onclick="App.openRanks()">${s.rank.icon} ${s.rank.name}</button>
         <div class="nav-xp" title="Ваш уровень и опыт">
           <span class="lvl-badge">LVL ${s.level}</span>
           <div class="xp-bar-mini"><span style="width:${(s.xpInLevel)}%"></span></div>
@@ -560,7 +560,13 @@ const App = (() => {
             <h1>${T("Учись")} <span class="accent">${T("кибербезопасности")}</span><br>${T("на практике")}</h1>
             <p class="hero-sub">${T("Интерактивные курсы, квесты, задания и живая песочница-терминал. От основ до пентеста, веба, сетей, Active Directory и форензики.")}</p>
             <div class="hero-actions">
-              <button class="btn btn-primary btn-lg" onclick="App.go('courses')">${T("Начать обучение")} ${Icon.ui("arrow")}</button>
+              ${(() => {
+                const n = nextUp();
+                if (s.tasksDone > 0 && n) {
+                  return `<button class="btn btn-primary btn-lg" onclick="App.go('room',{courseId:'${n.course.id}',roomId:'${n.room.id}'})">${T("Продолжить обучение")} ${Icon.ui("arrow")}</button>`;
+                }
+                return `<button class="btn btn-primary btn-lg" onclick="App.go('courses')">${T("Начать обучение")} ${Icon.ui("arrow")}</button>`;
+              })()}
               <button class="btn btn-ghost btn-lg" onclick="App.go('sandbox')">${Icon.ui("terminal")} ${T("Открыть песочницу")}</button>
             </div>
           </div>
@@ -1868,7 +1874,10 @@ const App = (() => {
             <div class="ps"><b>${s.coursesDone}/${s.coursesTotal}</b><span>${T("курсов пройдено")}</span></div>
             <div class="ps"><b>${s.streak}</b><span>${T("дней подряд")}</span></div>
           </div>
-          <button class="btn btn-ghost btn-sm pt-share" onclick="App.shareCard()">${Icon.ui("progress")} Поделиться карточкой</button>
+          <div class="pt-actions">
+            <button class="btn btn-ghost btn-sm" onclick="App.openRanks()">${s.rank.icon} ${T("Звания")}</button>
+            <button class="btn btn-ghost btn-sm" onclick="App.shareCard()">${Icon.ui("progress")} ${T("Поделиться карточкой")}</button>
+          </div>
         </div>
 
         ${dashboardSection()}
@@ -2167,7 +2176,7 @@ const App = (() => {
       if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
         e.preventDefault(); palette.open ? closePalette() : openPalette();
       } else if (e.key === "Escape") {
-        closePalette(); closeShortcuts();
+        closePalette(); closeShortcuts(); closeRanks();
       } else if (e.key === "?" && !typing) {
         e.preventDefault(); openShortcuts();
       }
@@ -2225,6 +2234,41 @@ const App = (() => {
   }
   function closeShortcuts() { const ov = document.getElementById("shortcuts"); if (ov) ov.classList.remove("show"); }
 
+  /* ---------- Лестница званий ---------- */
+  function openRanks() {
+    const lvl = Progress.level();
+    const curName = rankForLevel(lvl).name;
+    const next = nextRank(lvl);
+    let ov = document.getElementById("ranks-modal");
+    if (ov) ov.remove(); // пересобираем с актуальным состоянием
+    ov = document.createElement("div");
+    ov.id = "ranks-modal"; ov.className = "modal-overlay";
+    const rows = RANKS.map((r) => {
+      const reached = lvl >= r.min;
+      const isCur = r.name === curName;
+      return `<div class="rank-row ${reached ? "reached" : "locked"} ${isCur ? "current" : ""}">
+        <span class="rank-ic">${reached ? r.icon : "🔒"}</span>
+        <span class="rank-name">${r.name}</span>
+        <span class="rank-req">${T("с уровня")} ${r.min}${isCur ? " · " + T("сейчас") : ""}</span>
+      </div>`;
+    }).join("");
+    ov.innerHTML = `
+      <div class="modal ranks-panel" role="dialog" aria-label="${T("Лестница званий")}">
+        <div class="modal-head">
+          <h3>${T("Лестница званий")}</h3>
+          <button class="modal-x" onclick="App.closeRanks()" aria-label="Close">✕</button>
+        </div>
+        <div class="ranks-sub">${T("Ваш уровень")}: <b>LVL ${lvl}</b> · ${rankForLevel(lvl).icon} ${curName}${next ? ` — ${T("до")} ${next.icon} ${next.name}: ${T("уровень")} ${next.min}` : ` — ${T("максимум!")}`}</div>
+        <div class="ranks-list">${rows}</div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener("click", (e) => { if (e.target === ov) closeRanks(); });
+    requestAnimationFrame(() => ov.classList.add("show"));
+    const cur = ov.querySelector(".rank-row.current");
+    if (cur) cur.scrollIntoView({ block: "center" });
+  }
+  function closeRanks() { const ov = document.getElementById("ranks-modal"); if (ov) ov.classList.remove("show"); }
+
   return {
     init, go, submit, markInfo, showHint, toast, toastAchievement, resetConfirm, toggleTheme,
     catalogSearch, catalogLevel, catalogSort, downloadCertificate, exportProgress, importProgress,
@@ -2232,6 +2276,7 @@ const App = (() => {
     submitMission, toggleShell, openShortcuts, closeShortcuts,
     glossarySearch, submitExam, retryExam, openPalette, palettePick, installApp,
     reviewChoose, reviewCheck, reviewNext, shareCard, saveDraft, toggleLang,
+    openRanks, closeRanks,
   };
 })();
 

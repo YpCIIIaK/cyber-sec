@@ -99,6 +99,9 @@ const I18N = (() => {
     "Так держать — вернитесь к повторению, чтобы закрепить знания.": "Keep it up — come back to Review to reinforce what you've learned.",
     "Попробуйте команды прямо здесь": "Try commands right here",
     "решено из терминала": "solved from the terminal", "флаг найден!": "flag found!",
+    "Лестница званий": "Rank ladder", "Открыть лестницу званий": "Open rank ladder", "Звания": "Ranks",
+    "с уровня": "from level", "сейчас": "now", "уровень": "level", "максимум!": "max reached!",
+    "до": "to", "Ваш уровень": "Your level",
     "Введите флаг": "Enter the flag", "Неверно, попробуйте ещё раз.": "Wrong, try again.",
   };
 
