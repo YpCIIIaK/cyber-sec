@@ -181,6 +181,22 @@ const Progress = (() => {
     return { rec, score, events };
   }
 
+  /* ---------- Профиль пользователя (ник, аватар, статус, витрина) ---------- */
+  const PROFILE_DEFAULT = { nick: "", avatar: { kind: "preset", value: "🦊" }, bg: 0, bio: "", ring: "tier", showcase: [] };
+  function profile() { state.profile = Object.assign({}, PROFILE_DEFAULT, state.profile || {}); return state.profile; }
+  function setProfile(patch) {
+    const pr = profile();
+    Object.assign(pr, patch);
+    pr.nick = String(pr.nick || "").replace(/[<>]/g, "").trim().slice(0, 24);
+    pr.bio = String(pr.bio || "").replace(/[<>]/g, "").trim().slice(0, 120);
+    pr.showcase = (pr.showcase || []).filter((id) => state.achievements[id]).slice(0, 3);
+    state.profile = pr;
+    const ev = { xpGained: 0, newAchievements: [] };
+    if (pr.nick || pr.avatar.kind !== "preset" || pr.avatar.value !== "🦊") tryAch("profile_custom", ev);
+    save();
+    if (window.App) ev.newAchievements.forEach((id) => App.toastAchievement(id));
+  }
+
   /* ---------- Заметки ---------- */
   function notes() { if (!Array.isArray(state.notes)) state.notes = []; return state.notes; }
   function addNote(n) {
@@ -579,7 +595,7 @@ const Progress = (() => {
     getDraft, setDraft, clearDraft,
     srsEnsure, srsDueList, srsDueCount, srsTotal, srsReview, srsEligible,
     weakTasks, weakCourses, xpByWeek, activityMap, skillRadar, courseMastery,
-    metric, bumpStat, stats, weekKey, challengeRec, recordChallenge, challenges, notes, addNote, updateNote, deleteNote,
+    metric, bumpStat, stats, profile, setProfile, weekKey, challengeRec, recordChallenge, challenges, notes, addNote, updateNote, deleteNote,
     _state: () => state,
   };
 })();
@@ -656,6 +672,7 @@ const App = (() => {
     const nav = document.getElementById("nav-stats");
     if (nav) {
       nav.innerHTML = `
+        <button class="nav-avatar tier-${s.rank.tier}" title="${escapeAttr(displayName())} — ${T("Профиль")}" onclick="App.go('profile')">${avatarHTML(30)}</button>
         <button class="rank-chip tier-${s.rank.tier}" title="${T("Открыть лестницу званий")}" onclick="App.openRanks()">${rankBadge(s.rank, 22)}<span>${s.rank.name}</span></button>
         <div class="nav-xp" title="${T("Ваш уровень и опыт")}">
           <span class="lvl-badge">LVL ${s.level}</span>
@@ -1951,7 +1968,7 @@ const App = (() => {
   function retryExam(courseId) { examState[courseId] = null; renderExam(courseId); window.scrollTo(0, 0); }
 
   /* ---------- Шеринг: карточка профиля (PNG) ---------- */
-  function buildShareCanvas() {
+  function buildShareCanvas(avImg) {
     const s = Progress.overallStats();
     const acc = Progress.accuracyOverall();
     const W = 1200, H = 630, sc = 2;
@@ -1966,30 +1983,38 @@ const App = (() => {
     const p = g.createLinearGradient(0, 0, 360, H);
     p.addColorStop(0, "#ff8c47"); p.addColorStop(1, "#db5300");
     g.fillStyle = p; g.fillRect(0, 0, 360, H);
-    // щит на панели
-    g.save(); g.translate(120, 150); g.scale(5, 5);
-    g.strokeStyle = "rgba(255,255,255,.95)"; g.lineWidth = 1.4; g.lineJoin = "round"; g.lineCap = "round";
-    g.beginPath(); g.moveTo(12, 3); g.lineTo(19, 6); g.lineTo(19, 11);
-    g.bezierCurveTo(19, 15.4, 16, 18.6, 12, 20); g.bezierCurveTo(8, 18.6, 5, 15.4, 5, 11); g.lineTo(5, 6); g.closePath(); g.stroke();
-    g.beginPath(); g.moveTo(9, 12); g.lineTo(11, 14); g.lineTo(15, 10); g.stroke(); g.restore();
-    // ранг на панели
+    // аватар на панели
+    const pr = Progress.profile();
+    const cx = 180, cy = 190, R = 92;
+    const bgc = AVATAR_BGS[pr.bg % AVATAR_BGS.length];
+    const ag = g.createLinearGradient(cx - R, cy - R, cx + R, cy + R);
+    ag.addColorStop(0, bgc[0]); ag.addColorStop(1, bgc[1]);
+    g.save(); g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.closePath();
+    g.fillStyle = ag; g.fill(); g.clip();
+    if (avImg) g.drawImage(avImg, cx - R, cy - R, R * 2, R * 2);
+    else { g.fillStyle = "#fff"; g.textAlign = "center"; g.textBaseline = "middle"; g.font = "90px 'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif"; g.fillText(pr.avatar.value || "🦊", cx, cy + 6); }
+    g.restore();
+    g.beginPath(); g.arc(cx, cy, R + 4, 0, Math.PI * 2); g.strokeStyle = "rgba(255,255,255,.9)"; g.lineWidth = 6; g.stroke();
+    // ник и ранг на панели
+    g.textBaseline = "alphabetic";
     g.fillStyle = "#fff"; g.textAlign = "center";
-    g.font = "800 34px Sora, Inter, sans-serif"; g.fillText(s.rank.icon || "", 180, 340);
-    g.font = "800 30px Sora, Inter, sans-serif"; g.fillText(s.rank.name, 180, 400);
-    g.font = "600 22px Inter, sans-serif"; g.fillStyle = "rgba(255,255,255,.85)"; g.fillText("LVL " + s.level, 180, 440);
+    g.font = "800 30px Sora, Inter, sans-serif"; g.fillText(displayName().slice(0, 18), 180, 340);
+    g.font = "700 24px Sora, Inter, sans-serif"; g.fillText((s.rank.icon || "") + " " + s.rank.name, 180, 390);
+    g.font = "600 22px Inter, sans-serif"; g.fillStyle = "rgba(255,255,255,.85)"; g.fillText("LVL " + s.level, 180, 430);
+    if (pr.showcase.length) { g.font = "40px 'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif"; g.fillText(pr.showcase.map((id) => (ACHIEVEMENTS.find((a) => a.id === id) || {}).icon || "").join("  "), 180, 510); }
     // правая часть — заголовок
     g.textAlign = "left"; g.fillStyle = "#1a1613";
     g.font = "800 30px Sora, Inter, sans-serif"; g.fillText("CyberPath", 410, 90);
     g.fillStyle = "#8c8178"; g.font = "600 20px Inter, sans-serif";
-    g.fillText("Мой прогресс в кибербезопасности", 410, 122);
+    g.fillText(T("Мой прогресс в кибербезопасности"), 410, 122);
     // метрики
     const stats = [
-      [String(s.xp), "всего XP"],
-      [s.tasksDone + "/" + s.tasksTotal, "заданий"],
-      [s.coursesDone + "/" + s.coursesTotal, "курсов"],
-      [(acc.total ? acc.pct + "%" : "—"), "точность"],
-      [s.streak + "🔥", "дней подряд"],
-      [s.achievements + "/" + s.achievementsTotal, "достижений"],
+      [String(s.xp), T("всего XP")],
+      [s.tasksDone + "/" + s.tasksTotal, T("заданий")],
+      [s.coursesDone + "/" + s.coursesTotal, T("курсов")],
+      [(acc.total ? acc.pct + "%" : "—"), T("точность")],
+      [s.streak + "🔥", T("дней подряд")],
+      [s.achievements + "/" + s.achievementsTotal, T("достижений")],
     ];
     let x0 = 410, y0 = 180, cw = 250, ch = 130;
     stats.forEach((st, i) => {
@@ -2002,7 +2027,7 @@ const App = (() => {
       g.fillStyle = "#8c8178"; g.font = "600 18px Inter, sans-serif"; g.fillText(st[1], x + 22, y + 95);
     });
     g.fillStyle = "#b3a99e"; g.font = "500 18px Inter, sans-serif";
-    g.fillText("Бесплатная платформа · учись этично, применяй ответственно", 410, 600);
+    g.fillText(T("Бесплатная платформа · учись этично, применяй ответственно"), 410, 600);
     return cv;
   }
   function roundRect(g, x, y, w, h, r) {
@@ -2011,18 +2036,27 @@ const App = (() => {
     g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
   }
   function shareCard() {
-    const cv = buildShareCanvas();
+    const pr = Progress.profile();
+    if (pr.avatar.kind === "upload") {
+      const im = new Image();
+      im.onload = () => shareCardDo(im);
+      im.onerror = () => shareCardDo(null);
+      im.src = pr.avatar.value;
+    } else shareCardDo(null);
+  }
+  function shareCardDo(avImg) {
+    const cv = buildShareCanvas(avImg);
     cv.toBlob((blob) => {
       if (!blob) return;
       const file = new File([blob], "cyberpath-card.png", { type: "image/png" });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        navigator.share({ files: [file], title: "CyberPath", text: "Мой прогресс в CyberPath" }).catch(() => {});
+        navigator.share({ files: [file], title: "CyberPath", text: T("Мой прогресс в CyberPath") }).catch(() => {});
       } else {
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob); a.download = "cyberpath-card.png";
         document.body.appendChild(a); a.click();
         setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 100);
-        toast("Карточка профиля скачана");
+        toast(T("Карточка профиля скачана"));
       }
     }, "image/png");
   }
@@ -2489,6 +2523,136 @@ const App = (() => {
       : ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
   }
 
+  /* ---------- Аватар и редактор профиля ---------- */
+  const AVATAR_PRESETS = ["🦊", "🐺", "🦉", "🐱", "🐼", "🐧", "🤖", "👾", "🧠", "🛡️", "🕵️", "🧑‍💻", "🐉", "🦅", "🐍", "⚡", "🔥", "🌌", "🎯", "🗝️"];
+  const AVATAR_BGS = [
+    ["#ff8c47", "#db5300"], ["#60a5fa", "#1d4ed8"], ["#34d399", "#047857"], ["#c084fc", "#6d28d9"],
+    ["#f472b6", "#be185d"], ["#fbbf24", "#b45309"], ["#94a3b8", "#334155"], ["#2dd4bf", "#0f766e"],
+  ];
+  const RING_COLORS = { tier: null, orange: "#f2620a", blue: "#2563eb", green: "#16a34a", purple: "#7c3aed", pink: "#db2777", mono: "#6b7280" };
+  function displayName() { const n = Progress.profile().nick; return n || T("Оператор CyberPath"); }
+  function avatarHTML(size, pr) {
+    pr = pr || Progress.profile();
+    const bg = AVATAR_BGS[pr.bg % AVATAR_BGS.length];
+    const ring = RING_COLORS[pr.ring] || "var(--tier-b, var(--o-500))";
+    const inner = pr.avatar.kind === "upload" && /^data:image\/(png|jpeg|webp);base64,/.test(pr.avatar.value)
+      ? `<img src="${pr.avatar.value}" alt="">`
+      : `<span style="font-size:${Math.round(size * 0.5)}px">${escapeHtml(pr.avatar.value || "🦊")}</span>`;
+    return `<span class="avatar" style="width:${size}px;height:${size}px;--av1:${bg[0]};--av2:${bg[1]};--ring:${ring}">${inner}</span>`;
+  }
+  let profDraft = null;
+  function openProfileEditor() {
+    const pr = Progress.profile();
+    profDraft = JSON.parse(JSON.stringify(pr));
+    let ov = document.getElementById("profile-modal");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "profile-modal"; ov.className = "modal-overlay";
+    ov.innerHTML = `<div class="modal prof-panel" role="dialog" aria-label="${T("Редактировать профиль")}">
+      <div class="modal-head"><h3>${T("Редактировать профиль")}</h3><button class="modal-x" onclick="App.closeProfileEditor()" aria-label="Close">✕</button></div>
+      <div class="prof-body">
+        <div class="prof-preview" id="prof-preview"></div>
+        <label class="prof-f"><span>${T("Ник")}</span>
+          <input class="lab-input" id="pf-nick" maxlength="24" placeholder="${T("Например, NightOwl")}" value="${escapeAttr(pr.nick)}" oninput="App.profDraftSet('nick', this.value)"></label>
+        <label class="prof-f"><span>${T("Статус")}</span>
+          <input class="lab-input" id="pf-bio" maxlength="120" placeholder="${T("Пара слов о себе или цели")}" value="${escapeAttr(pr.bio)}" oninput="App.profDraftSet('bio', this.value)"></label>
+        <div class="prof-f"><span>${T("Аватар")}</span>
+          <div class="seg prof-tabs">
+            <button data-t="preset" onclick="App.profTab('preset')">${T("Готовые")}</button>
+            <button data-t="emoji" onclick="App.profTab('emoji')">${T("Свой эмодзи")}</button>
+            <button data-t="upload" onclick="App.profTab('upload')">${T("Загрузить")}</button>
+          </div>
+          <div id="prof-tab"></div>
+        </div>
+        <div class="prof-f"><span>${T("Фон аватара")}</span>
+          <div class="swatches">${AVATAR_BGS.map((b, i) => `<button class="sw" data-bg="${i}" style="background:linear-gradient(135deg,${b[0]},${b[1]})" onclick="App.profDraftSet('bg', ${i})" aria-label="bg ${i + 1}"></button>`).join("")}</div>
+        </div>
+        <div class="prof-f"><span>${T("Обводка")}</span>
+          <div class="swatches">${Object.entries(RING_COLORS).map(([k, c]) => `<button class="sw ring-sw" data-ring="${k}" style="${c ? `background:${c}` : ""}" title="${k === "tier" ? T("По лиге звания") : k}" onclick="App.profDraftSet('ring','${k}')">${k === "tier" ? "🏅" : ""}</button>`).join("")}</div>
+        </div>
+        <div class="prof-f"><span>${T("Витрина достижений")} <small>(${T("до 3")})</small></span>
+          <div class="showcase-pick">${ACHIEVEMENTS.filter((a) => Progress.hasAchievement(a.id)).map((a) => `<button class="sc-opt" data-id="${a.id}" title="${escapeAttr(a.title)}" onclick="App.profToggleShowcase('${a.id}')">${a.icon}</button>`).join("") || `<span class="muted">${T("Получите первые достижения — их можно будет показать здесь.")}</span>`}</div>
+        </div>
+      </div>
+      <div class="prof-foot">
+        <button class="btn btn-ghost" onclick="App.closeProfileEditor()">${T("Отмена")}</button>
+        <button class="btn btn-primary" onclick="App.saveProfile()">${T("Сохранить")}</button>
+      </div></div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener("click", (e) => { if (e.target === ov) closeProfileEditor(); });
+    requestAnimationFrame(() => ov.classList.add("show"));
+    profTab(profDraft.avatar.kind === "upload" ? "upload" : profDraft.avatar.kind === "emoji" ? "emoji" : "preset");
+    profRefresh();
+  }
+  function closeProfileEditor() { const ov = document.getElementById("profile-modal"); if (ov) ov.classList.remove("show"); }
+  function profTab(t) {
+    document.querySelectorAll(".prof-tabs button").forEach((b) => b.classList.toggle("on", b.dataset.t === t));
+    const box = document.getElementById("prof-tab"); if (!box) return;
+    if (t === "preset") {
+      box.innerHTML = `<div class="av-grid">${AVATAR_PRESETS.map((e) => `<button class="av-opt ${profDraft.avatar.kind === "preset" && profDraft.avatar.value === e ? "on" : ""}" onclick="App.profAvatar('preset', this.textContent)">${e}</button>`).join("")}</div>`;
+    } else if (t === "emoji") {
+      box.innerHTML = `<div class="av-row"><input class="lab-input av-emoji" maxlength="8" placeholder="🙂" value="${profDraft.avatar.kind === "emoji" ? escapeAttr(profDraft.avatar.value) : ""}" oninput="App.profAvatar('emoji', this.value)">
+        <span class="muted">${T("Вставьте любой эмодзи или 1–2 символа (например, инициалы).")}</span></div>`;
+    } else {
+      box.innerHTML = `<div class="av-row">
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('pf-file').click()">📁 ${T("Выбрать изображение")}</button>
+        <input id="pf-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onchange="App.profUpload(this.files[0])">
+        <span class="muted">${T("PNG/JPG/WebP до 5 МБ. Картинка обрежется до квадрата и сожмётся, хранится только в этом браузере.")}</span></div>`;
+    }
+  }
+  function profAvatar(kind, value) {
+    value = String(value || "").trim();
+    if (kind === "emoji") value = Array.from(value).slice(0, 4).join("");
+    if (!value) return;
+    profDraft.avatar = { kind, value };
+    document.querySelectorAll(".av-opt").forEach((b) => b.classList.toggle("on", kind === "preset" && b.textContent === value));
+    profRefresh();
+  }
+  function profUpload(file) {
+    if (!file) return;
+    if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) { toast(T("Нужен файл изображения")); return; }
+    if (file.size > 5 * 1024 * 1024) { toast(T("Файл больше 5 МБ")); return; }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const S = 192, cv = document.createElement("canvas");
+      cv.width = cv.height = S;
+      const g = cv.getContext("2d");
+      const m = Math.min(img.width, img.height);
+      g.drawImage(img, (img.width - m) / 2, (img.height - m) / 2, m, m, 0, 0, S, S);
+      URL.revokeObjectURL(url);
+      profDraft.avatar = { kind: "upload", value: cv.toDataURL("image/jpeg", 0.86) };
+      profRefresh();
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); toast(T("Не удалось прочитать изображение")); };
+    img.src = url;
+  }
+  function profDraftSet(k, v) { profDraft[k] = v; profRefresh(); }
+  function profToggleShowcase(id) {
+    const sc = profDraft.showcase || (profDraft.showcase = []);
+    const i = sc.indexOf(id);
+    if (i >= 0) sc.splice(i, 1); else if (sc.length < 3) sc.push(id); else toast(T("Можно выбрать не больше трёх"));
+    profRefresh();
+  }
+  function profRefresh() {
+    const pv = document.getElementById("prof-preview"); if (!pv) return;
+    const s = Progress.overallStats();
+    pv.className = "prof-preview tier-" + s.rank.tier;
+    pv.innerHTML = `${avatarHTML(72, profDraft)}<div><b>${escapeHtml(profDraft.nick || T("Оператор CyberPath"))}</b>
+      <span>${s.rank.icon} ${s.rank.name} · LVL ${s.level}</span>${profDraft.bio ? `<em>${escapeHtml(profDraft.bio)}</em>` : ""}
+      <span class="pv-sc">${(profDraft.showcase || []).map((id) => (ACHIEVEMENTS.find((a) => a.id === id) || {}).icon || "").join(" ")}</span></div>`;
+    document.querySelectorAll(".sw[data-bg]").forEach((b) => b.classList.toggle("on", +b.dataset.bg === +profDraft.bg));
+    document.querySelectorAll(".sw[data-ring]").forEach((b) => b.classList.toggle("on", b.dataset.ring === profDraft.ring));
+    document.querySelectorAll(".sc-opt").forEach((b) => b.classList.toggle("on", (profDraft.showcase || []).includes(b.dataset.id)));
+  }
+  function saveProfile() {
+    Progress.setProfile(profDraft);
+    closeProfileEditor();
+    toast("✓ " + T("Профиль сохранён"));
+    renderNav();
+    if (current.view === "profile") renderProfile();
+  }
+
   /* ---------- Карточка игрока (уникальный вид на каждой лиге) ---------- */
   function playerCard(s) {
     const r = s.rank, next = s.nextRank;
@@ -2499,12 +2663,15 @@ const App = (() => {
       <div class="player-card tier-${r.tier}">
         <div class="pc-glow"></div>
         <div class="pc-left">
-          <button class="pc-badge" onclick="App.openRanks()" title="${T("Лестница званий")}">${rankBadge(r, 112)}</button>
+          <button class="pc-avatar" onclick="App.openProfileEditor()" title="${T("Редактировать профиль")}">${avatarHTML(104)}<span class="pc-edit">✎</span>
+            <span class="pc-mini-badge" onclick="event.stopPropagation();App.openRanks()" title="${T("Лестница званий")}">${rankBadge(r, 44)}</span></button>
           <span class="pc-tier">${T(TIER_NAMES[r.tier])} · ${rIdx + 1}/${RANKS.length}</span>
         </div>
         <div class="pc-main">
-          <span class="pc-kicker">${T("Оператор CyberPath")}</span>
-          <h2 class="pc-rank">${r.name}</h2>
+          <span class="pc-kicker">${r.icon} ${r.name}</span>
+          <h2 class="pc-rank pc-nick">${escapeHtml(displayName())}</h2>
+          ${Progress.profile().bio ? `<p class="pc-bio">${escapeHtml(Progress.profile().bio)}</p>` : ""}
+          ${Progress.profile().showcase.length ? `<div class="pc-showcase">${Progress.profile().showcase.map((id) => { const a = ACHIEVEMENTS.find((x) => x.id === id); return a ? `<span class="pcs r-${ACH_RARITY[id] || "common"}" title="${escapeAttr(a.title)}">${a.icon}<b>${a.title}</b></span>` : ""; }).join("")}</div>` : ""}
           <div class="pc-lvl"><b>LVL ${s.level}</b><span>${s.xp} XP</span></div>
           <div class="pc-bar" title="${T("до следующего уровня")}"><span style="width:${s.xpInLevel}%"></span></div>
           <div class="pc-bar-meta"><span>${T("до следующего уровня")}</span><span>${s.xpToNext} XP</span></div>
@@ -2519,6 +2686,7 @@ const App = (() => {
           <div class="ps"><b>${s.achievements}<small>/${s.achievementsTotal}</small></b><span>${T("Достижения")}</span></div>
         </div>
         <div class="pc-actions">
+          <button class="btn btn-ghost btn-sm" onclick="App.openProfileEditor()">✎ ${T("Редактировать профиль")}</button>
           <button class="btn btn-ghost btn-sm" onclick="App.go('notes')">📝 ${T("Заметки")} (${Progress.notes().length})</button>
           <button class="btn btn-ghost btn-sm" onclick="App.openRanks()">${T("Звания")}</button>
           <button class="btn btn-ghost btn-sm" onclick="App.shareCard()">${Icon.ui("progress")} ${T("Поделиться карточкой")}</button>
@@ -3039,7 +3207,8 @@ const App = (() => {
     submitMission, toggleShell, openShortcuts, closeShortcuts,
     glossarySearch, submitExam, retryExam, openPalette, palettePick, installApp,
     reviewChoose, reviewCheck, reviewNext, shareCard, saveDraft, toggleLang,
-    openRanks, closeRanks, achSetFilter, tilt, chalStart, chalAnswer, chalSkip, chalRestart, notesFilter, noteComment, noteDelete, exportNotes,
+    openRanks, closeRanks, achSetFilter, tilt, openProfileEditor, closeProfileEditor, profTab, profAvatar, profUpload,
+    profDraftSet, profToggleShowcase, saveProfile, chalStart, chalAnswer, chalSkip, chalRestart, notesFilter, noteComment, noteDelete, exportNotes,
   };
 })();
 

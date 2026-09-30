@@ -43,13 +43,14 @@ const ACHIEVEMENTS = [
   { id: "boss_5", icon: "🐉", title: "Охотник на боссов", desc: "Пройдите боссфайты 5 курсов" },
   { id: "boss_perfect", icon: "💎", title: "Без единой царапины", desc: "Пройдите боссфайт без ошибок" },
   { id: "weekly_first", icon: "🗓️", title: "Участник ивента", desc: "Получите зачёт в недельном CTF" },
+  { id: "profile_custom", icon: "🎨", title: "Своё лицо", desc: "Настройте ник или аватар профиля" },
   { id: "notes_1", icon: "📝", title: "Конспектирую", desc: "Сохраните первую заметку" },
   { id: "notes_10", icon: "📓", title: "Отличник", desc: "Соберите 10 заметок в конспекте" },
   { id: "dark_side", icon: "🌒", title: "Тёмная сторона", desc: "Включите тёмную тему" },
 ];
 /* Редкость достижений (для рамок карточек) */
 const ACH_RARITY = {
-  first_blood: "common", weekly_first: "rare", boss_first: "rare", boss_perfect: "epic", boss_5: "legendary", notes_1: "common", notes_10: "rare", tasks_10: "common", polyglot: "common", dark_side: "common", streak_3: "common",
+  first_blood: "common", profile_custom: "common", weekly_first: "rare", boss_first: "rare", boss_perfect: "epic", boss_5: "legendary", notes_1: "common", notes_10: "rare", tasks_10: "common", polyglot: "common", dark_side: "common", streak_3: "common",
   level_5: "rare", course_done: "rare", no_hints: "rare", daily_5: "rare", terminal_master: "rare", tasks_50: "rare",
   rooms_10: "rare", exam_pass: "rare", night_owl: "rare", early_bird: "rare", lab_rat: "rare", hundred_k: "rare", streak_7: "rare",
   level_10: "epic", three_courses: "epic", flawless: "epic", sniper: "epic", reviewer: "epic", terminal_100: "epic",
