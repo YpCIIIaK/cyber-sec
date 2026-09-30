@@ -43,6 +43,7 @@ const Sandbox = (() => {
   const HOME = "C:\\Users\\hacker";
   let cwd = HOME; // всегда работаем от домашней папки
   let mode = "cmd"; // "cmd" | "ps"
+  let hook = null;  // (commandLine, outputText) => void — авто-проверка заданий
 
   // Учебный реестр (для reg query)
   const REG = {
@@ -387,10 +388,11 @@ const Sandbox = (() => {
     const cmd = (parts[0] || "").toLowerCase();
     const args = parts.slice(1).map((a) => a.replace(/^["']|["']$/g, ""));
 
+    let outText = "";
     if (COMMANDS[cmd]) {
       try {
         const out = COMMANDS[cmd](args);
-        if (out !== null && out !== undefined) print(escapeHtml(out));
+        if (out !== null && out !== undefined) { outText = String(out); print(escapeHtml(out)); }
       } catch (e) {
         print(`Ошибка выполнения: ${escapeHtml(String(e))}`, "term-err");
       }
@@ -399,6 +401,7 @@ const Sandbox = (() => {
     }
     syncPrompt();
     scrollBottom();
+    if (hook) { try { hook(line, outText); } catch (e) {} }
   }
 
   // Автодополнение по Tab: команды и файлы в текущем каталоге
@@ -475,5 +478,6 @@ const Sandbox = (() => {
     });
   }
 
-  return { init, run, setMode, toggleMode, getMode };
+  function setHook(fn) { hook = typeof fn === "function" ? fn : null; }
+  return { init, run, setMode, toggleMode, getMode, setHook };
 })();

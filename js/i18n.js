@@ -98,6 +98,7 @@ const I18N = (() => {
     "Поздравляем!": "Congratulations!", "Вы прошли все курсы платформы": "You've completed every course",
     "Так держать — вернитесь к повторению, чтобы закрепить знания.": "Keep it up — come back to Review to reinforce what you've learned.",
     "Попробуйте команды прямо здесь": "Try commands right here",
+    "решено из терминала": "solved from the terminal", "флаг найден!": "flag found!",
     "Введите флаг": "Enter the flag", "Неверно, попробуйте ещё раз.": "Wrong, try again.",
   };
 

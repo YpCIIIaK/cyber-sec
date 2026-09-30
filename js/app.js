@@ -972,13 +972,43 @@ const App = (() => {
     startRoomTimer(Progress.roomCompleted(room));
     if (hasSandbox) {
       const out = document.getElementById("term-out"), inp = document.getElementById("term-input");
-      if (out && inp) { Sandbox.init(out, inp); }
+      if (out && inp) {
+        Sandbox.init(out, inp);
+        Sandbox.setHook((cmd, output) => autoCheckSandbox(course, room, cmd, output));
+      }
     }
 
     // проверка "без подсказок"
     if (Progress.roomCompleted(room) && Progress.roomUsedNoHints(room)) {
       Progress.unlockAchievement("no_hints");
     }
+  }
+
+  // Авто-проверка заданий-песочниц по выводу терминала
+  function autoCheckSandbox(course, room, cmd, output) {
+    const cl = (cmd || "").toLowerCase();
+    const toks = cl.split(/\s+/).filter(Boolean);
+    let roomCompletedNow = false;
+    room.tasks.forEach((task) => {
+      if (!task.sandbox || Progress.isDone(task.id)) return;
+      const answers = task.answers || (task.answer ? [task.answer] : []);
+      let match = false;
+      if (task.type === "flag") {
+        match = answers.some((a) => (output || "").includes(a)); // флаги — точное вхождение в вывод
+      } else {
+        match = answers.some((a) => { const x = String(a).toLowerCase(); return toks.includes(x) || cl.includes(x); });
+      }
+      if (!match) return;
+      Progress.recordAttempt(task.id, true);
+      const res = Progress.completeTask(task, course.id);
+      celebrate(res);
+      toast("✓ " + task.title + " — " + T("решено из терминала"));
+      const el = document.getElementById("task-" + task.id);
+      if (el) el.outerHTML = taskBlock(course, task);
+      if (Progress.roomCompleted(room)) roomCompletedNow = true;
+    });
+    // если комната завершилась — полный перерендер (покажет баннер, откроет следующую)
+    if (roomCompletedNow) setTimeout(() => renderRoom(course.id, room.id), 900);
   }
 
   // Встроенный в комнату терминал (для заданий с песочницей)
@@ -1235,7 +1265,23 @@ const App = (() => {
       </section>`;
     highlightNav();
     Sandbox.init(document.getElementById("term-out"), document.getElementById("term-input"));
+    Sandbox.setHook((cmd, output) => autoCheckMissions(output));
     setTimeout(() => { const i = document.getElementById("term-input"); if (i) i.focus(); }, 100);
+  }
+
+  // Авто-детект флагов миссий по выводу терминала (страница песочницы)
+  function autoCheckMissions(output) {
+    let any = false;
+    MISSIONS.forEach((m) => {
+      if (Progress.missionDone(m.id)) return;
+      if ((output || "").includes(m.flag)) {
+        const res = Progress.completeMission(m);
+        celebrate(res);
+        toast("✓ " + m.title + " — " + T("флаг найден!"));
+        any = true;
+      }
+    });
+    if (any) setTimeout(() => renderSandbox(), 700);
   }
 
   function missionCard(m) {
