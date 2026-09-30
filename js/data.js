@@ -39,11 +39,13 @@ const ACHIEVEMENTS = [
   { id: "night_owl", icon: "🦉", title: "Ночная сова", desc: "Решите задание между 00:00 и 05:00" },
   { id: "early_bird", icon: "🐦", title: "Жаворонок", desc: "Решите задание между 05:00 и 08:00" },
   { id: "polyglot", icon: "🌐", title: "Двуязычный", desc: "Переключите язык интерфейса" },
+  { id: "notes_1", icon: "📝", title: "Конспектирую", desc: "Сохраните первую заметку" },
+  { id: "notes_10", icon: "📓", title: "Отличник", desc: "Соберите 10 заметок в конспекте" },
   { id: "dark_side", icon: "🌒", title: "Тёмная сторона", desc: "Включите тёмную тему" },
 ];
 /* Редкость достижений (для рамок карточек) */
 const ACH_RARITY = {
-  first_blood: "common", tasks_10: "common", polyglot: "common", dark_side: "common", streak_3: "common",
+  first_blood: "common", notes_1: "common", notes_10: "rare", tasks_10: "common", polyglot: "common", dark_side: "common", streak_3: "common",
   level_5: "rare", course_done: "rare", no_hints: "rare", daily_5: "rare", terminal_master: "rare", tasks_50: "rare",
   rooms_10: "rare", exam_pass: "rare", night_owl: "rare", early_bird: "rare", lab_rat: "rare", hundred_k: "rare", streak_7: "rare",
   level_10: "epic", three_courses: "epic", flawless: "epic", sniper: "epic", reviewer: "epic", terminal_100: "epic",

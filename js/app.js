@@ -152,6 +152,23 @@ const Progress = (() => {
     if (doneCourses >= 3) tryAch("three_courses", events);
   }
 
+  /* ---------- Заметки ---------- */
+  function notes() { if (!Array.isArray(state.notes)) state.notes = []; return state.notes; }
+  function addNote(n) {
+    const list = notes();
+    if (list.some((x) => x.text === n.text && x.roomId === n.roomId)) return false;
+    list.unshift({ id: "n" + Date.now().toString(36), ts: Date.now(), comment: "", ...n });
+    if (list.length > 500) list.length = 500;
+    const ev = { xpGained: 0, newAchievements: [] };
+    if (list.length >= 1) tryAch("notes_1", ev);
+    if (list.length >= 10) tryAch("notes_10", ev);
+    save();
+    if (window.App) ev.newAchievements.forEach((id) => App.toastAchievement(id));
+    return true;
+  }
+  function updateNote(id, comment) { const n = notes().find((x) => x.id === id); if (n) { n.comment = comment; save(); } }
+  function deleteNote(id) { state.notes = notes().filter((x) => x.id !== id); save(); }
+
   /* ---------- Метрики для достижений с прогрессом ---------- */
   function stats() { if (!state.stats) state.stats = { cmds: 0, reviews: 0, combo: 0, bestCombo: 0 }; return state.stats; }
   function bumpStat(name, n) {
@@ -444,7 +461,13 @@ const Progress = (() => {
       agg[cid] = agg[cid] || { course: r.info.course, wrong: 0 };
       agg[cid].wrong += r.wrong;
     });
-    return Object.values(agg).sort((a, b) => b.wrong - a.wrong);
+    // Ранжируем по доле ошибок в курсе, а не по сырому числу (иначе большой курс всегда «слабее»)
+    Object.values(agg).forEach((g) => {
+      let c = 0, w = 0;
+      g.course.rooms.forEach((rm) => rm.tasks.forEach((t) => { const a = (state.attempts || {})[t.id]; if (a) { c += a.c || 0; w += a.w || 0; } }));
+      g.rate = c + w ? w / (c + w) : 0;
+    });
+    return Object.values(agg).sort((a, b) => b.rate - a.rate || b.wrong - a.wrong);
   }
 
   /* ---------- Аналитика для дашборда ---------- */
@@ -473,8 +496,45 @@ const Progress = (() => {
     }
     return out;
   }
+  /* Навыки = взвешенная сумма «освоения» курсов.
+     Освоение курса честно учитывает не только % пройденного, но и качество:
+     точность ответов (ошибки снижают оценку) и сданный экзамен (подтверждение знаний). */
+  const SKILLS = [
+    { id: "win", name: "Windows и CLI", w: { windows: 1, ad: .4, forensics: .3, hardening: .3 } },
+    { id: "net", name: "Сети", w: { networking: 1, pentest: .3, blueteam: .3 } },
+    { id: "web", name: "Веб-безопасность", w: { web: 1, pentest: .3 } },
+    { id: "crypto", name: "Криптография", w: { crypto: 1, reverse: .2 } },
+    { id: "recon", name: "Разведка и OSINT", w: { osint: 1, pentest: .3, phishing: .3 } },
+    { id: "offense", name: "Тестирование на проникновение", w: { pentest: 1, ad: .6, web: .3 } },
+    { id: "defense", name: "Защита и мониторинг", w: { blueteam: 1, hardening: .8, phishing: .5, fundamentals: .3 } },
+    { id: "analysis", name: "Форензика и анализ ПО", w: { forensics: 1, malware: 1, reverse: .8 } },
+  ];
+  function courseMastery(c) {
+    const tasks = c.rooms.flatMap((r) => r.tasks);
+    const pct = courseProgress(c).pct;
+    let cr = 0, wr = 0;
+    tasks.forEach((t) => { const a = (state.attempts || {})[t.id]; if (a) { cr += a.c || 0; wr += a.w || 0; } });
+    const acc = cr + wr ? cr / (cr + wr) : 1;
+    const hintsPenalty = tasks.filter((t) => state.hintsUsed[t.id]).length / Math.max(1, tasks.length);
+    const quality = 0.7 + 0.3 * acc - 0.1 * hintsPenalty;
+    const exam = (state.exams || {})[c.id];
+    const examPart = exam && exam.passed ? 15 * (exam.best / 100) : 0;
+    return { score: Math.round(Math.max(0, Math.min(100, pct * 0.85 * quality + examPart))), pct, acc: Math.round(acc * 100), exam: !!(exam && exam.passed) };
+  }
   function skillRadar() {
-    return COURSES.map((c) => ({ id: c.id, title: c.title, color: c.color, pct: courseProgress(c).pct }));
+    const m = {};
+    COURSES.forEach((c) => (m[c.id] = courseMastery(c)));
+    return SKILLS.map((sk) => {
+      let sum = 0, ws = 0;
+      const parts = [];
+      Object.entries(sk.w).forEach(([cid, w]) => {
+        if (!m[cid]) return;
+        sum += m[cid].score * w; ws += w;
+        const c = COURSES.find((x) => x.id === cid);
+        parts.push(`${c.title}: ${m[cid].score}`);
+      });
+      return { id: sk.id, title: sk.name, pct: ws ? Math.round(sum / ws) : 0, parts, color: "var(--o-600)" };
+    });
   }
 
   return {
@@ -489,8 +549,8 @@ const Progress = (() => {
     recordAttempt, accuracyOverall, taskInfo,
     getDraft, setDraft, clearDraft,
     srsEnsure, srsDueList, srsDueCount, srsTotal, srsReview, srsEligible,
-    weakTasks, weakCourses, xpByWeek, activityMap, skillRadar,
-    metric, bumpStat, stats,
+    weakTasks, weakCourses, xpByWeek, activityMap, skillRadar, courseMastery,
+    metric, bumpStat, stats, notes, addNote, updateNote, deleteNote,
     _state: () => state,
   };
 })();
@@ -531,6 +591,7 @@ const App = (() => {
     if (view === "glossary") return "#/glossary";
     if (view === "roadmap") return "#/roadmap";
     if (view === "review") return "#/review";
+    if (view === "notes") return "#/notes";
     return "#/";
   }
   function parseHash() {
@@ -543,6 +604,7 @@ const App = (() => {
     if (parts[0] === "glossary") return { view: "glossary" };
     if (parts[0] === "roadmap") return { view: "roadmap" };
     if (parts[0] === "review") return { view: "review" };
+    if (parts[0] === "notes") return { view: "notes" };
     if (parts[0] === "course" && parts[1]) {
       if (parts[2] === "room" && parts[3])
         return { view: "room", courseId: parts[1], roomId: parts[3] };
@@ -622,6 +684,7 @@ const App = (() => {
       case "glossary": renderGlossary(); break;
       case "roadmap": renderRoadmap(); break;
       case "review": renderReview(); break;
+      case "notes": renderNotes(); break;
       case "exam": renderExam(c.courseId); break;
       default: renderHome();
     }
@@ -1039,6 +1102,7 @@ const App = (() => {
           <span class="rh-tag">${T("Комната")} ${idx + 1}/${course.rooms.length}</span>
           <h1>${room.title}</h1>
           <div class="room-meta">
+            <a class="room-chip notes-chip" onclick="App.go('notes')" title="${T("Мои заметки")}">📝 <span id="notes-count">${Progress.notes().length}</span></a>
             <span class="room-chip timer-chip">${Icon.ui("progress")} <span id="room-timer">00:00</span></span>
             <span class="room-chip nohint-chip ${Progress.roomUsedNoHints(room) ? "on" : "off"}">
               ${Icon.ui("bolt")} ${Progress.roomUsedNoHints(room) ? T("Без подсказок") : T("Подсказки использованы")}
@@ -1069,6 +1133,7 @@ const App = (() => {
         Sandbox.setHook(null); // без авто-проверки — проверяем по кнопке «Проверить»
       }
     }
+    bindNoteSelection(course, room);
     // Монтируем интерактивные лаборатории
     room.tasks.forEach((tk) => {
       if (tk.type !== "lab" || Progress.isDone(tk.id)) return;
@@ -1326,7 +1391,8 @@ const App = (() => {
     }
     return a;
   }
-  function escapeAttr(s) { return String(s).replace(/"/g, "&quot;"); }
+  function escapeAttr(s) { return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;"); }
+  function escapeHtml(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
   function completionBanner(course, room, nextRoom) {
     const courseDone = Progress.courseProgress(course).pct === 100;
@@ -1491,6 +1557,8 @@ const App = (() => {
           <h1>${T("Путь обучения")}</h1>
           <p>Курсы выстроены по сложности: продвинутые открываются по мере прохождения предыдущих. Ваше звание — ${s.rank.icon} <b>${s.rank.name}</b>.</p>
         </div>
+        ${skillTree()}
+        <h2 class="rooms-title">${T("По уровням сложности")}</h2>
         <div class="roadmap">
           ${["Новичок", "Средний", "Сложный"].map((tier) => `
             <div class="tier">
@@ -1515,6 +1583,79 @@ const App = (() => {
       </section>`;
     highlightNav();
     observeReveal();
+  }
+
+  /* ---------- Дерево навыков ---------- */
+  const TREE_BRANCHES = [
+    { key: "base", name: "Фундамент", color: "var(--o-500)", ids: ["fundamentals", "windows", "osint"] },
+    { key: "infra", name: "Инфраструктура", color: "#2f8f96", ids: ["networking", "crypto", "phishing", "hardening"] },
+    { key: "red", name: "Red Team", color: "#d2312a", ids: ["web", "pentest", "ad"] },
+    { key: "blue", name: "Blue Team", color: "#2563eb", ids: ["blueteam", "forensics"] },
+    { key: "re", name: "Анализ ПО", color: "#7c3aed", ids: ["reverse", "malware"] },
+  ];
+  function skillTree() {
+    const colW = 206, rowH = 150, nodeW = 184, nodeH = 84, padT = 8;
+    const branchOf = {};
+    TREE_BRANCHES.forEach((br, i) => br.ids.forEach((id) => (branchOf[id] = { ...br, i })));
+    const depthMemo = {};
+    const depth = (id) => {
+      if (depthMemo[id] != null) return depthMemo[id];
+      const c = COURSES.find((x) => x.id === id);
+      const pr = (c && c.prereq) || [];
+      return (depthMemo[id] = pr.length ? 1 + Math.max(...pr.map(depth)) : 0);
+    };
+    const rows = [];
+    COURSES.forEach((c) => { const d = depth(c.id); (rows[d] = rows[d] || []).push(c); });
+    const maxN = Math.max(...rows.map((r) => r.length));
+    const W = maxN * colW;
+    const pos = {};
+    rows.forEach((r, ri) => {
+      r.sort((x, y) => ((branchOf[x.id] || { i: 9 }).i - (branchOf[y.id] || { i: 9 }).i));
+      const off = (W - r.length * colW) / 2;
+      r.forEach((c, ci) => (pos[c.id] = { x: off + ci * colW + (colW - nodeW) / 2, y: padT + ri * rowH, b: branchOf[c.id] || TREE_BRANCHES[0] }));
+    });
+    const H = padT + (rows.length - 1) * rowH + nodeH + 8;
+    // Транзитивная редукция: не рисуем A→C, если C уже зависит от B, а B от A
+    const allPre = (id, seen = new Set()) => {
+      const c = COURSES.find((x) => x.id === id);
+      ((c && c.prereq) || []).forEach((p) => { if (!seen.has(p)) { seen.add(p); allPre(p, seen); } });
+      return seen;
+    };
+    const edges = [];
+    COURSES.forEach((c) => (c.prereq || []).forEach((pid) => {
+      if ((c.prereq || []).some((o) => o !== pid && allPre(o).has(pid))) return;
+      const a = pos[pid], b = pos[c.id];
+      if (!a || !b) return;
+      const pc = COURSES.find((x) => x.id === pid);
+      const done = pc && Progress.courseProgress(pc).pct === 100;
+      const x1 = a.x + nodeW / 2, y1 = a.y + nodeH, x2 = b.x + nodeW / 2, y2 = b.y;
+      const k = (y2 - y1) * 0.55;
+      edges.push(`<path d="M${x1} ${y1} C${x1} ${y1 + k}, ${x2} ${y2 - k}, ${x2} ${y2}" class="st-edge ${done ? "on" : ""}"/>`);
+    }));
+    const levels = rows.map((_, ri) => `<div class="st-row-lbl" style="top:${padT + ri * rowH + nodeH / 2 - 9}px">${T("Ступень")} ${ri + 1}</div>`).join("");
+    const nodes = COURSES.map((c) => {
+      const p = pos[c.id];
+      const pr = Progress.courseProgress(c);
+      const unlocked = Progress.courseUnlocked(c);
+      const st = pr.pct === 100 ? "done" : unlocked ? "open" : "locked";
+      const miss = unlocked ? "" : T("Требуется") + ": " + Progress.missingPrereqs(c).map((m) => m.title).join(", ");
+      return `<button class="st-node ${st}" style="left:${p.x}px;top:${p.y}px;width:${nodeW}px;height:${nodeH}px;--bc:${p.b.color};--cc:${c.color}"
+          onclick="App.go('course',{courseId:'${c.id}'})" title="${escapeAttr(miss || c.title)}">
+        <span class="st-ic">${st === "locked" ? Icon.ui("lock") : Icon.course(c.id)}</span>
+        <span class="st-name">${c.title}</span>
+        <span class="st-ring" style="--p:${pr.pct}"><b>${st === "done" ? "✓" : pr.pct + "%"}</b><i>${T(p.b.name)}</i></span>
+      </button>`;
+    }).join("");
+    return `<div class="st-card card">
+      <div class="st-legend">
+        ${TREE_BRANCHES.map((br) => `<span class="st-br" style="--bc:${br.color}">${T(br.name)}</span>`).join("")}
+        <span class="st-sep"></span>
+        <span class="st-l done">${T("пройден")}</span><span class="st-l open">${T("доступен")}</span><span class="st-l locked">${T("закрыт")}</span>
+      </div>
+      <div class="st-scroll"><div class="st-canvas" style="width:${W}px;height:${H}px">
+        <svg class="st-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">${edges.join("")}</svg>
+        ${nodes}
+      </div></div></div>`;
   }
 
   /* ---------- Финальный экзамен курса ---------- */
@@ -1860,6 +2001,98 @@ const App = (() => {
     });
   }
 
+  /* ---------- Заметки: выделение текста в уроке ---------- */
+  function bindNoteSelection(course, room) {
+    const lesson = document.querySelector(".lesson");
+    if (!lesson) return;
+    let pop = document.getElementById("note-pop");
+    if (!pop) {
+      pop = document.createElement("button");
+      pop.id = "note-pop"; pop.className = "note-pop"; pop.type = "button";
+      document.body.appendChild(pop);
+    }
+    pop.textContent = "📝 " + T("В заметки");
+    pop.classList.remove("show");
+    const show = () => {
+      const sel = window.getSelection();
+      const text = sel ? sel.toString().trim() : "";
+      if (!text || text.length < 3 || !lesson.contains(sel.anchorNode)) { pop.classList.remove("show"); return; }
+      const r = sel.getRangeAt(0).getBoundingClientRect();
+      pop.style.left = Math.max(8, Math.min(innerWidth - 150, r.left + r.width / 2 - 65)) + "px";
+      pop.style.top = (r.top + scrollY - 44) + "px";
+      pop.classList.add("show");
+      pop.onclick = () => {
+        const ok = Progress.addNote({ text: text.slice(0, 1200), courseId: course.id, roomId: room.id });
+        toast(ok ? "📝 " + T("Сохранено в заметки") : T("Такая заметка уже есть"));
+        pop.classList.remove("show");
+        sel.removeAllRanges();
+        const cnt = document.getElementById("notes-count"); if (cnt) cnt.textContent = Progress.notes().length;
+      };
+    };
+    lesson.addEventListener("mouseup", () => setTimeout(show, 0));
+    lesson.addEventListener("touchend", () => setTimeout(show, 250));
+    if (!bindNoteSelection._doc) {
+      bindNoteSelection._doc = true;
+      document.addEventListener("mousedown", (e) => { const p = document.getElementById("note-pop"); if (p && e.target !== p) p.classList.remove("show"); });
+    }
+  }
+
+  function renderNotes() {
+    const list = Progress.notes();
+    const groups = {};
+    list.forEach((n) => (groups[n.courseId] = groups[n.courseId] || []).push(n));
+    const roomTitle = (c, rid) => { const r = c && c.rooms.find((x) => x.id === rid); return r ? r.title : rid; };
+    root().innerHTML = `
+      <section class="section">
+        ${crumbs([["home", T("Главная")], [null, T("Заметки")]])}
+        <div class="page-title"><h1>${T("Мои заметки")}</h1>
+          <p>${T("Выделите текст в любом уроке и нажмите «В заметки». Здесь можно дописать комментарий и скачать конспект.")}</p></div>
+        <div class="notes-bar">
+          <input class="lab-input" id="notes-q" placeholder="${T("Поиск по заметкам…")}" oninput="App.notesFilter(this.value)">
+          <button class="btn btn-ghost btn-sm" onclick="App.exportNotes()" ${list.length ? "" : "disabled"}>⬇ ${T("Скачать конспект (.md)")}</button>
+        </div>
+        ${list.length ? Object.keys(groups).map((cid) => {
+          const c = COURSES.find((x) => x.id === cid);
+          return `<h2 class="rooms-title">${c ? c.title : cid}</h2>
+            <div class="notes-grid">${groups[cid].map((n) => `
+              <article class="note-card" data-q="${escapeAttr((n.text + " " + n.comment).toLowerCase())}">
+                <a class="note-src" onclick="App.go('room',{courseId:'${cid}',roomId:'${n.roomId}'})">${roomTitle(c, n.roomId)} →</a>
+                <blockquote>${escapeHtml(n.text)}</blockquote>
+                <textarea class="note-com" placeholder="${T("Ваш комментарий…")}" onchange="App.noteComment('${n.id}',this.value)">${escapeHtml(n.comment || "")}</textarea>
+                <div class="note-foot"><span>${new Date(n.ts).toLocaleDateString()}</span>
+                  <button class="hint-btn" onclick="App.noteDelete('${n.id}')">${T("Удалить")}</button></div>
+              </article>`).join("")}</div>`;
+        }).join("") : `<div class="empty-state card"><div class="es-ic">📝</div><h3>${T("Пока нет заметок")}</h3>
+            <p>${T("Откройте любую комнату, выделите важный фрагмент теории — появится кнопка «В заметки».")}</p>
+            <button class="btn btn-primary" onclick="App.go('courses')">${T("К курсам")}</button></div>`}
+      </section>`;
+  }
+  function notesFilter(q) {
+    q = q.toLowerCase().trim();
+    document.querySelectorAll(".note-card").forEach((el) => { el.style.display = !q || el.dataset.q.includes(q) ? "" : "none"; });
+  }
+  function noteComment(id, v) { Progress.updateNote(id, v); toast(T("Комментарий сохранён")); }
+  function noteDelete(id) { Progress.deleteNote(id); renderNotes(); }
+  function exportNotes() {
+    const list = Progress.notes();
+    let md = "# " + T("Конспект CyberPath") + "\n\n";
+    const byC = {};
+    list.forEach((n) => (byC[n.courseId] = byC[n.courseId] || []).push(n));
+    Object.keys(byC).forEach((cid) => {
+      const c = COURSES.find((x) => x.id === cid);
+      md += "## " + (c ? c.title : cid) + "\n\n";
+      byC[cid].forEach((n) => {
+        const r = c && c.rooms.find((x) => x.id === n.roomId);
+        md += "> " + n.text.replace(/\n/g, "\n> ") + "\n\n" + (r ? "_" + r.title + "_\n\n" : "") + (n.comment ? n.comment + "\n\n" : "");
+      });
+    });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([md], { type: "text/markdown" }));
+    a.download = "cyberpath-notes.md";
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 100);
+  }
+
   /* ---------- Хлебные крошки ---------- */
   function crumbs(items) {
     const parts = items.map(([to, label], i) => {
@@ -1922,7 +2155,7 @@ const App = (() => {
           ${xpBarsSVG()}
         </div>
         <div class="card chart-card">
-          <div class="chart-head"><h3>${T("Радар навыков")}</h3><span class="chart-sub">${T("% прохождения курсов")}</span></div>
+          <div class="chart-head"><h3>${T("Радар навыков")}</h3><span class="chart-sub" title="${T("Оценка навыка = прохождение связанных курсов × качество (точность, подсказки) + сданные экзамены")}">${T("оценка 0–100 · наведите на навык")}</span></div>
           ${radarSVG()}
         </div>
         <div class="card chart-card wide">
@@ -1936,7 +2169,7 @@ const App = (() => {
             ${weak.map((w) => `<div class="weak-row" onclick="App.go('course',{courseId:'${w.course.id}'})">
               <span class="cpl-ic" style="color:${w.course.color}">${Icon.course(w.course.id)}</span>
               <span class="weak-name">${w.course.title}</span>
-              <span class="weak-count">${w.wrong} ${T("ошибок")}</span>
+              <span class="weak-count">${Math.round(w.rate * 100)}% ${T("ошибок")} · ${w.wrong}</span>
             </div>`).join("")}
           </div>
         </div>` : ""}
@@ -1972,18 +2205,18 @@ const App = (() => {
     const f1 = (v) => v.toFixed(1);
     const rings = [0.25, 0.5, 0.75, 1].map((f) =>
       `<polygon points="${data.map((_, i) => pt(i, R * f).map(f1).join(",")).join(" ")}" class="c-ring"/>
-       <text x="${cx + 4}" y="${f1(cy - R * f - 3)}" class="c-ring-lbl">${f * 100}%</text>`).join("");
+       <text x="${cx + 5}" y="${f1(cy - R * f + 11)}" class="c-ring-lbl">${f * 100}</text>`).join("");
     const spokes = data.map((_, i) => { const [x, y] = pt(i, R); return `<line x1="${cx}" y1="${cy}" x2="${f1(x)}" y2="${f1(y)}" class="c-spoke"/>`; }).join("");
     const poly = data.map((d, i) => pt(i, Math.max(3, R * (d.pct / 100))).map(f1).join(",")).join(" ");
-    const dots = data.map((d, i) => { const [x, y] = pt(i, R * (d.pct / 100)); return d.pct ? `<circle cx="${f1(x)}" cy="${f1(y)}" r="4" fill="${d.color}" stroke="var(--surface)" stroke-width="1.5"><title>${d.title}: ${d.pct}%</title></circle>` : ""; }).join("");
+    const dots = data.map((d, i) => { const [x, y] = pt(i, R * (d.pct / 100)); return d.pct ? `<circle cx="${f1(x)}" cy="${f1(y)}" r="4" fill="${d.color}" stroke="var(--surface)" stroke-width="1.5"><title>${T(d.title)}: ${d.pct}/100</title></circle>` : ""; }).join("");
     const labels = data.map((d, i) => {
       const [x, y] = pt(i, R + 20);
       const c = Math.cos(-Math.PI / 2 + (i / n) * Math.PI * 2);
       const anchor = Math.abs(c) < 0.2 ? "middle" : c > 0 ? "start" : "end";
-      const name = d.title.length > 16 ? d.title.slice(0, 15) + "…" : d.title;
-      return `<g class="radar-lbl" onclick="App.go('course',{courseId:'${d.id}'})"><title>${d.title}: ${d.pct}%</title>
+      const tt = T(d.title), name = tt.length > 22 ? tt.slice(0, 21) + "…" : tt;
+      return `<g class="radar-lbl"><title>${T(d.title)}: ${d.pct}/100\n${d.parts.join("\n")}</title>
         <text x="${f1(x)}" y="${f1(y)}" text-anchor="${anchor}" class="c-lbl">${name}</text>
-        <text x="${f1(x)}" y="${f1(y + 13)}" text-anchor="${anchor}" class="c-lbl-pct ${d.pct === 100 ? "full" : ""}">${d.pct}%</text></g>`;
+        <text x="${f1(x)}" y="${f1(y + 13)}" text-anchor="${anchor}" class="c-lbl-pct ${d.pct >= 85 ? "full" : ""}">${d.pct}/100</text></g>`;
     }).join("");
     const empty = data.every((d) => !d.pct);
     return `<svg viewBox="0 0 ${W} ${H}" class="chart-svg radar" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${T("Радар навыков")}">
@@ -2070,6 +2303,7 @@ const App = (() => {
           <div class="ps"><b>${s.achievements}<small>/${s.achievementsTotal}</small></b><span>${T("Достижения")}</span></div>
         </div>
         <div class="pc-actions">
+          <button class="btn btn-ghost btn-sm" onclick="App.go('notes')">📝 ${T("Заметки")} (${Progress.notes().length})</button>
           <button class="btn btn-ghost btn-sm" onclick="App.openRanks()">${T("Звания")}</button>
           <button class="btn btn-ghost btn-sm" onclick="App.shareCard()">${Icon.ui("progress")} ${T("Поделиться карточкой")}</button>
         </div>
@@ -2126,10 +2360,11 @@ const App = (() => {
         <div class="course-progress-list">
           ${COURSES.map((c) => {
             const p = Progress.courseProgress(c);
+            const m = Progress.courseMastery(c);
             return `<div class="cpl-row" onclick="App.go('course',{courseId:'${c.id}'})">
               <span class="cpl-ic" style="color:${c.color}">${Icon.course(c.id)}</span>
               <div class="cpl-body">
-                <div class="cpl-head"><b>${c.title}</b><span>${p.pct}%</span></div>
+                <div class="cpl-head"><b>${c.title}</b><span>${p.pct}%${p.done ? ` · <span class="mastery" title="${T("Освоение: прохождение × точность (подсказки снижают) + экзамен")}">${T("освоение")} ${m.score}/100${m.exam ? " 📜" : ""}</span>` : ""}</span></div>
                 <div class="xp-bar"><span style="width:${p.pct}%;background:${c.color}"></span></div>
               </div>
             </div>`;
@@ -2222,10 +2457,54 @@ const App = (() => {
       const msg = (!raw && task.sandbox)
         ? T("Выполните команду в терминале и нажмите «Проверить».")
         : T("Неверно, попробуйте ещё раз.");
-      fb.innerHTML = `<span class="fb-err">✗ ${msg}</span>`;
+      const tip = mentorTip(task, raw);
+      fb.innerHTML = `<span class="fb-err">✗ ${msg}</span>${tip ? `<div class="mentor-tip"><span class="mt-ic">🧑‍🏫</span><span>${tip}</span></div>` : ""}`;
       const el = document.getElementById(`task-${taskId}`);
       el.classList.remove("shake"); void el.offsetWidth; el.classList.add("shake");
     }
+  }
+
+  /* ---------- Ментор: объясняет, в чём именно ошибка ---------- */
+  const lastWrong = {};
+  function levenshtein(a, b) {
+    const m = a.length, n = b.length;
+    if (Math.abs(m - n) > 3) return 99;
+    const d = Array.from({ length: m + 1 }, (_, i) => [i]);
+    for (let j = 1; j <= n; j++) d[0][j] = j;
+    for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++)
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return d[m][n];
+  }
+  function mentorTip(task, raw) {
+    const answers = (task.answers || (task.answer ? [task.answer] : [])).map(String);
+    const low = raw.toLowerCase(), squash = (x) => x.toLowerCase().replace(/[\s\-_.:'"]/g, "");
+    if (!raw) {
+      if (task.sandbox && window.Sandbox && Sandbox.getTranscript) {
+        const tr = Sandbox.getTranscript();
+        if (!tr.length) return T("Терминал пока пуст — введите команду слева, затем нажмите «Проверить».");
+        if (tr.some((x) => /не найден|not found|не является/i.test(x.out || ""))) return T("В выводе есть ошибка «не найдено» — проверьте текущий каталог (dir) и путь (cd).");
+        if (task.type === "flag" && tr.some((x) => /CYBER\{/.test(x.out || ""))) return T("В выводе уже есть флаг — скопируйте его в поле ответа целиком, вместе с CYBER{...}.");
+      }
+      return "";
+    }
+    if (lastWrong[task.id] === low) return T("Этот ответ вы уже пробовали. Попробуйте другой вариант или откройте подсказку.");
+    lastWrong[task.id] = low;
+    const a0 = answers[0] || "";
+    if (task.type === "flag" || /^CYBER\{/.test(a0)) {
+      if (!/^CYBER\{.*\}$/i.test(raw)) return T("Флаг имеет формат CYBER{...} — вводите его целиком, с фигурными скобками.");
+      if (answers.some((a) => a.toLowerCase() === low)) return T("Почти: не совпадает регистр букв. Флаги чувствительны к регистру.");
+    }
+    if (answers.some((a) => squash(a) === squash(raw))) return T("Суть верная, но формат другой: проверьте пробелы, дефисы и знаки.");
+    if (answers.some((a) => a.length > 3 && levenshtein(a.toLowerCase(), low) <= 2)) return T("Очень близко! Похоже на опечатку — проверьте написание.");
+    if (answers.some((a) => a.length > 2 && low.includes(a.toLowerCase()))) return T("Правильный ответ спрятан в вашем — уберите лишнее, нужен только сам ответ.");
+    if (answers.some((a) => a.length > 3 && a.toLowerCase().includes(low) && low.length >= 2)) return T("Вы на верном пути, но ответ неполный.");
+    const cyr = (x) => /[а-яё]/i.test(x), lat = (x) => /[a-z]/i.test(x);
+    if (answers.every((a) => cyr(a)) && lat(raw) && !cyr(raw)) return T("Ответ ожидается на русском языке.");
+    if (answers.every((a) => lat(a) && !cyr(a)) && cyr(raw)) return T("Ответ ожидается латиницей (на английском).");
+    if (answers.every((a) => /^\d+$/.test(a)) && !/^\d+$/.test(raw)) return T("Здесь нужен ответ числом.");
+    const att = (Progress._state().attempts || {})[task.id];
+    if (att && att.w >= 3 && !Progress.hintsUsedFor(task.id) && (task.hints || []).length) return T("Уже несколько попыток — откройте подсказку ниже, она подтолкнёт в нужную сторону.");
+    return "";
   }
 
   function markInfo(courseId, taskId) {
@@ -2544,7 +2823,7 @@ const App = (() => {
     submitMission, toggleShell, openShortcuts, closeShortcuts,
     glossarySearch, submitExam, retryExam, openPalette, palettePick, installApp,
     reviewChoose, reviewCheck, reviewNext, shareCard, saveDraft, toggleLang,
-    openRanks, closeRanks, achSetFilter, tilt,
+    openRanks, closeRanks, achSetFilter, tilt, notesFilter, noteComment, noteDelete, exportNotes,
   };
 })();
 
