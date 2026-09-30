@@ -475,6 +475,8 @@ main { min-height: 72vh; }
 .lesson ol li::before { content: counter(li); position: absolute; left: 0; top: .05em; width: 18px; height: 18px; border-radius: 6px; background: var(--o-50); color: var(--o-700); border: 1px solid var(--o-100); font-size: .72rem; font-weight: 700; display: grid; place-items: center; }
 .lesson p { margin: 9px 0; color: var(--ink-2); }
 .lesson b { color: var(--ink); font-weight: 600; }
+.lang-note { background: var(--bg-3); border: 1px dashed var(--line); border-radius: 10px; padding: 9px 13px; margin-bottom: 14px; font-size: .84rem; color: var(--muted); }
+.lang-toggle { font-family: var(--sans); font-weight: 700; font-size: .78rem; }
 .callout {
   background: var(--o-50); border: 1px solid var(--o-100); border-left: 3px solid var(--o-400);
   padding: 13px 16px; border-radius: 10px; margin: 18px 0; font-size: .92rem; color: var(--ink);

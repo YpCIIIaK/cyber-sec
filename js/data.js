@@ -22,14 +22,22 @@ const ACHIEVEMENTS = [
 
 /* Ранги по уровню (звания) */
 const RANKS = [
-  { min: 1,  name: "Стажёр",            icon: "🌱" },
-  { min: 3,  name: "Скрипт-кидди",      icon: "🧩" },
-  { min: 5,  name: "Аналитик SOC",      icon: "🛰️" },
-  { min: 7,  name: "Инженер по ИБ",     icon: "🛠️" },
-  { min: 10, name: "Пентестер",         icon: "🎯" },
-  { min: 14, name: "Threat Hunter",     icon: "🐺" },
-  { min: 18, name: "Хакер",             icon: "💀" },
-  { min: 25, name: "Легенда CyberPath", icon: "👑" },
+  { min: 1,  name: "Новичок",           icon: "🌱" },
+  { min: 3,  name: "Ученик",            icon: "📗" },
+  { min: 5,  name: "Скрипт-кидди",      icon: "🧩" },
+  { min: 7,  name: "Юный аналитик",     icon: "🔎" },
+  { min: 9,  name: "Аналитик SOC",      icon: "🛰️" },
+  { min: 12, name: "Инженер по ИБ",     icon: "🛠️" },
+  { min: 15, name: "Специалист",        icon: "🧠" },
+  { min: 18, name: "Пентестер",         icon: "🎯" },
+  { min: 21, name: "Threat Hunter",     icon: "🐺" },
+  { min: 25, name: "Эксперт",           icon: "💠" },
+  { min: 29, name: "Мастер",            icon: "🥇" },
+  { min: 34, name: "Хакер",             icon: "💀" },
+  { min: 39, name: "Элита",             icon: "🛡️" },
+  { min: 45, name: "Магистр",           icon: "🔱" },
+  { min: 52, name: "Грандмастер",       icon: "👑" },
+  { min: 60, name: "Легенда CyberPath", icon: "🏆" },
 ];
 function rankForLevel(lvl) {
   let r = RANKS[0];

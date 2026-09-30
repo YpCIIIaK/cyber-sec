@@ -15,7 +15,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F25C05' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l7 3v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3z'/></svg>">
 </head>
 <body>
-  <a class="skip-link" href="#view">Перейти к содержимому</a>
+  <a class="skip-link" href="#view" data-i18n="Перейти к содержимому">Перейти к содержимому</a>
   <header class="topbar">
     <div class="topbar-inner">
       <a class="logo" onclick="App.go('home')">
@@ -23,15 +23,16 @@
         <span class="logo-text">Cyber<span class="accent">Path</span></span>
       </a>
       <nav class="main-nav">
-        <a data-view="home" onclick="App.go('home')">Главная</a>
-        <a data-view="courses" onclick="App.go('courses')">Курсы</a>
-        <a data-view="roadmap" onclick="App.go('roadmap')">Путь</a>
-        <a data-view="sandbox" onclick="App.go('sandbox')">Песочница</a>
-        <a data-view="review" onclick="App.go('review')">Повторение</a>
-        <a data-view="glossary" onclick="App.go('glossary')">Словарь</a>
-        <a data-view="profile" onclick="App.go('profile')">Профиль</a>
+        <a data-view="home" onclick="App.go('home')" data-i18n="Главная">Главная</a>
+        <a data-view="courses" onclick="App.go('courses')" data-i18n="Курсы">Курсы</a>
+        <a data-view="roadmap" onclick="App.go('roadmap')" data-i18n="Путь">Путь</a>
+        <a data-view="sandbox" onclick="App.go('sandbox')" data-i18n="Песочница">Песочница</a>
+        <a data-view="review" onclick="App.go('review')" data-i18n="Повторение">Повторение</a>
+        <a data-view="glossary" onclick="App.go('glossary')" data-i18n="Словарь">Словарь</a>
+        <a data-view="profile" onclick="App.go('profile')" data-i18n="Профиль">Профиль</a>
       </nav>
       <div id="nav-stats" class="nav-stats"></div>
+      <button id="lang-toggle" class="theme-toggle lang-toggle" onclick="App.toggleLang()" aria-label="Language RU/EN" title="Язык / Language">EN</button>
       <button class="cmdk-btn" onclick="App.openPalette()" aria-label="Поиск (Ctrl+K)" title="Быстрый переход — Ctrl/⌘ + K"><span class="cmdk-ic"></span><kbd>⌘K</kbd></button>
       <button id="theme-toggle" class="theme-toggle" onclick="App.toggleTheme()" aria-label="Переключить тему" title="Светлая / тёмная тема"></button>
       <button class="burger" onclick="document.body.classList.toggle('nav-open')" aria-label="Меню">☰</button>
@@ -51,7 +52,7 @@
   </footer>
 
   <div id="toasts" class="toasts"></div>
-  <button id="install-pill" class="install-pill" hidden onclick="App.installApp()">⬇ Установить приложение</button>
+  <button id="install-pill" class="install-pill" hidden onclick="App.installApp()"><span data-i18n="Установить приложение">Установить приложение</span></button>
 
   <script>
     if ("serviceWorker" in navigator) {
@@ -62,6 +63,7 @@
   </script>
   <script src="js/icons.js"></script>
   <script src="js/data.js"></script>
+  <script src="js/i18n.js"></script>
   <script src="js/terminal.js"></script>
   <script src="js/app.js"></script>
 </body>

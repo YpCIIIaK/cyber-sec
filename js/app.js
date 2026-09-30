@@ -423,6 +423,9 @@ function checkAnswer(task, input) {
 const App = (() => {
   const root = () => document.getElementById("view");
   let current = { view: "home" };
+  const T = (s) => (window.I18N ? I18N.t(s) : s);
+  const TL = (l) => (window.I18N ? I18N.lvl(l) : l);
+  const TG = (g) => (window.I18N ? I18N.tag(g) : g);
 
   function go(view, params = {}) {
     stopRoomTimer();
@@ -553,24 +556,23 @@ const App = (() => {
       <section class="hero">
         <div class="hero-inner">
           <div class="hero-text">
-            <span class="hero-badge">Бесплатно · Без регистрации · Прогресс сохраняется локально</span>
-            <h1>Учись <span class="accent">кибербезопасности</span><br>на практике</h1>
-            <p class="hero-sub">Интерактивные курсы, квесты, задания и живая песочница-терминал.
-            От основ до пентеста, веба, сетей, Active Directory и форензики.</p>
+            <span class="hero-badge">${T("Бесплатно · Без регистрации · Прогресс сохраняется локально")}</span>
+            <h1>${T("Учись")} <span class="accent">${T("кибербезопасности")}</span><br>${T("на практике")}</h1>
+            <p class="hero-sub">${T("Интерактивные курсы, квесты, задания и живая песочница-терминал. От основ до пентеста, веба, сетей, Active Directory и форензики.")}</p>
             <div class="hero-actions">
-              <button class="btn btn-primary btn-lg" onclick="App.go('courses')">Начать обучение ${Icon.ui("arrow")}</button>
-              <button class="btn btn-ghost btn-lg" onclick="App.go('sandbox')">${Icon.ui("terminal")} Открыть песочницу</button>
+              <button class="btn btn-primary btn-lg" onclick="App.go('courses')">${T("Начать обучение")} ${Icon.ui("arrow")}</button>
+              <button class="btn btn-ghost btn-lg" onclick="App.go('sandbox')">${Icon.ui("terminal")} ${T("Открыть песочницу")}</button>
             </div>
           </div>
           <div class="hero-card">
-            <div class="hc-row"><span>Ваш уровень</span><b class="accent">LVL ${s.level}</b></div>
+            <div class="hc-row"><span>${T("Ваш уровень")}</span><b class="accent">LVL ${s.level}</b></div>
             <div class="xp-bar"><span style="width:${s.xpInLevel}%"></span></div>
-            <div class="hc-sub">${s.xpInLevel} / 100 XP до ${s.level + 1} уровня</div>
+            <div class="hc-sub">${s.xpInLevel} / 100 XP ${T("до")} ${s.level + 1} ${T("уровня")}</div>
             <div class="hc-grid">
-              <div><b>${s.tasksDone}</b><span>заданий</span></div>
-              <div><b>${s.coursesDone}/${s.coursesTotal}</b><span>курсов</span></div>
-              <div><b>${s.achievements}/${s.achievementsTotal}</b><span>ачивок</span></div>
-              <div><b>${s.streak}</b><span>дней подряд</span></div>
+              <div><b>${s.tasksDone}</b><span>${T("заданий")}</span></div>
+              <div><b>${s.coursesDone}/${s.coursesTotal}</b><span>${T("курсов")}</span></div>
+              <div><b>${s.achievements}/${s.achievementsTotal}</b><span>${T("ачивок")}</span></div>
+              <div><b>${s.streak}</b><span>${T("дней подряд")}</span></div>
             </div>
           </div>
         </div>
@@ -589,14 +591,14 @@ const App = (() => {
         ].map(([i, t, d]) => `
           <div class="feature reveal">
             <div class="feature-ic">${Icon.ui(i)}</div>
-            <h3>${t}</h3><p>${d}</p>
+            <h3>${T(t)}</h3><p>${T(d)}</p>
           </div>`).join("")}
       </section>
 
       <section class="section">
         <div class="section-head">
-          <h2>Популярные курсы</h2>
-          <a class="link" onclick="App.go('courses')">Все курсы ${Icon.ui("arrow")}</a>
+          <h2>${T("Популярные курсы")}</h2>
+          <a class="link" onclick="App.go('courses')">${T("Все курсы")} ${Icon.ui("arrow")}</a>
         </div>
         <div class="course-grid">
           ${COURSES.slice(0, 3).map(courseCard).join("")}
@@ -703,17 +705,17 @@ const App = (() => {
       <article class="course-card reveal ${unlocked ? "" : "locked"} ${p.pct === 100 ? "completed" : ""}" style="--c:${course.color}" onclick="${onclick}" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}">
         <div class="cc-top">
           <span class="cc-icon">${Icon.course(course.id)}</span>
-          <span class="cc-level">${unlocked ? "" : Icon.ui("lock")}${course.level}</span>
+          <span class="cc-level">${unlocked ? "" : Icon.ui("lock")}${TL(course.level)}</span>
         </div>
         <h3>${course.title}</h3>
         <p>${course.summary}</p>
-        <div class="cc-tags">${course.tags.map((t) => `<span>#${t}</span>`).join("")}</div>
+        <div class="cc-tags">${course.tags.map((t) => `<span>#${TG(t)}</span>`).join("")}</div>
         ${unlocked ? `
         <div class="cc-progress">
           <div class="xp-bar"><span style="width:${p.pct}%"></span></div>
-          <span class="cc-pct">${p.pct === 100 ? "✓ Пройдено" : p.done + "/" + p.total + " · " + p.pct + "%"}</span>
+          <span class="cc-pct">${p.pct === 100 ? "✓ " + T("Пройдено") : p.done + "/" + p.total + " · " + p.pct + "%"}</span>
         </div>`
-        : `<div class="cc-lock">${Icon.ui("lock")} Требуется: ${missing.map((m) => m.title).join(", ")}</div>`}
+        : `<div class="cc-lock">${Icon.ui("lock")} ${T("Требуется")}: ${missing.map((m) => m.title).join(", ")}</div>`}
       </article>`;
   }
 
@@ -743,7 +745,7 @@ const App = (() => {
       ? list.map(courseCard).join("")
       : `<div class="empty-state">Ничего не найдено. Попробуйте изменить запрос или фильтр.</div>`;
     const count = document.getElementById("catalog-count");
-    if (count) count.textContent = `${list.length} из ${COURSES.length}`;
+    if (count) count.textContent = `${list.length} ${T("из")} ${COURSES.length}`;
     observeReveal();
   }
 
@@ -751,22 +753,22 @@ const App = (() => {
     root().innerHTML = `
       <section class="section">
         <div class="page-title">
-          <h1>Каталог курсов</h1>
-          <p>Выберите направление. Сложные курсы открываются по мере прохождения предыдущих.</p>
+          <h1>${T("Каталог курсов")}</h1>
+          <p>${T("Выберите направление. Сложные курсы открываются по мере прохождения предыдущих.")}</p>
         </div>
         <div class="catalog-toolbar">
           <div class="search-box">
             ${Icon.ui("quest")}
-            <input id="catalog-search" type="text" placeholder="Поиск по курсам и темам…" value="${catalog.q}"
+            <input id="catalog-search" type="text" placeholder="${T("Поиск по курсам и темам…")}" value="${catalog.q}"
                    oninput="App.catalogSearch(this.value)">
           </div>
           <div class="filter-chips">
-            ${LEVELS.map((lv) => `<button class="chip ${catalog.level === lv ? "active" : ""}" onclick="App.catalogLevel('${lv}')">${lv === "all" ? "Все уровни" : lv}</button>`).join("")}
+            ${LEVELS.map((lv) => `<button class="chip ${catalog.level === lv ? "active" : ""}" data-lv="${lv}" onclick="App.catalogLevel('${lv}')">${lv === "all" ? T("Все уровни") : TL(lv)}</button>`).join("")}
           </div>
           <select class="sort-select" onchange="App.catalogSort(this.value)">
-            <option value="default" ${catalog.sort === "default" ? "selected" : ""}>По умолчанию</option>
-            <option value="progress" ${catalog.sort === "progress" ? "selected" : ""}>По прогрессу</option>
-            <option value="level" ${catalog.sort === "level" ? "selected" : ""}>По сложности</option>
+            <option value="default" ${catalog.sort === "default" ? "selected" : ""}>${T("По умолчанию")}</option>
+            <option value="progress" ${catalog.sort === "progress" ? "selected" : ""}>${T("По прогрессу")}</option>
+            <option value="level" ${catalog.sort === "level" ? "selected" : ""}>${T("По сложности")}</option>
           </select>
         </div>
         <div class="catalog-meta"><span id="catalog-count"></span></div>
@@ -779,7 +781,7 @@ const App = (() => {
   function catalogLevel(lv) {
     catalog.level = lv;
     document.querySelectorAll(".filter-chips .chip").forEach((el) =>
-      el.classList.toggle("active", el.textContent === (lv === "all" ? "Все уровни" : lv)));
+      el.classList.toggle("active", el.getAttribute("data-lv") === lv));
     renderCourseGrid();
   }
   function catalogSort(v) { catalog.sort = v; renderCourseGrid(); }
@@ -824,7 +826,7 @@ const App = (() => {
         <div class="course-head" style="--c:${course.color}">
           <span class="ch-icon">${Icon.course(course.id)}</span>
           <div>
-            <span class="cc-level">${course.level}</span>
+            <span class="cc-level">${TL(course.level)}</span>
             <h1>${course.title}</h1>
             <p>${course.summary}</p>
             <div class="cc-progress wide">
@@ -834,7 +836,7 @@ const App = (() => {
           </div>
         </div>
         ${p.pct === 100 ? certificateCard(course) : ""}
-        <h2 class="rooms-title">Комнаты курса</h2>
+        <h2 class="rooms-title">${T("Комнаты курса")}</h2>
         <div class="room-list">
           ${course.rooms.map((room, i) => roomRow(course, room, i)).join("")}
         </div>
@@ -886,19 +888,19 @@ const App = (() => {
       <section class="section room-view">
         <a class="back" onclick="App.go('course',{courseId:'${course.id}'})">← ${course.title}</a>
         <div class="room-header">
-          <span class="rh-tag">Комната ${idx + 1}/${course.rooms.length}</span>
+          <span class="rh-tag">${T("Комната")} ${idx + 1}/${course.rooms.length}</span>
           <h1>${room.title}</h1>
           <div class="room-meta">
             <span class="room-chip timer-chip">${Icon.ui("progress")} <span id="room-timer">00:00</span></span>
             <span class="room-chip nohint-chip ${Progress.roomUsedNoHints(room) ? "on" : "off"}">
-              ${Icon.ui("bolt")} ${Progress.roomUsedNoHints(room) ? "Без подсказок" : "Подсказки использованы"}
+              ${Icon.ui("bolt")} ${Progress.roomUsedNoHints(room) ? T("Без подсказок") : T("Подсказки использованы")}
             </span>
           </div>
         </div>
         <div class="room-columns">
-          <div class="lesson card">${room.intro}</div>
+          <div class="lesson card">${window.I18N && I18N.current() === "en" ? `<div class="lang-note">🌐 Lesson text is currently in Russian — English translation in progress.</div>` : ""}${room.intro}</div>
           <div class="tasks">
-            <h2>Задания</h2>
+            <h2>${T("Задания")}</h2>
             <div id="task-list">
               ${room.tasks.map((t) => taskBlock(course, t)).join("")}
             </div>
@@ -1019,7 +1021,7 @@ const App = (() => {
         </div>
         <p class="task-prompt">${task.prompt}</p>
         ${done
-          ? `<div class="task-ok">${Icon.ui("check")} ${task.type === "info" ? "Отмечено как прочитанное" : "Верно! Решено (+" + (Progress._state().earned[task.id] ?? task.points) + " XP)"}</div>`
+          ? `<div class="task-ok">${Icon.ui("check")} ${task.type === "info" ? T("Отмечено как прочитанное") : T("Верно! Решено") + " (+" + (Progress._state().earned[task.id] ?? task.points) + " XP)"}</div>`
           : answerArea(course, task) + hintsArea(course, task)}
       </div>`;
   }
@@ -1028,7 +1030,7 @@ const App = (() => {
     const cid = course.id, tid = task.id;
     switch (task.type) {
       case "info":
-        return `<button class="btn btn-primary btn-sm" onclick="App.markInfo('${cid}','${tid}')">Понятно, дальше</button>`;
+        return `<button class="btn btn-primary btn-sm" onclick="App.markInfo('${cid}','${tid}')">${T("Понятно, дальше")}</button>`;
       case "choice":
         return `
           <div class="choice-grid">
@@ -1049,7 +1051,7 @@ const App = (() => {
                 </select>
               </div>`).join("")}
           </div>
-          <button class="btn btn-primary btn-sm" onclick="App.submitMatch('${cid}','${tid}')">Проверить</button>
+          <button class="btn btn-primary btn-sm" onclick="App.submitMatch('${cid}','${tid}')">${T("Проверить")}</button>
           <div class="feedback" id="fb-${tid}"></div>`;
       }
       case "order": {
@@ -1069,7 +1071,7 @@ const App = (() => {
                    value="${escapeAttr(Progress.getDraft(tid))}"
                    oninput="App.saveDraft('${tid}',this.value)"
                    onkeydown="if(event.key==='Enter')App.submit('${cid}','${tid}')">
-            <button class="btn btn-primary btn-sm" onclick="App.submit('${cid}','${tid}')">Проверить</button>
+            <button class="btn btn-primary btn-sm" onclick="App.submit('${cid}','${tid}')">${T("Проверить")}</button>
           </div>
           <div class="feedback" id="fb-${tid}"></div>`;
     }
@@ -1084,7 +1086,7 @@ const App = (() => {
       <div class="hints">
         ${hints.map((h, i) => i < shown
           ? `<div class="hint-shown">💡 ${h}</div>`
-          : (i === shown ? `<button class="hint-btn" onclick="App.showHint('${task.id}',${i})">Показать подсказку ${i + 1} (−${cost} XP)</button>` : "")
+          : (i === shown ? `<button class="hint-btn" onclick="App.showHint('${task.id}',${i})">${T("Показать подсказку")} ${i + 1} (−${cost} XP)</button>` : "")
         ).join("")}
       </div>`;
   }
@@ -1106,10 +1108,10 @@ const App = (() => {
     return `
       <div class="complete-banner">
         <div class="cb-icon">${Icon.ui("check")}</div>
-        <h3>Комната пройдена!</h3>
+        <h3>${T("Комната пройдена!")}</h3>
         <p>Отличная работа. ${nextRoom ? "Готовы к следующей?" : "Это была последняя комната курса!"}</p>
         ${nextRoom
-          ? `<button class="btn btn-primary" onclick="App.go('room',{courseId:'${course.id}',roomId:'${nextRoom.id}'})">Следующая комната ${Icon.ui("arrow")}</button>`
+          ? `<button class="btn btn-primary" onclick="App.go('room',{courseId:'${course.id}',roomId:'${nextRoom.id}'})">${T("Следующая комната")} ${Icon.ui("arrow")}</button>`
           : `<button class="btn btn-primary" onclick="App.go('course',{courseId:'${course.id}'})">К обзору курса</button>`}
       </div>`;
   }
@@ -1136,13 +1138,13 @@ const App = (() => {
           </div>
         </div>
         <div class="sandbox-hints card">
-          <h3>Быстрый старт</h3>
+          <h3>${T("Быстрый старт")}</h3>
           <div class="cheat">
             ${["help — все команды","dir / type — файлы","findstr CYBER файл","reg query …Run — реестр","certutil -decode <b64>","nmap 10.10.10.5","nslookup target.local","Tab — автодополнение"].map(c=>`<code>${c}</code>`).join("")}
           </div>
         </div>
 
-        <h2 class="rooms-title">Квесты-машины</h2>
+        <h2 class="rooms-title">${T("Квесты-машины")}</h2>
         <p class="missions-intro">Многошаговые сценарии: выполняйте команды в терминале выше, находите флаг и вводите его здесь.</p>
         <div class="mission-list">
           ${MISSIONS.map(missionCard).join("")}
@@ -1199,13 +1201,13 @@ const App = (() => {
     root().innerHTML = `
       <section class="section">
         <div class="page-title">
-          <h1>Словарь терминов</h1>
+          <h1>${T("Словарь терминов")}</h1>
           <p>${GLOSSARY.length} определений ключевых понятий кибербезопасности — по реальным стандартам.</p>
         </div>
         <div class="catalog-toolbar">
           <div class="search-box">
             ${Icon.ui("quest")}
-            <input id="gloss-search" type="text" placeholder="Поиск термина или определения…" value="${glossaryState.q}" oninput="App.glossarySearch(this.value)">
+            <input id="gloss-search" type="text" placeholder="${T("Поиск термина или определения…")}" value="${glossaryState.q}" oninput="App.glossarySearch(this.value)">
           </div>
         </div>
         <div id="gloss-list" class="gloss-list"></div>
@@ -1245,7 +1247,7 @@ const App = (() => {
     root().innerHTML = `
       <section class="section">
         <div class="page-title">
-          <h1>Путь обучения</h1>
+          <h1>${T("Путь обучения")}</h1>
           <p>Курсы выстроены по сложности: продвинутые открываются по мере прохождения предыдущих. Ваше звание — ${s.rank.icon} <b>${s.rank.name}</b>.</p>
         </div>
         <div class="roadmap">
@@ -1435,7 +1437,7 @@ const App = (() => {
     if (!due.length) {
       root().innerHTML = `
         <section class="section">
-          <div class="page-title"><h1>Повторение</h1><p>Интервальное повторение слабых тем — как флеш-карты Anki.</p></div>
+          <div class="page-title"><h1>${T("Повторение")}</h1><p>Интервальное повторение слабых тем — как флеш-карты Anki.</p></div>
           <div class="review-empty card">
             <div class="cb-icon">${Icon.ui("check")}</div>
             <h3>${total ? "Всё повторено на сегодня!" : "Карточки появятся автоматически"}</h3>
@@ -1450,7 +1452,7 @@ const App = (() => {
       return;
     }
     reviewSession = { queue: due.slice(), idx: 0, correct: 0, total: due.length, revealed: false };
-    root().innerHTML = `<section class="section"><div class="page-title"><h1>Повторение</h1><p>Сессия: ${due.length} карточек к повторению.</p></div><div id="review-stage"></div></section>`;
+    root().innerHTML = `<section class="section"><div class="page-title"><h1>${T("Повторение")}</h1><p>Сессия: ${due.length} карточек к повторению.</p></div><div id="review-stage"></div></section>`;
     highlightNav();
     renderReviewCard();
   }
@@ -1482,7 +1484,7 @@ const App = (() => {
         <h3 class="review-q">${task.prompt}</h3>
         ${task.type === "choice"
           ? `<div class="choice-grid rev-choices">${task.options.map((o) => `<button class="choice-opt" onclick="App.reviewChoose(this,'${escapeAttr(o)}')">${o}</button>`).join("")}</div>`
-          : `<div class="answer-row"><input type="text" id="rev-input" placeholder="Ваш ответ" onkeydown="if(event.key==='Enter')App.reviewCheck()"><button class="btn btn-primary btn-sm" onclick="App.reviewCheck()">Проверить</button></div>`}
+          : `<div class="answer-row"><input type="text" id="rev-input" placeholder="${T("Ваш ответ")}" onkeydown="if(event.key==='Enter')App.reviewCheck()"><button class="btn btn-primary btn-sm" onclick="App.reviewCheck()">${T("Проверить")}</button></div>`}
         <div id="rev-fb" class="review-fb"></div>
       </div>`;
     setTimeout(() => { const i = document.getElementById("rev-input"); if (i) i.focus(); }, 30);
@@ -1624,37 +1626,37 @@ const App = (() => {
     const active = Object.keys(Progress._state().activeDays || {}).length;
     const weak = Progress.weakCourses().slice(0, 4);
     const kpis = [
-      ["Точность ответов", acc.total ? acc.pct + "%" : "—", acc.total ? acc.correct + "/" + acc.total : "нет данных"],
-      ["На повторение", String(due), due ? "карточек готово" : "всё повторено"],
-      ["Активных дней", String(active), "с начала обучения"],
-      ["Всего попыток", String(acc.total), acc.wrong + " с ошибкой"],
+      [T("Точность ответов"), acc.total ? acc.pct + "%" : "—", acc.total ? acc.correct + "/" + acc.total : T("нет данных")],
+      [T("На повторение"), String(due), due ? T("карточек готово") : T("всё повторено")],
+      [T("Активных дней"), String(active), T("с начала обучения")],
+      [T("Всего попыток"), String(acc.total), acc.wrong + " " + T("с ошибкой")],
     ];
     return `
-      <h2 class="rooms-title">Аналитика</h2>
+      <h2 class="rooms-title">${T("Аналитика")}</h2>
       <div class="kpi-row">
         ${kpis.map(([t, v, s]) => `<div class="kpi"><span class="kpi-t">${t}</span><b class="kpi-v">${v}</b><span class="kpi-s">${s}</span></div>`).join("")}
       </div>
       <div class="dash-grid">
         <div class="card chart-card">
-          <div class="chart-head"><h3>XP по неделям</h3><span class="chart-sub">последние 8 недель</span></div>
+          <div class="chart-head"><h3>${T("XP по неделям")}</h3><span class="chart-sub">${T("последние 8 недель")}</span></div>
           ${xpBarsSVG()}
         </div>
         <div class="card chart-card">
-          <div class="chart-head"><h3>Радар навыков</h3><span class="chart-sub">% прохождения курсов</span></div>
+          <div class="chart-head"><h3>${T("Радар навыков")}</h3><span class="chart-sub">${T("% прохождения курсов")}</span></div>
           ${radarSVG()}
         </div>
         <div class="card chart-card wide">
-          <div class="chart-head"><h3>Календарь активности</h3><span class="chart-sub">последние 12 недель</span></div>
+          <div class="chart-head"><h3>${T("Календарь активности")}</h3><span class="chart-sub">${T("последние 12 недель")}</span></div>
           ${heatmapSVG()}
         </div>
         ${weak.length ? `
         <div class="card chart-card wide">
-          <div class="chart-head"><h3>Слабые места</h3><span class="chart-sub">где чаще ошибки — стоит повторить</span></div>
+          <div class="chart-head"><h3>${T("Слабые места")}</h3><span class="chart-sub">${T("где чаще ошибки — стоит повторить")}</span></div>
           <div class="weak-list">
             ${weak.map((w) => `<div class="weak-row" onclick="App.go('course',{courseId:'${w.course.id}'})">
               <span class="cpl-ic" style="color:${w.course.color}">${Icon.course(w.course.id)}</span>
               <span class="weak-name">${w.course.title}</span>
-              <span class="weak-count">${w.wrong} ошибок</span>
+              <span class="weak-count">${w.wrong} ${T("ошибок")}</span>
             </div>`).join("")}
           </div>
         </div>` : ""}
@@ -1723,7 +1725,7 @@ const App = (() => {
     const s = Progress.overallStats();
     root().innerHTML = `
       <section class="section">
-        <div class="page-title"><h1>Профиль и прогресс</h1></div>
+        <div class="page-title"><h1>${T("Профиль и прогресс")}</h1></div>
 
         <div class="profile-top card">
           <div class="pt-level">
@@ -1732,17 +1734,17 @@ const App = (() => {
             </div>
           </div>
           <div class="pt-stats">
-            <div class="ps"><b>${s.xp}</b><span>всего XP</span></div>
-            <div class="ps"><b>${s.tasksDone}/${s.tasksTotal}</b><span>заданий</span></div>
-            <div class="ps"><b>${s.coursesDone}/${s.coursesTotal}</b><span>курсов пройдено</span></div>
-            <div class="ps"><b>${s.streak}</b><span>дней подряд</span></div>
+            <div class="ps"><b>${s.xp}</b><span>${T("всего XP")}</span></div>
+            <div class="ps"><b>${s.tasksDone}/${s.tasksTotal}</b><span>${T("заданий")}</span></div>
+            <div class="ps"><b>${s.coursesDone}/${s.coursesTotal}</b><span>${T("курсов пройдено")}</span></div>
+            <div class="ps"><b>${s.streak}</b><span>${T("дней подряд")}</span></div>
           </div>
           <button class="btn btn-ghost btn-sm pt-share" onclick="App.shareCard()">${Icon.ui("progress")} Поделиться карточкой</button>
         </div>
 
         ${dashboardSection()}
 
-        <h2 class="rooms-title">Прогресс по курсам</h2>
+        <h2 class="rooms-title">${T("Прогресс по курсам")}</h2>
         <div class="course-progress-list">
           ${COURSES.map((c) => {
             const p = Progress.courseProgress(c);
@@ -1756,7 +1758,7 @@ const App = (() => {
           }).join("")}
         </div>
 
-        <h2 class="rooms-title">Достижения (${s.achievements}/${s.achievementsTotal})</h2>
+        <h2 class="rooms-title">${T("Достижения")} (${s.achievements}/${s.achievementsTotal})</h2>
         <div class="ach-grid">
           ${ACHIEVEMENTS.map((a) => {
             const got = Progress.hasAchievement(a.id);
@@ -1768,7 +1770,7 @@ const App = (() => {
           }).join("")}
         </div>
 
-        <h2 class="rooms-title">Данные и синхронизация</h2>
+        <h2 class="rooms-title">${T("Данные и синхронизация")}</h2>
         <div class="data-zone card">
           <div>
             <h3>Перенос прогресса</h3>
@@ -2008,9 +2010,14 @@ const App = (() => {
     toggleTheme._t = setTimeout(() => root.classList.remove("theme-anim"), 360);
   }
 
+  function toggleLang() {
+    if (window.I18N) { I18N.toggle(); render(); }
+  }
+
   /* ---------- Инициализация ---------- */
   function init() {
     applyTheme(currentTheme());
+    if (window.I18N) I18N.apply(I18N.get());
     Progress.trackVisit();
     window.addEventListener("hashchange", () => {
       current = parseHash();
@@ -2095,8 +2102,9 @@ const App = (() => {
     submitChoice, submitMatch, orderPick, orderReset, submitDaily,
     submitMission, toggleShell, openShortcuts, closeShortcuts,
     glossarySearch, submitExam, retryExam, openPalette, palettePick, installApp,
-    reviewChoose, reviewCheck, reviewNext, shareCard, saveDraft,
+    reviewChoose, reviewCheck, reviewNext, shareCard, saveDraft, toggleLang,
   };
 })();
 
+try { window.App = App; } catch (e) {}
 document.addEventListener("DOMContentLoaded", App.init);
