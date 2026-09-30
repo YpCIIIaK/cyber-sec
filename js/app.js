@@ -22,6 +22,7 @@ const Progress = (() => {
     activeDays: {},       // 'YYYY-MM-DD' -> суммарный XP за день (для календаря)
     attempts: {},         // taskId -> { c: верных, w: неверных }
     srs: {},              // taskId -> { box, due(dayIndex), reps, lapses }
+    drafts: {},           // taskId -> черновик ответа (сохранённый ввод)
     createdAt: Date.now(),
   };
   const SRS_INTERVALS = [0, 1, 2, 4, 8, 16]; // дни по номеру box (1..5)
@@ -89,6 +90,7 @@ const Progress = (() => {
     const gained = effectivePoints(task);
     state.completed[task.id] = true;
     state.earned[task.id] = gained;
+    if (state.drafts) delete state.drafts[task.id];
 
     const events = { xpGained: gained, newAchievements: [] };
     if (Object.keys(state.completed).length === 1) tryAch("first_blood", events);
@@ -280,6 +282,15 @@ const Progress = (() => {
   }
 
   /* ---------- Попытки / точность ---------- */
+  /* ---------- Черновики ответов ---------- */
+  function getDraft(taskId) { return (state.drafts && state.drafts[taskId]) || ""; }
+  function setDraft(taskId, val) {
+    if (!state.drafts) state.drafts = {};
+    if (val) state.drafts[taskId] = val; else delete state.drafts[taskId];
+    save();
+  }
+  function clearDraft(taskId) { if (state.drafts) { delete state.drafts[taskId]; save(); } }
+
   function recordAttempt(taskId, ok) {
     if (!state.attempts) state.attempts = {};
     const a = state.attempts[taskId] || { c: 0, w: 0 };
@@ -391,6 +402,7 @@ const Progress = (() => {
     missionDone, completeMission,
     examPassed, examBest, recordExam,
     recordAttempt, accuracyOverall, taskInfo,
+    getDraft, setDraft, clearDraft,
     srsEnsure, srsDueList, srsDueCount, srsTotal, srsReview, srsEligible,
     weakTasks, weakCourses, xpByWeek, activityMap, skillRadar,
     _state: () => state,
@@ -453,6 +465,7 @@ const App = (() => {
   }
 
   /* ---------- Рендер шапки/навигации ---------- */
+  let displayedXP = null;
   function renderNav() {
     const s = Progress.overallStats();
     const nav = document.getElementById("nav-stats");
@@ -466,7 +479,44 @@ const App = (() => {
         </div>
         ${s.streak > 0 ? `<span class="streak" title="Серия дней подряд">${Icon.ui("flame")}${s.streak}</span>` : ""}
       `;
+      displayedXP = s.xp;
     }
+  }
+
+  // Плавный счётчик XP в шапке (count-up + заполнение мини-бара)
+  function animateXP(toXP) {
+    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const from = displayedXP == null ? toXP : displayedXP;
+    if (reduce || from === toXP) { renderNav(); return; }
+    const el = document.querySelector(".xp-text");
+    const bar = document.querySelector(".xp-bar-mini span");
+    const start = performance.now(), dur = 750;
+    (function frame(t) {
+      const p = Math.min(1, (t - start) / dur), e = 1 - Math.pow(1 - p, 3);
+      const val = Math.round(from + (toXP - from) * e);
+      if (el) el.textContent = val + " XP";
+      if (bar) bar.style.width = (val % 100) + "%";
+      displayedXP = val;
+      if (p < 1) requestAnimationFrame(frame);
+      else renderNav();
+    })(start);
+  }
+
+  // Летящий «+N XP»
+  function flyXP(amount) {
+    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) return;
+    const el = document.createElement("div");
+    el.className = "xp-fly";
+    el.textContent = "+" + amount + " XP";
+    const target = document.querySelector(".nav-xp");
+    if (target) {
+      const r = target.getBoundingClientRect();
+      el.style.left = r.left + r.width / 2 + "px";
+      el.style.top = r.bottom + 6 + "px";
+    } else { el.style.right = "24px"; el.style.top = "64px"; }
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1150);
   }
 
   /* ---------- Виды ---------- */
@@ -1016,6 +1066,8 @@ const App = (() => {
         return `
           <div class="answer-row">
             <input type="text" id="ans-${tid}" placeholder="${task.type === "flag" ? "CYBER{...}" : "Ваш ответ"}"
+                   value="${escapeAttr(Progress.getDraft(tid))}"
+                   oninput="App.saveDraft('${tid}',this.value)"
                    onkeydown="if(event.key==='Enter')App.submit('${cid}','${tid}')">
             <button class="btn btn-primary btn-sm" onclick="App.submit('${cid}','${tid}')">Проверить</button>
           </div>
@@ -1786,6 +1838,7 @@ const App = (() => {
   function markInfo(courseId, taskId) {
     solveTask(courseId, taskId);
   }
+  function saveDraft(taskId, val) { Progress.setDraft(taskId, val); }
 
   // Общий путь «задание решено»
   function findTask(courseId, taskId) {
@@ -1863,12 +1916,12 @@ const App = (() => {
 
   function celebrate(res) {
     if (!res || res.already) return;
-    if (res.xpGained) toast(`+${res.xpGained} XP`);
+    if (res.xpGained) { flyXP(res.xpGained); animateXP(Progress.overallStats().xp); }
+    else renderNav();
     if (res.levelUp) { toast(`🎉 Новый уровень: ${res.levelUp}!`); confetti(); }
     if (res.newRank) toast(`${res.newRank.icon} Новое звание: ${res.newRank.name}`);
     if (res.courseDone) confetti();
     (res.newAchievements || []).forEach((id) => toastAchievement(id));
-    renderNav();
   }
 
   /* ---------- Конфетти (без библиотек) ---------- */
@@ -1948,7 +2001,11 @@ const App = (() => {
   function toggleTheme() {
     const next = currentTheme() === "dark" ? "light" : "dark";
     try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+    const root = document.documentElement;
+    root.classList.add("theme-anim");
     applyTheme(next);
+    clearTimeout(toggleTheme._t);
+    toggleTheme._t = setTimeout(() => root.classList.remove("theme-anim"), 360);
   }
 
   /* ---------- Инициализация ---------- */
@@ -2038,7 +2095,7 @@ const App = (() => {
     submitChoice, submitMatch, orderPick, orderReset, submitDaily,
     submitMission, toggleShell, openShortcuts, closeShortcuts,
     glossarySearch, submitExam, retryExam, openPalette, palettePick, installApp,
-    reviewChoose, reviewCheck, reviewNext, shareCard,
+    reviewChoose, reviewCheck, reviewNext, shareCard, saveDraft,
   };
 })();
 

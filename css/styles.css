@@ -745,6 +745,21 @@ main { min-height: 72vh; }
 /* ---------- Confetti ---------- */
 .confetti-canvas { position: fixed; inset: 0; z-index: 180; pointer-events: none; }
 
+/* ---------- Летящий +XP ---------- */
+.xp-fly {
+  position: fixed; z-index: 190; transform: translate(-50%, 0);
+  background: var(--o-500); color: #fff; font-weight: 800; font-size: .82rem;
+  padding: 5px 12px; border-radius: 20px; box-shadow: var(--sh-o); pointer-events: none;
+  opacity: 0; animation: xpFly 1.05s cubic-bezier(.2,.7,.2,1) forwards;
+}
+@keyframes xpFly {
+  0% { opacity: 0; transform: translate(-50%, 6px) scale(.9); }
+  20% { opacity: 1; transform: translate(-50%, -4px) scale(1.05); }
+  75% { opacity: 1; transform: translate(-50%, -34px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -52px) scale(.96); }
+}
+:root[data-theme="dark"] .xp-fly { color: #14110d; }
+
 /* ---------- Glossary ---------- */
 .gloss-list { display: flex; flex-direction: column; gap: 26px; }
 .gloss-cat-title { font-size: 1.05rem; color: var(--o-700); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
@@ -893,6 +908,11 @@ main { min-height: 72vh; }
   .gloss-grid { grid-template-columns: 1fr; }
   .exam-verdict { flex-direction: column; text-align: center; }
   .cert-card, .continue-card, .data-zone, .danger-zone { flex-direction: column; align-items: flex-start; }
+}
+
+/* Плавная смена темы (включается на время переключения) */
+html.theme-anim, html.theme-anim * {
+  transition: background-color .32s ease, border-color .32s ease, color .32s ease, fill .32s ease !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
