@@ -1336,41 +1336,122 @@ const COURSES = [
         id: "osint_intro",
         title: "Что такое OSINT",
         intro: `
-<h3>Информация вокруг нас</h3>
-<p><b>OSINT</b> (Open Source Intelligence) — сбор и анализ публично доступных данных. Применяется в расследованиях, журналистике, оценке приватности и защите бренда.</p>
-<ul>
-  <li>Соцсети, форумы, регистрационные базы.</li>
-  <li>Метаданные файлов (EXIF в фото — GPS, модель камеры!).</li>
-  <li>Архивы (Wayback Machine), утёкшие базы (проверка себя на HIBP).</li>
+<h3>Разведка по открытым источникам</h3>
+<p><b>OSINT</b> (Open Source Intelligence) — сбор и анализ <b>публично доступной</b> информации. Никакого взлома: всё, что нужно, уже лежит в открытом доступе — соцсети, реестры, метаданные, архивы. Этим пользуются следователи, журналисты-расследователи, HR, маркетологи и, конечно, атакующие на этапе разведки.</p>
+
+<h3>Цикл разведки</h3>
+<ul class="tl">
+  <li><b>Постановка задачи</b> — что именно ищем и зачем.</li>
+  <li><b>Сбор</b> — из открытых источников.</li>
+  <li><b>Обработка</b> — отсеять мусор, структурировать.</li>
+  <li><b>Анализ</b> — связать факты, сделать выводы.</li>
+  <li><b>Отчёт</b> — оформить результат.</li>
 </ul>
-<div class="callout">🕵️ Этично: только публичные данные, уважение к приватности, без взлома.</div>
+
+<h3>Где искать</h3>
+<table>
+  <thead><tr><th>Источник</th><th>Что даёт</th></tr></thead>
+  <tbody>
+    <tr><td>Соцсети, форумы</td><td>Контакты, связи, привычки, геометки</td></tr>
+    <tr><td>Метаданные файлов (EXIF)</td><td>GPS съёмки, модель камеры, автор</td></tr>
+    <tr><td>Архивы (Wayback Machine)</td><td>Удалённые версии страниц</td></tr>
+    <tr><td>Реестры, WHOIS</td><td>Владельцы доменов, компаний</td></tr>
+    <tr><td>Утечки (HIBP)</td><td>Попадал ли email в известные дампы</td></tr>
+  </tbody>
+</table>
+<div class="callout warn">⚠️ OSINT — палка о двух концах. Та же техника, которой расследователь находит мошенника, используется для слежки и подготовки фишинга. Поэтому важно понимать и защиту своей приватности.</div>
+<div class="callout">🕵️ Этика: только публичные данные, без взлома и обмана для получения доступа. Уважение к приватности — часть профессии.</div>
 `,
         tasks: [
-          { id: "os_read", type: "info", title: "Изучить OSINT", prompt: "Прочитайте вступление.", points: 5 },
+          { id: "os_read", type: "info", title: "Изучить OSINT", prompt: "Прочитайте о сути OSINT, цикле разведки и источниках.", points: 5 },
           { id: "os_abbr", type: "question", title: "Расшифровка", prompt: "Как расшифровывается OSINT — первое слово? (англ.)", answers: ["open"], hints: ["Open Source Intelligence."], points: 10 },
           { id: "os_exif", type: "question", title: "Данные в фото", prompt: "Как называются метаданные внутри фотографий (GPS, камера)? (англ., 4 буквы)", answers: ["exif"], hints: ["Exchangeable Image File Format."], points: 15 },
+          { id: "os_archive", type: "question", title: "Удалённые страницы", prompt: "Как называется архив, где можно посмотреть старые версии сайтов? (2 слова, англ., Wayback ...)", answers: ["wayback machine", "wayback", "web archive"], hints: ["Wayback ..."], points: 15 },
+          { id: "os_hibp", type: "question", title: "Проверка утечек", prompt: "Аббревиатура сервиса проверки утечки своего email (4 буквы, англ.)?", answers: ["hibp"], hints: ["Have I Been Pwned."], points: 15 },
+          { id: "os_ethics", type: "choice", title: "Что НЕ является OSINT", prompt: "Что из этого выходит за рамки OSINT (это уже не «открытые источники»)?", options: ["Подбор пароля к чужой почте", "Чтение публичного профиля", "Просмотр EXIF выложенного фото", "Поиск в Google"], answers: ["Подбор пароля к чужой почте"], points: 15 },
           { id: "osi_lab", type: "lab", lab: "exif", title: "Лаборатория: геолокация по EXIF", prompt: "Определите место съёмки фото по метаданным.", points: 25 },
         ],
       },
       {
         id: "search_ops",
-        title: "Поисковые операторы",
+        title: "Поисковые операторы (Google Dorking)",
         intro: `
-<h3>Google Dorking для защитников</h3>
-<p>Операторы сужают поиск и помогают найти случайно открытые данные (чтобы вы могли их закрыть!):</p>
+<h3>Поиск как профессионал</h3>
+<p>Обычный поиск находит очевидное. <b>Операторы</b> (дорки) превращают Google в точный инструмент — и находят то, что случайно оказалось в открытом доступе. Защитники используют их, чтобы найти и <i>закрыть</i> утечки у себя.</p>
+
+<h3>Основные операторы</h3>
+<table>
+  <thead><tr><th>Оператор</th><th>Что делает</th><th>Пример</th></tr></thead>
+  <tbody>
+    <tr><td><code>site:</code></td><td>В пределах домена</td><td><code>site:example.com</code></td></tr>
+    <tr><td><code>filetype:</code></td><td>Тип файла</td><td><code>filetype:xlsx</code></td></tr>
+    <tr><td><code>intitle:</code></td><td>Слово в заголовке</td><td><code>intitle:"index of"</code></td></tr>
+    <tr><td><code>inurl:</code></td><td>Слово в URL</td><td><code>inurl:admin</code></td></tr>
+    <tr><td><code>"фраза"</code></td><td>Точное совпадение</td><td><code>"внутренний документ"</code></td></tr>
+    <tr><td><code>-слово</code></td><td>Исключить</td><td><code>отчёт -реклама</code></td></tr>
+  </tbody>
+</table>
+<p>Комбинируют: <code>site:example.com filetype:pdf "конфиденциально"</code> — ищет конфиденциальные PDF на конкретном сайте.</p>
+
+<h3>За пределами Google</h3>
 <ul>
-  <li><code>site:</code> — в пределах домена.</li>
-  <li><code>filetype:</code> — тип файла (pdf, xls).</li>
-  <li><code>intitle:</code> / <code>inurl:</code> — в заголовке/URL.</li>
-  <li><code>"точная фраза"</code>, <code>-минус</code> для исключения.</li>
+  <li><b>Shodan</b> — «поисковик по устройствам»: находит открытые в интернет камеры, базы, промышленные системы.</li>
+  <li><b>Reverse image search</b> (Google Lens, Yandex) — поиск по картинке: где ещё встречается фото.</li>
+  <li><b>crt.sh</b> — поиск поддоменов по журналам сертификатов.</li>
 </ul>
-<div class="callout">🛡️ Проверьте свой сайт: <code>site:вашдомен filetype:xlsx</code> — вдруг что-то лишнее в индексе.</div>
+<div class="callout">🛡️ Проверьте свой сайт: <code>site:вашдомен filetype:xlsx</code> или <code>filetype:env</code> — вдруг в индексе лишнее. Нашли — закройте доступ.</div>
 `,
         tasks: [
-          { id: "so_read", type: "info", title: "Изучить операторы", prompt: "Прочитайте про дорки.", points: 5 },
+          { id: "so_read", type: "info", title: "Изучить операторы", prompt: "Прочитайте про дорки и специальные поисковики.", points: 5 },
           { id: "so_site", type: "question", title: "Ограничить доменом", prompt: "Какой оператор ограничивает поиск сайтом? (с двоеточием)", answers: ["site:"], hints: ["site двоеточие."], points: 10 },
           { id: "so_filetype", type: "question", title: "Найти PDF", prompt: "Какой оператор ищет по типу файла? (с двоеточием)", answers: ["filetype:"], hints: ["file..."], points: 10 },
+          { id: "so_intitle", type: "question", title: "Слово в заголовке", prompt: "Какой оператор ищет слово в заголовке страницы (находит открытые листинги)? (с двоеточием)", answers: ["intitle:"], hints: ["in + title"], points: 15 },
+          { id: "so_shodan", type: "question", title: "Поисковик по устройствам", prompt: "Как называется поисковик, индексирующий открытые в интернет устройства и сервисы? (англ., 1 слово)", answers: ["shodan"], hints: ["Sho..."], points: 15 },
           { id: "so_hibp", type: "question", title: "Проверка утечек", prompt: "Аббревиатура сервиса проверки утечки своего email (4 буквы, англ.)?", answers: ["hibp"], hints: ["Have I Been Pwned."], points: 15 },
+        ],
+      },
+      {
+        id: "osint_people",
+        title: "Поиск людей, гео и верификация",
+        intro: `
+<h3>Как по крупицам собирают профиль</h3>
+<p>OSINT о человеке — это не один «супер-источник», а связывание мелких следов: один и тот же ник на разных сайтах, фото с геометкой, стиль постов, переиспользованный аватар. Понимая это, вы и расследуете, и защищаете собственную приватность.</p>
+
+<h3>Поиск по нику и аккаунтам</h3>
+<ul>
+  <li><b>Username enumeration</b> — люди любят один ник везде. Инструменты вроде Sherlock проверяют сотни сайтов разом.</li>
+  <li><b>Email → аккаунты</b> — по адресу находят привязанные профили и утечки.</li>
+  <li><b>Переиспользованный аватар</b> — reverse image search связывает «анонимные» аккаунты.</li>
+</ul>
+
+<h3>Геолокация и хронолокация</h3>
+<ul class="tl">
+  <li><b>EXIF-GPS</b> — самый быстрый способ, если метаданные не вырезаны.</li>
+  <li><b>Геолокация по кадру</b> — вывески, таблички, архитектура, горы на фоне.</li>
+  <li><b>Хронолокация</b> — определить <i>время</i> по теням, погоде, событиям в кадре.</li>
+  <li><b>Reverse image search</b> — найти оригинал и первоисточник фото.</li>
+</ul>
+
+<h3>Верификация: не верь, проверяй</h3>
+<p>Главный навык OSINT — <b>проверка подлинности</b>. Фото может быть старым, из другого места или сгенерированным. Проверяют: когда впервые появилось (reverse search), совпадают ли детали, есть ли независимые подтверждения.</p>
+<div class="callout warn">⚠️ <b>Sock puppet</b> — отдельный «чистый» аккаунт для исследований, не связанный с вашей личностью. Исследовать с личного профиля — выдать себя и нарушить OPSEC.</div>
+
+<h3>Защита своей приватности</h3>
+<ul>
+  <li>Вырезайте EXIF перед публикацией фото (соцсети часто делают это сами, но не всегда).</li>
+  <li>Разные ники/аватары для разных сфер жизни.</li>
+  <li>Проверьте себя: загуглите своё имя и email, посмотрите, что в открытом доступе.</li>
+  <li>Закрытые профили, минимум геометок в реальном времени.</li>
+</ul>
+<div class="callout">🛡️ Лучшая защита от OSINT против вас — думать как OSINT-исследователь и регулярно «пробивать» самого себя.</div>
+`,
+        tasks: [
+          { id: "op_read", type: "info", title: "Изучить поиск людей", prompt: "Прочитайте о поиске по нику, геолокации и верификации.", points: 5 },
+          { id: "op_username", type: "question", title: "Один ник везде", prompt: "Как называется поиск одного и того же никнейма по множеству сайтов? (2 слова, англ.)", answers: ["username enumeration", "username search"], hints: ["Username ..."], points: 15 },
+          { id: "op_reverse", type: "question", title: "Поиск по картинке", prompt: "Как называется поиск, который по изображению находит, где оно ещё встречается? (2 слова, англ., reverse ...)", answers: ["reverse image search", "reverse image"], hints: ["Reverse image ..."], points: 15 },
+          { id: "op_chrono", type: "question", title: "Определить время", prompt: "Как называется определение времени съёмки по теням/погоде/событиям? (1 слово, рус.)", answers: ["хронолокация"], hints: ["Хроно = время."], points: 15 },
+          { id: "op_puppet", type: "question", title: "Чистый аккаунт", prompt: "Как называется отдельный аккаунт-«кукла» для исследований, не связанный с личностью? (2 слова, англ.)", answers: ["sock puppet", "sockpuppet", "puppet"], hints: ["Sock ..."], points: 15 },
+          { id: "op_privacy", type: "choice", title: "Защита приватности", prompt: "Что снижает риск геолокации по вашим фото?", options: ["Удалять EXIF перед публикацией", "Выкладывать больше фото", "Ставить один ник везде", "Включить геометки"], answers: ["Удалять EXIF перед публикацией"], points: 15 },
         ],
       },
     ],
@@ -1392,21 +1473,44 @@ const COURSES = [
         title: "Что такое Active Directory",
         intro: `
 <h3>Каталог всей организации</h3>
-<p><b>Active Directory (AD)</b> — служба каталогов Microsoft: централизованное управление пользователями, компьютерами и политиками в домене.</p>
+<p><b>Active Directory (AD)</b> — служба каталогов Microsoft, вокруг которой построено большинство корпоративных сетей. Она централизованно управляет пользователями, компьютерами, группами и политиками. Для атакующего AD — главная цель: взял контроллер домена — владеешь всей сетью. Для защитника — главный актив.</p>
+
+<h3>Структура</h3>
 <ul>
-  <li><b>Domain Controller (DC)</b> — сервер, хранящий базу AD и выполняющий аутентификацию.</li>
-  <li><b>OU</b> (Organizational Unit) — контейнеры для группировки объектов.</li>
-  <li><b>Kerberos</b> — основной протокол аутентификации в домене (тикеты TGT/TGS).</li>
-  <li><b>LDAP</b> — протокол запросов к каталогу.</li>
-  <li><b>GPO</b> — групповые политики, применяемые к объектам.</li>
+  <li><b>Лес (Forest)</b> — верхний уровень, одна или несколько доменных деревьев.</li>
+  <li><b>Домен</b> — логическая единица (<code>corp.local</code>) со своей базой.</li>
+  <li><b>OU</b> (Organizational Unit) — контейнеры для группировки объектов и применения политик.</li>
+  <li><b>Объекты</b> — пользователи, компьютеры, группы; у каждого уникальный <b>SID</b>.</li>
 </ul>
-<div class="callout">🔎 Понимание AD критично: большинство корпоративных сетей построено вокруг него.</div>
+
+<h3>Ключевые компоненты</h3>
+<table>
+  <thead><tr><th>Компонент</th><th>Роль</th></tr></thead>
+  <tbody>
+    <tr><td><b>Domain Controller (DC)</b></td><td>Сервер с базой AD, выполняет аутентификацию</td></tr>
+    <tr><td><b>Kerberos</b></td><td>Основной протокол аутентификации (билеты TGT/TGS)</td></tr>
+    <tr><td><b>LDAP</b></td><td>Протокол запросов к каталогу</td></tr>
+    <tr><td><b>GPO</b></td><td>Групповые политики — настройки на объекты</td></tr>
+    <tr><td><b>NTLM</b></td><td>Старый протокол аутентификации (по хешу), всё ещё встречается</td></tr>
+  </tbody>
+</table>
+
+<h3>Как работает вход по Kerberos (упрощённо)</h3>
+<ul class="tl">
+  <li>Пользователь входит → DC выдаёт <b>TGT</b> (билет на получение билетов).</li>
+  <li>Нужен доступ к сервису → с TGT запрашивается <b>TGS</b> (билет на сервис).</li>
+  <li>Сервис проверяет TGS и пускает. Пароль по сети не ходит — в этом сила Kerberos.</li>
+</ul>
+<div class="callout">🔎 Понимание AD критично: именно особенности Kerberos, NTLM и прав в домене порождают классические атаки — Kerberoasting, Pass-the-Hash, Golden Ticket.</div>
 `,
         tasks: [
-          { id: "ad_read", type: "info", title: "Изучить основы AD", prompt: "Прочитайте вступление.", points: 5 },
+          { id: "ad_read", type: "info", title: "Изучить основы AD", prompt: "Прочитайте о структуре и компонентах AD.", points: 5 },
           { id: "ad_dc", type: "question", title: "Сердце домена", prompt: "Как называется сервер, хранящий базу AD? (аббревиатура, 2 буквы)", answers: ["dc"], hints: ["Domain Controller."], points: 15 },
           { id: "ad_kerb", type: "question", title: "Аутентификация", prompt: "Основной протокол аутентификации в домене? (англ., одно слово)", answers: ["kerberos"], hints: ["Назван в честь трёхголового пса."], points: 15 },
           { id: "ad_ldap", type: "question", title: "Запросы к каталогу", prompt: "Протокол запросов к каталогу? (аббревиатура, 4 буквы)", answers: ["ldap"], hints: ["Lightweight Directory Access Protocol."], points: 15 },
+          { id: "ad_tgt", type: "question", title: "Главный билет", prompt: "Как называется билет Kerberos, который выдаётся при входе и нужен для получения других билетов? (аббревиатура, 3 буквы)", answers: ["tgt"], hints: ["Ticket Granting Ticket."], points: 15 },
+          { id: "ad_forest", type: "question", title: "Верхний уровень", prompt: "Как называется верхний уровень структуры AD, объединяющий домены? (1 слово, рус.)", answers: ["лес"], hints: ["Forest."], points: 10 },
+          { id: "ad_gpo", type: "question", title: "Политики", prompt: "Аббревиатура групповых политик в AD? (3 буквы, англ.)", answers: ["gpo"], hints: ["Group Policy Object."], points: 15 },
         ],
       },
       {
@@ -1414,20 +1518,35 @@ const COURSES = [
         title: "Разведка домена (легально)",
         intro: `
 <h3>Enumeration в рамках аудита</h3>
-<p>При авторизованном тесте собирают карту домена:</p>
-<ul>
-  <li><code>net user /domain</code> — пользователи домена.</li>
-  <li><code>net group "Domain Admins" /domain</code> — состав админов домена.</li>
-  <li><code>nltest /dclist:домен</code> — список контроллеров.</li>
-  <li>Инструменты: BloodHound (граф связей), PowerView.</li>
+<p>После доступа к любой доменной машине первым делом строят <b>карту домена</b>: кто есть кто, где админы, какие связи ведут к контроллеру. Это делают и пентестеры (по разрешению), и злоумышленники — поэтому защитникам важно знать эти приёмы, чтобы их замечать.</p>
+
+<h3>Команды разведки</h3>
+<table>
+  <thead><tr><th>Команда</th><th>Что показывает</th></tr></thead>
+  <tbody>
+    <tr><td><code>net user /domain</code></td><td>Пользователи домена</td></tr>
+    <tr><td><code>net group "Domain Admins" /domain</code></td><td>Состав админов домена</td></tr>
+    <tr><td><code>nltest /dclist:домен</code></td><td>Список контроллеров домена</td></tr>
+    <tr><td><code>setspn -Q */*</code></td><td>Сервисные учётки с SPN (цели Kerberoasting)</td></tr>
+  </tbody>
+</table>
+<p><b>Инструменты:</b> <b>BloodHound</b> строит граф связей и находит кратчайший путь к Domain Admin; <b>PowerView</b> — разведка из PowerShell.</p>
+
+<h3>Классические атаки на Kerberos</h3>
+<ul class="tl">
+  <li><b>Kerberoasting</b> — запросить TGS для сервисной учётки (с SPN) и офлайн подобрать её пароль. Защита: длинные пароли сервисных учёток, gMSA, AES.</li>
+  <li><b>AS-REP Roasting</b> — для учёток без преаутентификации Kerberos можно получить хеш без пароля.</li>
+  <li><b>Pass-the-Hash</b> — переиспользовать украденный NTLM-хеш без знания пароля.</li>
 </ul>
-<p>Известная техника: <b>Kerberoasting</b> — запрос TGS для сервисных аккаунтов и офлайн-подбор их паролей (защита — длинные пароли сервисных учёток и gMSA).</p>
-<div class="callout">🧪 В песочнице: <code>type Documents\\domain.txt</code> — там учебный флаг.</div>
+<div class="callout warn">⚠️ Массовые LDAP-запросы и запросы TGS для многих SPN — заметный след в логах. Именно по ним SOC ловит разведку и Kerberoasting (события 4769).</div>
+<div class="callout">🧪 В песочнице: <code>type Documents\\domain.txt</code> — там учебный флаг. Затем отработайте аудит в лаборатории ниже.</div>
 `,
         tasks: [
-          { id: "adr_read", type: "info", title: "Изучить разведку AD", prompt: "Прочитайте про enumeration.", points: 5 },
+          { id: "adr_read", type: "info", title: "Изучить разведку AD", prompt: "Прочитайте про enumeration и атаки на Kerberos.", points: 5 },
           { id: "adr_users", type: "question", title: "Пользователи домена", prompt: "Какая команда (3 слова) показывает пользователей домена?", answers: ["net user /domain"], hints: ["net user ...", "net user /domain"], points: 15 },
           { id: "adr_kerb", type: "question", title: "Атака на сервисы", prompt: "Как называется атака запроса TGS и офлайн-подбора паролей сервисных аккаунтов? (англ., одно слово)", answers: ["kerberoasting"], hints: ["Kerber..."], points: 20 },
+          { id: "adr_bh", type: "question", title: "Граф связей домена", prompt: "Какой инструмент строит граф путей к Domain Admin? (англ., 1 слово)", answers: ["bloodhound"], hints: ["Blood + hound"], points: 15 },
+          { id: "adr_spn", type: "question", title: "Что ищут для Kerberoasting", prompt: "Наличие какого атрибута у учётки делает её целью Kerberoasting? (аббревиатура, 3 буквы)", answers: ["spn"], hints: ["Service Principal Name."], points: 15 },
           { id: "adr_flag", type: "flag", title: "🚩 Флаг в песочнице", prompt: "Прочитайте файл Documents\\domain.txt в песочнице и введите флаг.", answers: ["CYBER{ad_recon_ok}"], hints: ["cd Documents, затем type domain.txt", "type Documents\\domain.txt"], points: 25, sandbox: true, caseSensitive: true },
           { id: "adr_lab", type: "lab", lab: "kerberoast", title: "Лаборатория: аудит Kerberoasting", prompt: "Найдите сервисные учётки, уязвимые к Kerberoasting.", points: 25 },
         ],
@@ -1437,19 +1556,44 @@ const COURSES = [
         title: "Защита Active Directory",
         intro: `
 <h3>Как усложнить жизнь атакующему</h3>
+<p>Домен нельзя сделать «неломаемым», но можно разорвать пути атаки и сделать разведку шумной. Защита AD строится на разделении прав, гигиене учёток и мониторинге.</p>
+
+<h3>Разделение привилегий (Tiering)</h3>
+<p>Модель уровней не даёт одной скомпрометированной учётке открыть весь домен:</p>
 <ul>
-  <li><b>Tiering</b> — разделение админ-уровней (Tier 0/1/2), чтобы админ рабочих станций не был админом DC.</li>
-  <li><b>LAPS</b> — уникальные случайные пароли локального администратора на каждой машине.</li>
-  <li>Мониторинг событий: 4624/4625 (входы), 4768/4769 (Kerberos-тикеты).</li>
-  <li>Защита от <b>Pass-the-Hash</b>: Credential Guard, ограничение RDP админов.</li>
+  <li><b>Tier 0</b> — контроллеры домена, админы домена (самое ценное).</li>
+  <li><b>Tier 1</b> — серверы и приложения.</li>
+  <li><b>Tier 2</b> — рабочие станции пользователей.</li>
 </ul>
-<div class="callout">🛡️ Минимум привилегий + мониторинг = основа безопасного домена.</div>
+<p>Админ рабочих станций <b>не должен</b> быть админом DC: иначе фишинг одного ноутбука = падение всего домена.</p>
+
+<h3>Гигиена учёток и защита от кражи</h3>
+<table>
+  <thead><tr><th>Мера</th><th>От чего защищает</th></tr></thead>
+  <tbody>
+    <tr><td><b>LAPS</b></td><td>Уникальный пароль локального админа → нет Pass-the-Hash по всей сети</td></tr>
+    <tr><td><b>Credential Guard</b></td><td>Изолирует хеши/билеты в памяти от кражи</td></tr>
+    <tr><td><b>gMSA + длинные пароли сервисных учёток</b></td><td>Kerberoasting становится бесполезным</td></tr>
+    <tr><td><b>Отключить NTLM где можно</b></td><td>Pass-the-Hash, relay-атаки</td></tr>
+  </tbody>
+</table>
+
+<h3>Мониторинг (события безопасности)</h3>
+<ul>
+  <li><b>4624 / 4625</b> — успешный / неудачный вход.</li>
+  <li><b>4768 / 4769</b> — выдача TGT / TGS (всплеск 4769 = Kerberoasting).</li>
+  <li><b>4672</b> — вход с админ-привилегиями.</li>
+</ul>
+<div class="callout">🛡️ Формула безопасного домена: минимум привилегий (tiering) + гигиена учёток (LAPS, gMSA) + мониторинг ключевых событий. Ни одна мера сама по себе не достаточна.</div>
 `,
         tasks: [
-          { id: "add_read", type: "info", title: "Изучить защиту AD", prompt: "Прочитайте о мерах защиты.", points: 5 },
+          { id: "add_read", type: "info", title: "Изучить защиту AD", prompt: "Прочитайте о tiering, гигиене учёток и мониторинге.", points: 5 },
           { id: "add_laps", type: "question", title: "Уникальные пароли админа", prompt: "Как называется решение для уникальных паролей локального админа? (аббревиатура, 4 буквы)", answers: ["laps"], hints: ["Local Administrator Password Solution."], points: 20 },
           { id: "add_pth", type: "question", title: "Кража хеша", prompt: "Атака, где похищенный NTLM-хеш переиспользуют без пароля? (2 слова через дефис, англ.)", answers: ["pass-the-hash", "pass the hash", "passthehash"], hints: ["Pass ... Hash"], points: 20 },
           { id: "add_admins", type: "question", title: "Группа админов домена", prompt: "Как называется группа с полным контролем над доменом? (2 слова, англ.)", answers: ["domain admins"], hints: ["Domain ..."], points: 15 },
+          { id: "add_tier", type: "question", title: "Самый защищённый уровень", prompt: "Какой Tier в модели уровней — это контроллеры и админы домена? (номер с словом Tier или просто номер)", answers: ["tier 0", "0", "tier0"], hints: ["Самый ценный уровень, нумерация с нуля."], points: 15 },
+          { id: "add_event", type: "question", title: "Событие Kerberoasting", prompt: "Всплеск какого события Windows (номер) указывает на Kerberoasting (выдача TGS)?", answers: ["4769"], hints: ["47xx, выдача TGS."], points: 15 },
+          { id: "add_cg", type: "choice", title: "Защита памяти", prompt: "Что изолирует хеши и билеты в памяти, мешая их краже?", options: ["Credential Guard", "BitLocker", "Defender Firewall", "UAC"], answers: ["Credential Guard"], points: 15 },
         ],
       },
     ],
