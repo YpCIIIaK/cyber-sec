@@ -1408,5 +1408,11 @@ a.crumb:hover { background: var(--o-50); color: var(--o-700); }
 .case-progress { height: 8px; border-radius: 20px; background: var(--bg-3); overflow: hidden; margin: 10px 0 6px; }
 .case-progress span { display: block; height: 100%; background: linear-gradient(90deg, var(--o-400), var(--o-600)); transition: width .4s; }
 .tool-pane .callout svg { width: 17px; height: 17px; vertical-align: -3px; margin-right: 4px; color: var(--o-600); }
+.flag-quest h3 svg { width: 18px; height: 18px; color: var(--o-600); vertical-align: -3px; }
+.flag-quest.done { border-color: var(--ok); }
+.flag-quest code { font-size: .86rem; }
+.dec-lbl { display: block; font-weight: 700; font-size: .82rem; color: var(--muted); margin: 12px 0 5px; }
+.dec-area { min-height: 110px; white-space: pre-wrap; word-break: break-all; }
+.dec-out { font-family: var(--mono); font-size: .84rem; line-height: 1.5; background: var(--bg-2); border: 1.5px solid var(--line); border-radius: 12px; padding: 14px; min-height: 48px; white-space: pre-wrap; word-break: break-all; color: var(--ink); margin: 0; }
 .case-step.ok { border-color: var(--ok); }
 @media (max-width: 560px) { .tool-area { min-height: 300px; } }

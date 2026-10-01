@@ -37,7 +37,20 @@
     { id: "case",     icon: "search",   ru: "Разбор инцидента",          en: "Investigation case",
       dru: "Пошаговое расследование: соберите улики и сопоставьте с ATT&CK.",
       den: "Step-by-step investigation: gather evidence and map it to ATT&CK." },
+    { id: "decoder",  icon: "code",     ru: "Декодер",                   en: "Decoder",
+      dru: "Base64 / Hex / URL / ROT13 — расшифруйте закодированные строки и флаги.",
+      den: "Base64 / Hex / URL / ROT13 — decode encoded strings and flags." },
   ];
+
+  // Флаги, спрятанные в данных инструментов (нужно найти/декодировать)
+  const FLAGS = {
+    headers:  "CYBER{reply_to_tells_all}",
+    events:   "CYBER{enc_powershell_logon}",
+    pcap:     "CYBER{sixty_second_beacon}",
+    procs:    "CYBER{run_key_persistence}",
+    firewall: "CYBER{default_deny_wins}",
+    case:     "CYBER{full_kill_chain}",
+  };
 
   /* =======================================================================
      Точка входа
@@ -95,6 +108,7 @@
     else if (id === "firewall") renderFirewall(head);
     else if (id === "attack") renderAttack(head);
     else if (id === "case") renderCase(head);
+    else if (id === "decoder") renderDecoder(head);
   }
 
   function solved(key, xp) {
@@ -105,6 +119,40 @@
   function badge(key, label) {
     return api.Progress.bonusDone(key)
       ? `<span class="tool-done">${api.icon("check")} ${label || T("Решено")}</span>` : "";
+  }
+
+  // --- Общий блок флаг-квеста ---
+  function flagKey(tool) { return "flag_" + tool; }
+  function flagQuest(tool, hintRu, hintEn, revealKey) {
+    const key = flagKey(tool);
+    const done = api.Progress.bonusDone(key);
+    const reveal = revealKey && api.Progress.bonusDone(revealKey);
+    return `
+      <div class="tool-pane card flag-quest ${done ? "done" : ""}">
+        <h3>${api.icon("flag")} ${T("Квест: найдите флаг")} ${badge(key, T("Флаг найден"))}</h3>
+        ${done
+          ? `<p class="tool-hint">${T("Флаг")}: <code>${esc(FLAGS[tool])}</code></p>`
+          : `<p>${T("Найдите скрытый флаг формата")} <code>CYBER{...}</code>.</p>
+             <div class="tool-row">
+               <input id="flag-${tool}" class="tool-input" placeholder="CYBER{...}" value="${reveal ? esc(FLAGS[tool]) : ""}" onkeydown="if(event.key==='Enter')Toolkit.flagSubmit('${tool}')">
+               <button class="btn btn-primary btn-sm" onclick="Toolkit.flagSubmit('${tool}')">${T("Сдать флаг")}</button>
+             </div>
+             <div id="flag-fb-${tool}" class="feedback"></div>
+             <p class="tool-hint">${reveal ? T("Задание решено — флаг раскрыт, сдайте его.") : L(hintRu, hintEn)}</p>`}
+      </div>`;
+  }
+  function flagSubmit(tool) {
+    const el = document.getElementById("flag-" + tool);
+    const fb = document.getElementById("flag-fb-" + tool);
+    const v = (el ? el.value : "").trim();
+    if (v === FLAGS[tool]) {
+      const key = flagKey(tool);
+      if (api.award(100, key, "flags")) { renderTool(tool); return; }
+      if (fb) fb.innerHTML = `<span class="fb-ok">${T("Верно!")}</span>`;
+    } else if (fb) {
+      fb.innerHTML = v ? `<span class="fb-err">${T("Неверный флаг. Проверьте формат CYBER{...} и декодирование.")}</span>`
+                       : `<span class="fb-warn">${T("Введите флаг")}</span>`;
+    }
   }
 
   /* =======================================================================
@@ -168,7 +216,27 @@ From: "CEO Partner-Corp" <ceo@partner-corp.com>
 Return-Path: <ceo@partner-corp.com>
 Reply-To: <ceo.partnercorp@gmail.com>
 Subject: Urgent wire transfer — confidential
+X-Forwarded-Token: Q1lCRVJ7cmVwbHlfdG9fdGVsbHNfYWxsfQ==
 Message-ID: <c99a@partner-corp.com>`,
+    },
+    {
+      id: "homograph",
+      ru: "Фишинг: домен-двойник",
+      en: "Phishing: lookalike domain",
+      verdict: "fail",
+      text:
+`Delivered-To: ivan@company.ru
+Received: from srv18.maiil-paypaI.com (45.9.148.77)
+ by mx.company.ru with ESMTPS; Tue, 30 Sep 2025 13:05:19 +0300
+Authentication-Results: mx.company.ru;
+ spf=pass (sender IP is 45.9.148.77) smtp.mailfrom=service@maiil-paypaI.com;
+ dkim=pass header.d=maiil-paypaI.com;
+ dmarc=fail (p=none) header.from=paypal.com
+From: "PayPal Service" <service@paypal.com>
+Return-Path: <service@maiil-paypaI.com>
+Reply-To: <service@maiil-paypaI.com>
+Subject: We limited your account — confirm now
+Message-ID: <d4e1@maiil-paypaI.com>`,
     },
   ];
 
@@ -194,12 +262,15 @@ Message-ID: <c99a@partner-corp.com>`,
         </div>
         <div class="tool-pane card">
           <h3>${T("Задание")} ${badge("hdr_task")}</h3>
-          <p>${T("Разберите все три образца. Для какого из них вердикт — «пройдено» (не фишинг)?")}</p>
+          <p>${T("Разберите все образцы. Для какого из них вердикт — «пройдено» (не фишинг)?")}</p>
           <div class="quiz-opts">
             ${MAIL_SAMPLES.map((s) => `<button class="quiz-opt" onclick="Toolkit.mailAnswer('${s.id}')">${L(s.ru, s.en)}</button>`).join("")}
           </div>
           <div id="mail-fb" class="feedback"></div>
         </div>
+        ${flagQuest("headers",
+          "В образце «BEC» есть заголовок X-Forwarded-Token с Base64. Декодируйте его (инструмент «Декодер») — внутри флаг.",
+          "The “BEC” sample has an X-Forwarded-Token header in Base64. Decode it (the “Decoder” tool) — the flag is inside.")}
       </section>`;
     if (state.mailAnalyzed) mailAnalyze();
   }
@@ -286,8 +357,11 @@ Message-ID: <c99a@partner-corp.com>`,
     { id: 6, t: "02:14:09", eid: 4625, lvl: "warn", ru: "Отказ входа — неверный пароль", en: "Failed logon — bad password", who: "COMPANY\\administrator", ip: "185.212.47.19" },
     { id: 7, t: "02:14:12", eid: 4624, lvl: "crit", ru: "Успешный вход (Logon Type 3, по сети)", en: "Successful logon (Logon Type 3, network)", who: "COMPANY\\administrator", ip: "185.212.47.19" },
     { id: 8, t: "02:14:40", eid: 4672, lvl: "crit", ru: "Назначены привилегии администратора", en: "Admin privileges assigned", who: "COMPANY\\administrator", ip: "185.212.47.19" },
-    { id: 9, t: "02:15:02", eid: 4688, lvl: "warn", ru: "Запущен процесс: powershell.exe -enc …", en: "Process created: powershell.exe -enc …", who: "COMPANY\\administrator", ip: "-" },
-    { id: 10, t: "08:30:00", eid: 4634, lvl: "info", ru: "Выход из системы", en: "Logoff", who: "COMPANY\\maria", ip: "-" },
+    { id: 9, t: "02:15:02", eid: 4688, lvl: "warn", ru: "Запущен процесс: powershell.exe -enc Q1lCRVJ7ZW5jX3Bvd2Vyc2hlbGxfbG9nb259", en: "Process created: powershell.exe -enc Q1lCRVJ7ZW5jX3Bvd2Vyc2hlbGxfbG9nb259", who: "COMPANY\\administrator", ip: "-" },
+    { id: 10, t: "02:15:40", eid: 4720, lvl: "crit", ru: "Создана учётная запись: COMPANY\\svc_backup", en: "User account created: COMPANY\\svc_backup", who: "COMPANY\\administrator", ip: "-" },
+    { id: 11, t: "02:16:05", eid: 4698, lvl: "warn", ru: "Создана задача планировщика: \\Updater", en: "Scheduled task created: \\Updater", who: "COMPANY\\administrator", ip: "-" },
+    { id: 12, t: "02:17:22", eid: 1102, lvl: "crit", ru: "Журнал безопасности очищен", en: "Security audit log cleared", who: "COMPANY\\administrator", ip: "-" },
+    { id: 13, t: "08:30:00", eid: 4634, lvl: "info", ru: "Выход из системы", en: "Logoff", who: "COMPANY\\maria", ip: "-" },
   ];
 
   function renderEvents(head) {
@@ -329,6 +403,9 @@ Message-ID: <c99a@partner-corp.com>`,
           <div id="ev-fb" class="feedback"></div>
           <p class="tool-hint">${T("Подсказка: ищите серию 4625 подряд, за которой идёт 4624 с той же учётки и IP, ночью.")}</p>
         </div>
+        ${flagQuest("events",
+          "Событие 4688 запускает powershell.exe -enc <Base64>. Декодируйте аргумент (инструмент «Декодер») — это и есть флаг.",
+          "Event 4688 runs powershell.exe -enc <Base64>. Decode the argument (the “Decoder” tool) — that's the flag.")}
       </section>`;
   }
   function evFilter(v) { state.evFilter = v; renderTool("events"); }
@@ -354,7 +431,10 @@ Message-ID: <c99a@partner-corp.com>`,
     { no: 7, t: "65.001", src: "10.0.0.15", dst: "185.212.47.19", proto: "HTTP", info: "GET /gate.php?id=WIN-7F3A HTTP/1.1" },
     { no: 8, t: "65.038", src: "185.212.47.19", dst: "10.0.0.15", proto: "HTTP", info: "200 OK (34 bytes)" },
     { no: 9, t: "125.002", src: "10.0.0.15", dst: "185.212.47.19", proto: "HTTP", info: "GET /gate.php?id=WIN-7F3A HTTP/1.1" },
-    { no: 10, t: "130.5", src: "10.0.0.15", dst: "8.8.8.8", proto: "DNS", info: "Standard query A time.nist.gov" },
+    { no: 10, t: "125.045", src: "185.212.47.19", dst: "10.0.0.15", proto: "HTTP", info: "200 OK  X-Task: Q1lCRVJ7c2l4dHlfc2Vjb25kX2JlYWNvbn0=" },
+    { no: 11, t: "130.5", src: "10.0.0.15", dst: "8.8.8.8", proto: "DNS", info: "Standard query A time.nist.gov" },
+    { no: 12, t: "185.004", src: "10.0.0.15", dst: "185.212.47.19", proto: "HTTP", info: "POST /gate.php (1024 bytes) — exfil chunk 1/8" },
+    { no: 13, t: "186.221", src: "10.0.0.15", dst: "10.0.0.1", proto: "DNS", info: "Standard query TXT YWJjZA.exfil.attacker-dns.io" },
   ];
 
   function renderPcap(head) {
@@ -387,6 +467,9 @@ Message-ID: <c99a@partner-corp.com>`,
           <div id="pk-fb" class="feedback"></div>
           <p class="tool-hint">${T("Признак beaconing: повторяющиеся запросы к /gate.php с одинаковым размером ответа и ровным интервалом.")}</p>
         </div>
+        ${flagQuest("pcap",
+          "В ответе 200 OK от C2 есть заголовок X-Task с Base64. Декодируйте его (инструмент «Декодер») — внутри флаг.",
+          "The C2's 200 OK response carries an X-Task header in Base64. Decode it (the “Decoder” tool) — the flag is inside.")}
       </section>`;
   }
   function pkFilter(v) { state.pkFilter = v; renderTool("pcap"); }
@@ -411,7 +494,7 @@ Message-ID: <c99a@partner-corp.com>`,
   ];
   const AUTORUNS = [
     { key: "HKCU\\...\\Run", name: "OneDrive", cmd: "C:\\Program Files\\Microsoft OneDrive\\OneDrive.exe /background", bad: false },
-    { key: "HKCU\\...\\Run", name: "Updater", cmd: "powershell -w hidden -enc JAB...", bad: true },
+    { key: "HKCU\\...\\Run", name: "Updater", cmd: "powershell -w hidden -enc Q1lCRVJ7cnVuX2tleV9wZXJzaXN0ZW5jZX0=", bad: true },
     { key: "HKLM\\...\\Run", name: "SecurityHealth", cmd: "C:\\Windows\\System32\\SecurityHealthSystray.exe", bad: false },
   ];
 
@@ -447,6 +530,9 @@ Message-ID: <c99a@partner-corp.com>`,
           <div id="pr-fb" class="feedback"></div>
           <p class="tool-hint">${T("Признаки: имя-двойник (svch0st), путь в AppData, запуск из PowerShell, нет подписи, скрытая -enc команда.")}</p>
         </div>
+        ${flagQuest("procs",
+          "Запись автозапуска «Updater» запускает powershell -enc <Base64>. Декодируйте аргумент (инструмент «Декодер») — это флаг.",
+          "The “Updater” autorun runs powershell -enc <Base64>. Decode the argument (the “Decoder” tool) — that's the flag.")}
       </section>`;
   }
   function procFlag(pid) {
@@ -490,6 +576,9 @@ Message-ID: <c99a@partner-corp.com>`,
           </div>
           <div id="fw-fb" class="feedback"></div>
         </div>
+        ${flagQuest("firewall",
+          "Соберите корректный набор правил и нажмите «Проверить набор» — флаг появится здесь.",
+          "Build the correct ruleset and click “Check ruleset” — the flag will appear here.", "fw_task")}
       </section>`;
   }
   function fwToggle(id, v) { state.fw[id] = v; }
@@ -583,6 +672,9 @@ Message-ID: <c99a@partner-corp.com>`,
           <p class="tool-hint">${done}/${total} ${T("шагов")} ${badge("case_task", T("Разобрано"))}</p>
         </div>
         ${CASE_STEPS.map((s, i) => caseStep(s, i)).join("")}
+        ${flagQuest("case",
+          "Пройдите все шаги расследования — флаг цепочки появится здесь.",
+          "Complete all investigation steps — the kill-chain flag will appear here.", "case_task")}
       </section>`;
   }
   function caseStep(s, i) {
@@ -607,6 +699,57 @@ Message-ID: <c99a@partner-corp.com>`,
     } else if (fb) fb.innerHTML = `<span class="fb-err">${T("Нет, сверьтесь с матрицей ATT&CK.")}</span>`;
   }
 
+  /* =======================================================================
+     8) Декодер (Base64 / Hex / URL / ROT13)
+     ======================================================================= */
+  const DEC_OPS = [
+    ["b64d", "Base64 → текст", "Base64 → text"],
+    ["b64e", "Текст → Base64", "Text → Base64"],
+    ["hexd", "Hex → текст", "Hex → text"],
+    ["hexe", "Текст → Hex", "Text → Hex"],
+    ["urld", "URL-декод", "URL decode"],
+    ["rot13", "ROT13", "ROT13"],
+  ];
+  function decodeOp(op, s) {
+    try {
+      if (op === "b64d") { try { return decodeURIComponent(escape(atob(s.trim()))); } catch (e) { return atob(s.trim()); } }
+      if (op === "b64e") { return btoa(unescape(encodeURIComponent(s))); }
+      if (op === "hexd") { const h = s.replace(/[^0-9a-fA-F]/g, ""); let o = ""; for (let i = 0; i < h.length; i += 2) o += String.fromCharCode(parseInt(h.substr(i, 2), 16)); return o; }
+      if (op === "hexe") { return Array.from(s).map((c) => c.charCodeAt(0).toString(16).padStart(2, "0")).join(" "); }
+      if (op === "urld") { return decodeURIComponent(s.replace(/\+/g, " ")); }
+      if (op === "rot13") { return s.replace(/[a-zA-Z]/g, (c) => { const base = c <= "Z" ? 65 : 97; return String.fromCharCode((c.charCodeAt(0) - base + 13) % 26 + base); }); }
+    } catch (e) { return "⚠ " + L("не удалось декодировать — проверьте ввод", "could not decode — check the input"); }
+    return "";
+  }
+  function renderDecoder(head) {
+    const op = state.decOp || "b64d";
+    state.decOp = op;
+    mount.innerHTML = `
+      <section class="section">${head}
+        <div class="tool-pane card">
+          <div class="tool-row">
+            <label>${T("Операция")}:</label>
+            <select class="tool-select" onchange="Toolkit.decSetOp(this.value)">
+              ${DEC_OPS.map(([v, ru, en]) => `<option value="${v}" ${v === op ? "selected" : ""}>${L(ru, en)}</option>`).join("")}
+            </select>
+          </div>
+          <label class="dec-lbl">${T("Ввод")}</label>
+          <textarea id="dec-in" class="tool-area dec-area" spellcheck="false" oninput="Toolkit.decRun()" placeholder="${T("Вставьте строку…")}">${esc(state.decIn || "")}</textarea>
+          <label class="dec-lbl">${T("Результат")}</label>
+          <pre id="dec-out" class="dec-out"></pre>
+          <p class="tool-hint">${T("Подсказка: спрятанные в инструментах флаги закодированы в Base64 — вставьте их сюда и выберите «Base64 → текст».")}</p>
+        </div>
+      </section>`;
+    decRun();
+  }
+  function decSetOp(v) { state.decOp = v; const i = document.getElementById("dec-in"); if (i) state.decIn = i.value; renderTool("decoder"); }
+  function decRun() {
+    const i = document.getElementById("dec-in"); const o = document.getElementById("dec-out");
+    if (!i || !o) return;
+    state.decIn = i.value;
+    o.textContent = i.value ? decodeOp(state.decOp || "b64d", i.value) : "";
+  }
+
   /* ---------- публичный интерфейс ---------- */
   function open(id) { api.go("tools", { tool: id }); }
 
@@ -619,5 +762,7 @@ Message-ID: <c99a@partner-corp.com>`,
     fwToggle, fwCheck,
     atkSel,
     caseAnswer,
+    flagSubmit,
+    decSetOp, decRun,
   };
 })();

@@ -61,6 +61,17 @@ const I18N = (() => {
     "Рабочая станция WIN-7F3A ведёт себя странно. Соберите цепочку атаки, отвечая на вопросы по шагам. Используйте другие инструменты как улики.":
       "Workstation WIN-7F3A is behaving oddly. Reconstruct the attack chain step by step. Use the other tools as evidence.",
     "Нет, сверьтесь с матрицей ATT&CK.": "No, check against the ATT&CK matrix.",
+    // Флаг-квесты и декодер
+    "Квест: найдите флаг": "Quest: find the flag", "Флаг найден": "Flag found", "Флаг": "Flag",
+    "Найдите скрытый флаг формата": "Find the hidden flag in the format",
+    "Сдать флаг": "Submit flag", "Введите флаг": "Enter the flag", "Верно!": "Correct!",
+    "Неверный флаг. Проверьте формат CYBER{...} и декодирование.": "Wrong flag. Check the CYBER{...} format and your decoding.",
+    "Задание решено — флаг раскрыт, сдайте его.": "Task solved — the flag is revealed, submit it.",
+    "Разберите все образцы. Для какого из них вердикт — «пройдено» (не фишинг)?":
+      "Analyze all samples. Which one gets a “pass” verdict (not phishing)?",
+    "Операция": "Operation", "Ввод": "Input", "Результат": "Result", "Вставьте строку…": "Paste a string…",
+    "Подсказка: спрятанные в инструментах флаги закодированы в Base64 — вставьте их сюда и выберите «Base64 → текст».":
+      "Hint: the flags hidden in the tools are Base64-encoded — paste them here and pick “Base64 → text”.",
     // Навигация
     "В заметки": "Save note", "Сохранено в заметки": "Saved to notes", "Такая заметка уже есть": "Already saved",
     "Заметки": "Notes", "Мои заметки": "My notes", "Поиск по заметкам…": "Search notes…", "Скачать конспект (.md)": "Download notes (.md)",
@@ -374,6 +385,7 @@ const I18N = (() => {
     notes_1: ["Note taker", "Save your first note"], notes_10: ["Top student", "Collect 10 notes"],
     polyglot: ["Bilingual", "Switch the interface language"], dark_side: ["Dark side", "Turn on dark theme"],
     tools_1: ["Analyst", "Solve your first Blue Team tool task"], tools_all: ["Debrief", "Solve a task in every Blue Team tool"],
+    flag_1: ["First flag", "Find your first flag in the Blue Team tools"], flag_all: ["Flag hunter", "Find every flag in the Blue Team tools"],
     first_blood: ["First Blood", "Complete your first task"],
     level_5: ["Rising Star", "Reach level 5"],
     level_10: ["Pro", "Reach level 10"],

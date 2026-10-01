@@ -49,10 +49,12 @@ const ACHIEVEMENTS = [
   { id: "dark_side", icon: "🌒", title: "Тёмная сторона", desc: "Включите тёмную тему" },
   { id: "tools_1", icon: "🧰", title: "Аналитик", desc: "Решите первое задание в инструментах Blue Team", metric: "tools", goal: 1 },
   { id: "tools_all", icon: "🛡️", title: "Разбор полётов", desc: "Решите задания во всех инструментах Blue Team", metric: "tools", goal: 6 },
+  { id: "flag_1", icon: "🚩", title: "Первый флаг", desc: "Найдите первый флаг в инструментах Blue Team", metric: "flags", goal: 1 },
+  { id: "flag_all", icon: "🏴", title: "Охотник за флагами", desc: "Найдите все флаги в инструментах Blue Team", metric: "flags", goal: 6 },
 ];
 /* Редкость достижений (для рамок карточек) */
 const ACH_RARITY = {
-  first_blood: "common", profile_custom: "common", tools_1: "common", tools_all: "epic", weekly_first: "rare", boss_first: "rare", boss_perfect: "epic", boss_5: "legendary", notes_1: "common", notes_10: "rare", tasks_10: "common", polyglot: "common", dark_side: "common", streak_3: "common",
+  first_blood: "common", profile_custom: "common", tools_1: "common", tools_all: "epic", flag_1: "rare", flag_all: "legendary", weekly_first: "rare", boss_first: "rare", boss_perfect: "epic", boss_5: "legendary", notes_1: "common", notes_10: "rare", tasks_10: "common", polyglot: "common", dark_side: "common", streak_3: "common",
   level_5: "rare", course_done: "rare", no_hints: "rare", daily_5: "rare", terminal_master: "rare", tasks_50: "rare",
   rooms_10: "rare", exam_pass: "rare", night_owl: "rare", early_bird: "rare", lab_rat: "rare", hundred_k: "rare", streak_7: "rare",
   level_10: "epic", three_courses: "epic", flawless: "epic", sniper: "epic", reviewer: "epic", terminal_100: "epic",

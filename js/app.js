@@ -225,7 +225,8 @@ const Progress = (() => {
     if (window.App) ev.newAchievements.forEach((id) => App.toastAchievement(id));
   }
   // Разовая премия XP (учебные инструменты Blue Team). once=ключ, чтобы не начислять повторно.
-  function awardBonus(amount, once) {
+  // statName — какую метрику инкрементировать ("tools" для заданий, "flags" для флагов).
+  function awardBonus(amount, once, statName) {
     const st = stats();
     if (once) {
       st.bonus = st.bonus || {};
@@ -234,7 +235,8 @@ const Progress = (() => {
     }
     const events = { xpGained: amount, newAchievements: [] };
     awardXP(amount, events);
-    st.tools = (st.tools || 0) + 1;
+    const sn = statName || "tools";
+    st[sn] = (st[sn] || 0) + 1;
     checkMeta(events);
     save();
     return events;
@@ -259,6 +261,7 @@ const Progress = (() => {
       case "labs": return COURSES.reduce((n, c) => n + c.rooms.reduce((m, r) => m + r.tasks.filter((t) => t.type === "lab" && state.completed[t.id]).length, 0), 0);
       case "exams": return Object.values(state.exams || {}).filter((e) => e.passed).length;
       case "tools": return st.tools || 0;
+      case "flags": return st.flags || 0;
     }
     return 0;
   }
@@ -1534,8 +1537,8 @@ const App = (() => {
       crumbs,
       go,
       icon: (n) => (typeof Icon !== "undefined" ? Icon.ui(n) : ""),
-      award: (amount, once) => {
-        const res = Progress.awardBonus(amount, once);
+      award: (amount, once, statName) => {
+        const res = Progress.awardBonus(amount, once, statName);
         if (res && !res.already) { celebrate(res); return true; }
         return false;
       },

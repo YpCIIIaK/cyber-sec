@@ -46,6 +46,7 @@ const Icon = (() => {
     grid: svg(`<rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/>`),
     search: svg(`<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.3-4.3"/>`),
     alert: svg(`<path d="M12 3l9.5 16.5H2.5L12 3z"/><path d="M12 10v4M12 17v.01"/>`),
+    code: svg(`<path d="M9 8l-4 4 4 4M15 8l4 4-4 4"/>`),
   };
 
   return {
