@@ -622,50 +622,169 @@ const COURSES = [
     rooms: [
       {
         id: "tcpip",
-        title: "TCP/IP и порты",
+        title: "Модель OSI, TCP/IP и порты",
         intro: `
-<h3>Модель и порты</h3>
-<p>Данные проходят по стеку TCP/IP. Ключевые понятия:</p>
-<ul>
-  <li><b>IP</b> — адрес хоста. <b>Порт</b> — номер сервиса на хосте (0–65535).</li>
-  <li><b>TCP</b> — надёжный, с установкой соединения (three-way handshake: SYN → SYN/ACK → ACK).</li>
-  <li><b>UDP</b> — быстрый, без гарантий (DNS, видео).</li>
+<h3>Как вообще данные доходят до адресата</h3>
+<p>Когда вы открываете сайт, ваш запрос проходит через несколько «слоёв»: от букв в браузере до электрических сигналов в кабеле. Чтобы не утонуть в деталях, сети описывают <b>моделями уровней</b>. Понимание уровней — это карта: зная, на каком уровне работает атака или защита, вы сразу понимаете её суть.</p>
+
+<h3>Модель OSI (7 уровней) и TCP/IP (4)</h3>
+<table>
+  <thead><tr><th>Уровень OSI</th><th>Пример</th><th>Единица данных</th></tr></thead>
+  <tbody>
+    <tr><td>7 Приложение</td><td>HTTP, DNS, FTP</td><td>Данные</td></tr>
+    <tr><td>6 Представление</td><td>TLS, шифрование, кодировки</td><td>Данные</td></tr>
+    <tr><td>5 Сеанс</td><td>Сессии, сокеты</td><td>Данные</td></tr>
+    <tr><td>4 Транспортный</td><td>TCP, UDP</td><td>Сегмент</td></tr>
+    <tr><td>3 Сетевой</td><td>IP, ICMP, маршрутизация</td><td>Пакет</td></tr>
+    <tr><td>2 Канальный</td><td>Ethernet, MAC, ARP</td><td>Кадр (frame)</td></tr>
+    <tr><td>1 Физический</td><td>Кабель, Wi-Fi, сигнал</td><td>Биты</td></tr>
+  </tbody>
+</table>
+<div class="callout">💡 Мнемоника снизу вверх: «Please Do Not Throw Sausage Pizza Away». Атаки живут на всех уровнях: ARP-spoofing — L2, DDoS — L3/L4, SQLi/XSS — L7.</div>
+
+<h3>IP-адрес и порт</h3>
+<p><b>IP-адрес</b> указывает на хост (как адрес дома), а <b>порт</b> — на конкретный сервис внутри (как номер квартиры). Портов 0–65535; системные — 0–1023.</p>
+
+<h3>TCP против UDP</h3>
+<table>
+  <thead><tr><th></th><th>TCP</th><th>UDP</th></tr></thead>
+  <tbody>
+    <tr><td>Соединение</td><td>Устанавливается (handshake)</td><td>Нет</td></tr>
+    <tr><td>Надёжность</td><td>Гарантирует доставку и порядок</td><td>Не гарантирует</td></tr>
+    <tr><td>Скорость</td><td>Медленнее</td><td>Быстрее</td></tr>
+    <tr><td>Где</td><td>Веб, почта, файлы</td><td>DNS, видео, игры, VoIP</td></tr>
+  </tbody>
+</table>
+
+<h4>Three-way handshake TCP</h4>
+<ul class="tl">
+  <li><b>SYN</b> — клиент: «давай соединимся».</li>
+  <li><b>SYN/ACK</b> — сервер: «давай, подтверждаю».</li>
+  <li><b>ACK</b> — клиент: «подтверждаю, работаем».</li>
 </ul>
-<p>Хорошо известные порты:</p>
-<ul>
-  <li>22 — SSH, 80 — HTTP, 443 — HTTPS</li>
-  <li>21 — FTP, 25 — SMTP, 53 — DNS, 3389 — RDP</li>
-</ul>
+<p>На этом механизме построены сканирование портов (SYN-скан) и атака SYN-flood (заваливание полуоткрытыми соединениями).</p>
+
+<h3>Хорошо известные порты</h3>
+<table>
+  <thead><tr><th>Порт</th><th>Сервис</th><th>Порт</th><th>Сервис</th></tr></thead>
+  <tbody>
+    <tr><td>20/21</td><td>FTP</td><td>80</td><td>HTTP</td></tr>
+    <tr><td>22</td><td>SSH</td><td>443</td><td>HTTPS</td></tr>
+    <tr><td>23</td><td>Telnet (небезопасен)</td><td>445</td><td>SMB</td></tr>
+    <tr><td>25</td><td>SMTP</td><td>3306</td><td>MySQL</td></tr>
+    <tr><td>53</td><td>DNS</td><td>3389</td><td>RDP</td></tr>
+  </tbody>
+</table>
+<div class="callout warn">⚠️ Telnet (23), FTP (21) и старый SMB передают данные без шифрования — их заменяют на SSH (22) и HTTPS/SFTP. Открытый 23 или 3389 в интернет — классический риск.</div>
 `,
         tasks: [
-          { id: "tcp_read", type: "info", title: "Изучить порты", prompt: "Прочитайте о TCP/IP и портах.", points: 5 },
+          { id: "tcp_read", type: "info", title: "Изучить модель и порты", prompt: "Прочитайте о модели OSI, TCP/UDP и портах.", points: 5 },
           { id: "tcp_https", type: "question", title: "Порт HTTPS", prompt: "На каком порту по умолчанию работает HTTPS?", answers: ["443"], hints: ["HTTP=80, HTTPS=..."], points: 10 },
           { id: "tcp_ssh", type: "question", title: "Порт SSH", prompt: "Стандартный порт SSH?", answers: ["22"], hints: ["Безопасный удалённый доступ."], points: 10 },
           { id: "tcp_handshake", type: "question", title: "Рукопожатие TCP", prompt: "Какой первый флаг отправляет клиент в three-way handshake? (англ., 3 буквы)", answers: ["syn"], hints: ["SYN → SYN/ACK → ACK"], points: 15 },
+          { id: "tcp_udp", type: "question", title: "Быстрый протокол", prompt: "Какой протокол транспортного уровня работает без установки соединения и используется для DNS/видео? (англ., 3 буквы)", answers: ["udp"], hints: ["Не TCP.", "User Datagram Protocol."], points: 10 },
+          { id: "tcp_layer", type: "question", title: "Уровень IP", prompt: "На каком уровне модели OSI работает протокол IP? (номер)", answers: ["3", "3 сетевой", "сетевой"], hints: ["Сетевой уровень.", "Между канальным (2) и транспортным (4)."], points: 15 },
+          { id: "tcp_telnet", type: "choice", title: "Небезопасный порт", prompt: "Какой сервис передаёт данные (включая пароли) открытым текстом и должен быть закрыт?", options: ["Telnet (23)", "SSH (22)", "HTTPS (443)", "DNS (53)"], answers: ["Telnet (23)"], points: 15 },
           { id: "tcp_match", type: "match", title: "Сопоставьте порты", prompt: "Соедините порт со стандартным сервисом.", pairs: [["22", "SSH"], ["443", "HTTPS"], ["53", "DNS"], ["3389", "RDP"]], points: 20 },
         ],
       },
       {
         id: "nmap",
-        title: "Сканирование с Nmap",
+        title: "Сканирование и разведка с Nmap",
         intro: `
 <h3>Nmap — картограф сети</h3>
-<p><b>Nmap</b> обнаруживает хосты, открытые порты и сервисы. Используйте только на своих или авторизованных целях!</p>
-<ul>
-  <li><code>nmap 10.0.0.5</code> — быстрый скан топ-1000 портов.</li>
-  <li><code>nmap -sV target</code> — определить версии сервисов.</li>
-  <li><code>nmap -p- target</code> — все 65535 портов.</li>
-  <li><code>nmap -sS target</code> — SYN-скан («тихий»).</li>
-  <li><code>nmap -A target</code> — агрессивно: ОС, версии, скрипты.</li>
-</ul>
-<div class="callout">🧪 В песочнице есть учебная цель. Попробуйте <code>nmap 10.10.10.5</code>.</div>
+<p><b>Nmap</b> (Network Mapper) отвечает на вопросы «какие хосты живы, какие порты открыты, какие сервисы и версии на них крутятся». Это первый инструмент на этапе разведки в пентесте и незаменимый помощник для инвентаризации своей сети.</p>
+<div class="callout danger">🚫 Сканирование чужих сетей без письменного разрешения во многих странах — правонарушение. Тренируйтесь только на своих машинах, учебных полигонах (HackTheBox, TryHackMe) и в этой песочнице.</div>
+
+<h3>Состояния портов</h3>
+<table>
+  <thead><tr><th>Состояние</th><th>Что значит</th></tr></thead>
+  <tbody>
+    <tr><td><b>open</b></td><td>Сервис принимает подключения</td></tr>
+    <tr><td><b>closed</b></td><td>Порт доступен, но сервиса нет</td></tr>
+    <tr><td><b>filtered</b></td><td>Ответ блокирует межсетевой экран — не понять</td></tr>
+  </tbody>
+</table>
+
+<h3>Основные типы сканирования</h3>
+<table>
+  <thead><tr><th>Команда</th><th>Что делает</th></tr></thead>
+  <tbody>
+    <tr><td><code>nmap 10.0.0.5</code></td><td>Быстрый скан топ-1000 TCP-портов</td></tr>
+    <tr><td><code>nmap -sS target</code></td><td>SYN-скан («полуоткрытый», тише и быстрее)</td></tr>
+    <tr><td><code>nmap -sU target</code></td><td>Скан UDP-портов</td></tr>
+    <tr><td><code>nmap -p- target</code></td><td>Все 65535 портов</td></tr>
+    <tr><td><code>nmap -sV target</code></td><td>Определить версии сервисов</td></tr>
+    <tr><td><code>nmap -O target</code></td><td>Определить операционную систему</td></tr>
+    <tr><td><code>nmap -A target</code></td><td>Всё сразу: версии, ОС, скрипты, трассировка</td></tr>
+  </tbody>
+</table>
+
+<h3>Почему версии так важны</h3>
+<p>Знать, что порт 445 открыт, — полдела. Знать, что там <code>Samba 3.X (SMBv1)</code>, — значит знать про уязвимость EternalBlue. Поэтому <code>-sV</code> — ключевой шаг: от версии сервиса зависит, уязвим он или нет.</p>
+<div class="deepdive"><b>NSE — движок скриптов Nmap</b>
+<p>Флаг <code>--script</code> запускает мини-проверки: <code>nmap --script vuln target</code> поищет известные уязвимости, <code>--script smb-os-discovery</code> уточнит ОС по SMB. Это превращает Nmap из «сканера портов» в лёгкий сканер уязвимостей.</p></div>
+<div class="callout">🧪 В песочнице есть учебная цель. Попробуйте <code>nmap 10.10.10.5</code>, а затем разберите готовый отчёт в лаборатории ниже.</div>
 `,
         tasks: [
-          { id: "nm_read", type: "info", title: "Изучить Nmap", prompt: "Прочитайте о Nmap.", points: 5 },
+          { id: "nm_read", type: "info", title: "Изучить Nmap", prompt: "Прочитайте о сканировании, состояниях портов и NSE.", points: 5 },
           { id: "nm_version", type: "question", title: "Определение версий", prompt: "Какой флаг Nmap определяет версии сервисов? (например -X)", answers: ["-sv", "-sV"], hints: ["s + Version"], points: 15, caseSensitive: false },
           { id: "nm_allports", type: "question", title: "Все порты", prompt: "Какой флаг сканирует все 65535 портов?", answers: ["-p-"], hints: ["p и дефис."], points: 15 },
+          { id: "nm_syn", type: "question", title: "Тихий скан", prompt: "Какой флаг запускает SYN-скан («полуоткрытый»)? (напр. -sX)", answers: ["-ss", "-sS"], hints: ["s + SYN"], points: 15, caseSensitive: false },
+          { id: "nm_filtered", type: "question", title: "Экран мешает", prompt: "Каким словом Nmap помечает порт, ответ которого блокирует межсетевой экран? (англ.)", answers: ["filtered"], hints: ["Не open и не closed."], points: 15 },
+          { id: "nm_os", type: "question", title: "Определить ОС", prompt: "Какой флаг Nmap пытается определить операционную систему? (напр. -X)", answers: ["-o", "-O"], hints: ["O как OS."], points: 10, caseSensitive: false },
           { id: "nm_flag", type: "flag", title: "🚩 Скан цели в песочнице", prompt: "Запустите nmap на 10.10.10.5 в песочнице. Один из портов необычный — введите его номер.", answers: ["1337"], hints: ["nmap 10.10.10.5", "Ищите порт, которого нет в стандартном списке."], points: 25, sandbox: true },
           { id: "nm_lab", type: "lab", lab: "portscan", title: "Лаборатория: разбор скана портов", prompt: "Отметьте рискованные открытые порты в выводе nmap.", points: 25 },
+        ],
+      },
+      {
+        id: "net_attacks",
+        title: "Трафик, атаки и защита сети",
+        intro: `
+<h3>Что видно в сети и как её атакуют</h3>
+<p>Разобравшись, как данные ходят, посмотрим, что с ними может сделать атакующий в той же сети — и как это предотвратить. Это стык между наступательной и защитной стороной, который важен и пентестеру, и блю-тим.</p>
+
+<h3>Сниффинг — прослушивание трафика</h3>
+<p>В одной сети трафик можно <b>перехватывать</b>. Инструменты: <b>Wireshark</b> (анализ пакетов с графическим интерфейсом) и <b>tcpdump</b> (консоль). Если данные идут открыто (HTTP, Telnet, FTP), снифер видит логины, пароли и содержимое. Если по HTTPS/TLS — только метаданные (кто с кем), но не содержимое.</p>
+<div class="callout warn">⚠️ Вот почему HTTPS везде: в открытом Wi-Fi любой сосед теоретически может слушать трафик. Шифрование превращает перехват в бесполезный набор байт.</div>
+
+<h3>Man-in-the-Middle и ARP-spoofing</h3>
+<p><b>MITM</b> — атакующий встаёт между вами и сервером, видя и подменяя трафик. Классический способ в локальной сети — <b>ARP-спуфинг</b>: злоумышленник рассылает поддельные ARP-ответы, убеждая вашу машину, что <i>его</i> MAC — это адрес шлюза. Весь ваш трафик начинает идти через него.</p>
+<ul class="tl">
+  <li><b>Жертва</b> думает, что общается со шлюзом.</li>
+  <li><b>Атакующий</b> пересылает трафик дальше, попутно читая его.</li>
+  <li><b>Защита:</b> HTTPS/VPN (шифрование поверх), статические ARP, Dynamic ARP Inspection на коммутаторах.</li>
+</ul>
+
+<h3>Другие частые сетевые атаки</h3>
+<table>
+  <thead><tr><th>Атака</th><th>Суть</th><th>Защита</th></tr></thead>
+  <tbody>
+    <tr><td>DDoS</td><td>Заваливание трафиком до отказа</td><td>Anti-DDoS, rate limiting, CDN</td></tr>
+    <tr><td>DNS-спуфинг</td><td>Подмена ответа DNS → фейковый сайт</td><td>DNSSEC, доверенный DNS</td></tr>
+    <tr><td>Port scanning</td><td>Поиск открытых сервисов</td><td>Firewall, IDS/IPS</td></tr>
+    <tr><td>Rogue AP / Evil Twin</td><td>Поддельная Wi-Fi точка</td><td>Проверять сеть, VPN</td></tr>
+  </tbody>
+</table>
+
+<h3>Рубежи защиты сети</h3>
+<ul>
+  <li><b>Межсетевой экран (firewall)</b> — пропускает только разрешённые порты/направления.</li>
+  <li><b>Сегментация и VLAN</b> — делим сеть на зоны, чтобы взлом одной не открывал всю.</li>
+  <li><b>IDS/IPS</b> — системы обнаружения/предотвращения вторжений, ловят аномалии.</li>
+  <li><b>VPN</b> — шифрованный туннель поверх недоверенной сети.</li>
+  <li><b>TLS везде</b> — шифрование прикладного трафика.</li>
+</ul>
+<div class="callout">🛡️ Правило: считайте любую сеть, которую не контролируете (кафе, аэропорт), враждебной. VPN + HTTPS делают перехват бессмысленным.</div>
+`,
+        tasks: [
+          { id: "na_read", type: "info", title: "Изучить атаки и защиту", prompt: "Прочитайте о сниффинге, MITM и рубежах защиты.", points: 5 },
+          { id: "na_sniffer", type: "question", title: "Анализатор пакетов", prompt: "Назовите популярный графический анализатор сетевого трафика. (англ., одно слово)", answers: ["wireshark"], hints: ["Wire + shark"], points: 15 },
+          { id: "na_mitm", type: "question", title: "Посередине", prompt: "Как называется атака, где злоумышленник встаёт между клиентом и сервером? (аббревиатура, напр. X-i-t-M)", answers: ["mitm", "man-in-the-middle", "man in the middle"], hints: ["Man In The Middle."], points: 15 },
+          { id: "na_arp", type: "question", title: "Подмена в локалке", prompt: "Подмена какого протокола позволяет перенаправить трафик локальной сети на себя? (англ., 3 буквы)", answers: ["arp"], hints: ["Address Resolution Protocol.", "Связывает IP и MAC."], points: 15 },
+          { id: "na_dns", type: "question", title: "Подмена имени", prompt: "Подмена ответа какого сервиса приводит жертву на поддельный сайт? (англ., 3 буквы)", answers: ["dns"], hints: ["Переводит имя в IP."], points: 15 },
+          { id: "na_https", type: "choice", title: "Защита от сниффинга", prompt: "Что защищает содержимое трафика от прослушивания в открытом Wi-Fi?", options: ["HTTPS/VPN (шифрование)", "Более длинный логин", "Отключение cookies", "Инкогнито-режим"], answers: ["HTTPS/VPN (шифрование)"], points: 15 },
+          { id: "na_segment", type: "choice", title: "Деление сети", prompt: "Как называется разбиение сети на изолированные зоны, чтобы взлом одной не открыл всю?", options: ["Сегментация", "Дефрагментация", "Балансировка", "Кэширование"], answers: ["Сегментация"], points: 15 },
         ],
       },
     ],
