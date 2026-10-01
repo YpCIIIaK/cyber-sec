@@ -28,14 +28,9 @@
         <a data-view="roadmap" onclick="App.go('roadmap')" data-i18n="Путь">Путь</a>
         <a data-view="sandbox" onclick="App.go('sandbox')" data-i18n="Песочница">Песочница</a>
         <a data-view="tools" onclick="App.go('tools')" data-i18n="Инструменты">Инструменты</a>
-        <a data-view="review" onclick="App.go('review')" data-i18n="Повторение">Повторение</a>
-        <a data-view="glossary" onclick="App.go('glossary')" data-i18n="Словарь">Словарь</a>
-        <a data-view="profile" onclick="App.go('profile')" data-i18n="Профиль">Профиль</a>
       </nav>
+      <button class="cmdk-btn" style="margin-left:auto" onclick="App.openPalette()" aria-label="Поиск (Ctrl+K)" title="Быстрый переход — Ctrl/⌘ + K" data-i18n-title="Быстрый переход — Ctrl/⌘ + K"><span class="cmdk-ic"></span><kbd>⌘K</kbd></button>
       <div id="nav-stats" class="nav-stats"></div>
-      <button id="lang-toggle" class="theme-toggle lang-toggle" onclick="App.toggleLang()" aria-label="Language RU/EN" title="Язык / Language" data-i18n-title="Язык / Language">EN</button>
-      <button class="cmdk-btn" onclick="App.openPalette()" aria-label="Поиск (Ctrl+K)" title="Быстрый переход — Ctrl/⌘ + K" data-i18n-title="Быстрый переход — Ctrl/⌘ + K"><span class="cmdk-ic"></span><kbd>⌘K</kbd></button>
-      <button id="theme-toggle" class="theme-toggle" onclick="App.toggleTheme()" aria-label="Переключить тему" title="Светлая / тёмная тема" data-i18n-title="Светлая / тёмная тема"></button>
       <button class="burger" onclick="document.body.classList.toggle('nav-open')" aria-label="Меню">☰</button>
     </div>
   </header>

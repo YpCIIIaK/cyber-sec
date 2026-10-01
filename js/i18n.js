@@ -11,6 +11,13 @@ const I18N = (() => {
 
   /* -------- UI-словарь (ключ = русская строка) -------- */
   const UI = {
+    // Шапка, меню профиля, послужной список
+    "Меню профиля": "Profile menu", "Светлая тема": "Light theme", "Тёмная тема": "Dark theme",
+    "Сертификат скачан": "Certificate downloaded", "Послужной список": "Service record", "В CyberPath с": "On CyberPath since",
+    "комнат пройдено": "rooms completed", "лабораторных": "labs", "экзаменов сдано": "exams passed", "CTF-миссий": "CTF missions",
+    "расследований Blue Team": "Blue Team investigations", "флагов найдено": "flags found", "команд в терминале": "terminal commands",
+    "лучшее комбо": "best combo", "Сильные стороны": "Strengths", "Ближайшие цели": "Next goals", "Все цели достигнуты": "All goals reached",
+    "Последние достижения": "Recent achievements", "расследований": "investigations", "флагов": "flags",
     // Инструменты Blue Team
     "Инструменты": "Tools", "Инструменты Blue Team": "Blue Team toolkit", "Открыть": "Open",
     "Безопасные учебные симуляторы на вымышленных данных: разбор писем, журналов, трафика, процессов и инцидентов. Решайте задания — получайте XP.":

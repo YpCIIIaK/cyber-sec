@@ -696,19 +696,53 @@ const App = (() => {
     const s = Progress.overallStats();
     const nav = document.getElementById("nav-stats");
     if (nav) {
+      const due = Progress.srsDueCount();
+      const dark = currentTheme() === "dark";
+      const en = window.I18N && I18N.current() === "en";
+      const wasOpen = !!document.querySelector(".user-menu.open");
+      const item = (ic, label, js, extra = "") => `<button class="um-item" role="menuitem" onclick="App.closeUserMenu();${js}">${ic}<span>${label}</span>${extra}</button>`;
       nav.innerHTML = `
-        <button class="nav-avatar tier-${s.rank.tier}" title="${escapeAttr(displayName())} — ${T("Профиль")}" onclick="App.go('profile')">${avatarHTML(30)}</button>
-        <button class="rank-chip tier-${s.rank.tier}" title="${T("Открыть лестницу званий")}" onclick="App.openRanks()">${rankBadge(s.rank, 22)}<span>${s.rank.name}</span></button>
-        <div class="nav-xp" title="${T("Ваш уровень и опыт")}">
+        <button class="nav-xp" title="${T("Ваш уровень и опыт")}" onclick="App.go('profile')">
           <span class="lvl-badge">LVL ${s.level}</span>
           <div class="xp-bar-mini"><span style="width:${(s.xpInLevel)}%"></span></div>
           <span class="xp-text">${s.xp} XP</span>
+          ${s.streak > 0 ? `<span class="streak" title="${T("Серия дней подряд")}">${Icon.ui("flame")}${s.streak}</span>` : ""}
+        </button>
+        <div class="user-menu${wasOpen ? " open" : ""}">
+          <button class="nav-avatar tier-${s.rank.tier}${current && ["profile","review","glossary","notes"].includes(current.view) ? " on" : ""}" aria-haspopup="menu" aria-label="${T("Меню профиля")}" title="${escapeAttr(displayName())}" onclick="App.toggleUserMenu(event)">${avatarHTML(32)}${due ? `<i class="um-dot"></i>` : ""}<span class="um-caret">▾</span></button>
+          <div class="um-pop" role="menu">
+            <div class="um-head tier-${s.rank.tier}">
+              ${avatarHTML(46)}
+              <div class="um-who"><b>${escapeHtml(displayName())}</b><span>${s.rank.icon || ""} ${s.rank.name} · LVL ${s.level}</span>
+                <div class="um-bar"><span style="width:${s.xpInLevel}%"></span></div>
+                <small>${s.xpToNext} XP ${T("до следующего уровня")}</small></div>
+            </div>
+            <div class="um-list">
+              ${item(Icon.ui("progress"), T("Профиль"), "App.go('profile')")}
+              ${item(Icon.ui("quest"), T("Повторение"), "App.go('review')", due ? `<em class="um-badge">${due}</em>` : "")}
+              ${item(Icon.ui("book"), T("Словарь"), "App.go('glossary')")}
+              ${item(Icon.ui("list"), T("Заметки"), "App.go('notes')", `<em class="um-count">${Progress.notes().length}</em>`)}
+              ${item(Icon.ui("shield"), T("Звания"), "App.openRanks()")}
+            </div>
+            <div class="um-list um-set">
+              ${item(dark ? Icon.ui("sun") : Icon.ui("moon"), dark ? T("Светлая тема") : T("Тёмная тема"), "App.toggleTheme()")}
+              ${item(`<span class="um-lang">${en ? "RU" : "EN"}</span>`, en ? "Русский" : "English", "App.toggleLang()")}
+            </div>
+          </div>
         </div>
-        ${s.streak > 0 ? `<span class="streak" title="${T("Серия дней подряд")}">${Icon.ui("flame")}${s.streak}</span>` : ""}
       `;
       displayedXP = s.xp;
     }
   }
+
+  function toggleUserMenu(e) {
+    if (e) e.stopPropagation();
+    const m = document.querySelector(".user-menu"); if (m) m.classList.toggle("open");
+  }
+  function closeUserMenu() {
+    const m = document.querySelector(".user-menu"); if (m) m.classList.remove("open");
+  }
+  document.addEventListener("click", (e) => { if (!e.target.closest || !e.target.closest(".user-menu")) closeUserMenu(); });
 
   // Плавный счётчик XP в шапке (count-up + заполнение мини-бара)
   function animateXP(toXP) {
@@ -1336,29 +1370,61 @@ const App = (() => {
     g.strokeStyle = course.color; g.lineWidth = 6; g.strokeRect(28, 28, W - 56, H - 56);
     g.strokeStyle = "#ece5dd"; g.lineWidth = 1.5; g.strokeRect(44, 44, W - 88, H - 88);
     const cx = W / 2;
+    const en = window.I18N && I18N.current() === "en";
+    const L = (ru, e) => (en ? e : ru);
+    const date = Progress.completedAtISO();
+    const certId = "CP-" + course.id.toUpperCase().slice(0, 4) + "-" + date.replace(/-/g, "") + "-" + (Progress.overallStats().xp % 9973).toString(36).toUpperCase();
     g.textAlign = "center";
-    g.fillStyle = "#8c8178"; g.font = "600 22px Inter, sans-serif";
-    g.fillText("CYBERPATH · СЕРТИФИКАТ О ПРОХОЖДЕНИИ", cx, 150);
-    g.fillStyle = "#1a1613"; g.font = "800 40px Sora, Inter, sans-serif";
-    g.fillText("Настоящим подтверждается, что", cx, 250);
-    g.fillStyle = course.color; g.font = "800 60px Sora, Inter, sans-serif";
-    wrapText(g, course.title, cx, 360, W - 220, 66);
+    // логотип-щит
+    g.save(); g.translate(cx - 22, 72); g.scale(44 / 24, 44 / 24);
+    g.fillStyle = "#f2620a"; g.fill(new Path2D("M12 3l7 3v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3z"));
+    g.strokeStyle = "#fff"; g.lineWidth = 1.8; g.lineCap = "round"; g.lineJoin = "round"; g.stroke(new Path2D("M9 12l2 2 4-4"));
+    g.restore();
+    g.fillStyle = "#8c8178"; g.font = "700 20px Inter, sans-serif";
+    g.fillText(L("CYBERPATH · СЕРТИФИКАТ О ПРОХОЖДЕНИИ КУРСА", "CYBERPATH · CERTIFICATE OF COMPLETION"), cx, 160);
     g.fillStyle = "#4b433c"; g.font = "400 24px Inter, sans-serif";
-    g.fillText("успешно завершён.", cx, 470);
+    g.fillText(L("Настоящим подтверждается, что", "This is to certify that"), cx, 222);
+    g.fillStyle = "#1a1613"; g.font = "800 50px Sora, Inter, sans-serif";
+    g.fillText(displayName().slice(0, 32), cx, 290);
+    g.strokeStyle = "#ece5dd"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(cx - 260, 312); g.lineTo(cx + 260, 312); g.stroke();
+    g.fillStyle = "#4b433c"; g.font = "400 24px Inter, sans-serif";
+    g.fillText(L("успешно прошёл(-ла) курс", "has successfully completed the course"), cx, 356);
+    g.fillStyle = course.color; g.font = "800 52px Sora, Inter, sans-serif";
+    wrapText(g, "«" + T(course.title) + "»", cx, 430, W - 220, 58);
+    // плашки со статистикой
     const total = totalTasksInCourse(course);
-    g.fillStyle = "#1a1613"; g.font = "700 26px Inter, sans-serif";
-    g.fillText(`${Progress.courseXP(course)} XP  ·  ${total} заданий  ·  ${Progress.completedAtISO()}`, cx, 560);
-    // печать-кружок
-    g.beginPath(); g.arc(cx, 660, 46, 0, Math.PI * 2); g.strokeStyle = course.color; g.lineWidth = 3; g.stroke();
-    g.fillStyle = course.color; g.font = "800 30px Sora, Inter, sans-serif"; g.fillText("✓", cx, 672);
-    g.fillStyle = "#8c8178"; g.font = "500 18px Inter, sans-serif";
-    g.fillText("cyberpath · учись этично, применяй ответственно", cx, 770);
+    const m = Progress.courseMastery(course);
+    const cells = [
+      [String(course.rooms.length), L("комнат", "rooms")],
+      [String(total), L("заданий", "tasks")],
+      [Progress.courseXP(course) + " XP", L("заработано", "earned")],
+      [m.score + "/100", L("освоение", "mastery")],
+    ];
+    const cw = 190, gap = 18, x0 = cx - (cells.length * cw + (cells.length - 1) * gap) / 2;
+    cells.forEach((c, i) => {
+      const x = x0 + i * (cw + gap), y = 500;
+      g.fillStyle = "#fff6f0"; roundRect(g, x, y, cw, 84, 14); g.fill();
+      g.fillStyle = "#1a1613"; g.font = "800 28px Sora, Inter, sans-serif"; g.fillText(c[0], x + cw / 2, y + 40);
+      g.fillStyle = "#8c8178"; g.font = "600 16px Inter, sans-serif"; g.fillText(c[1], x + cw / 2, y + 66);
+    });
+    if (m.exam) { g.fillStyle = "#1f8a4c"; g.font = "700 18px Inter, sans-serif"; g.fillText("✓ " + L("Итоговый экзамен сдан", "Final exam passed"), cx, 624); }
+    // нижняя строка: дата · печать · ID
+    g.beginPath(); g.arc(cx, 690, 40, 0, Math.PI * 2); g.strokeStyle = course.color; g.lineWidth = 3; g.stroke();
+    g.fillStyle = course.color; g.font = "800 28px Sora, Inter, sans-serif"; g.fillText("✓", cx, 700);
+    g.fillStyle = "#1a1613"; g.font = "700 20px Inter, sans-serif";
+    g.fillText(date, cx - 300, 690);
+    g.fillText(certId, cx + 300, 690);
+    g.fillStyle = "#8c8178"; g.font = "500 15px Inter, sans-serif";
+    g.fillText(L("дата выдачи", "date issued"), cx - 300, 714);
+    g.fillText(L("номер сертификата", "certificate ID"), cx + 300, 714);
+    g.font = "500 17px Inter, sans-serif";
+    g.fillText(L("cyberpath · учись этично, применяй ответственно", "cyberpath · learn ethically, apply responsibly"), cx, 784);
 
     const a = document.createElement("a");
     a.href = cv.toDataURL("image/png");
     a.download = `CyberPath-${course.id}-certificate.png`;
     document.body.appendChild(a); a.click(); a.remove();
-    toast("Сертификат скачан");
+    toast(T("Сертификат скачан"));
   }
   function wrapText(ctx, text, x, y, maxW, lh) {
     const words = text.split(" "); let line = "", yy = y;
@@ -2052,24 +2118,41 @@ const App = (() => {
     g.font = "800 30px Sora, Inter, sans-serif"; g.fillText("CyberPath", 410, 90);
     g.fillStyle = "#8c8178"; g.font = "600 20px Inter, sans-serif";
     g.fillText(T("Мой прогресс в кибербезопасности"), 410, 122);
-    // метрики
+    // метрики: 4×2 плитки
+    const M = (n) => Progress.metric(n);
     const stats = [
       [String(s.xp), T("всего XP")],
       [s.tasksDone + "/" + s.tasksTotal, T("заданий")],
       [s.coursesDone + "/" + s.coursesTotal, T("курсов")],
       [(acc.total ? acc.pct + "%" : "—"), T("точность")],
-      [s.streak + "🔥", T("дней подряд")],
+      [String(s.streak), T("дней подряд")],
       [s.achievements + "/" + s.achievementsTotal, T("достижений")],
+      [M("tools") + "/6", T("расследований")],
+      [M("flags") + "/6", T("флагов")],
     ];
-    let x0 = 410, y0 = 180, cw = 250, ch = 130;
+    const x0 = 410, y0 = 150, cw = 190, ch = 96;
     stats.forEach((st, i) => {
-      const col = i % 3, row = (i / 3) | 0;
-      const x = x0 + col * cw, y = y0 + row * (ch + 20);
-      g.fillStyle = "#fff"; roundRect(g, x, y, cw - 20, ch, 16); g.fill();
-      g.strokeStyle = "#fde3d0"; g.lineWidth = 1.5; roundRect(g, x, y, cw - 20, ch, 16); g.stroke();
-      g.fillStyle = "#db5300"; g.font = "800 40px Sora, Inter, sans-serif"; g.textAlign = "left";
-      g.fillText(st[0], x + 22, y + 60);
-      g.fillStyle = "#8c8178"; g.font = "600 18px Inter, sans-serif"; g.fillText(st[1], x + 22, y + 95);
+      const col = i % 4, row = (i / 4) | 0;
+      const x = x0 + col * cw, y = y0 + row * (ch + 14);
+      g.fillStyle = "#fff"; roundRect(g, x, y, cw - 14, ch, 14); g.fill();
+      g.strokeStyle = "#fde3d0"; g.lineWidth = 1.5; roundRect(g, x, y, cw - 14, ch, 14); g.stroke();
+      g.fillStyle = "#db5300"; g.font = "800 32px Sora, Inter, sans-serif"; g.textAlign = "left";
+      g.fillText(st[0], x + 18, y + 48);
+      g.fillStyle = "#8c8178"; g.font = "600 16px Inter, sans-serif"; g.fillText(st[1], x + 18, y + 76);
+    });
+    // топ навыков
+    const top = Progress.skillRadar().slice().sort((a, b) => b.pct - a.pct).slice(0, 3);
+    g.fillStyle = "#1a1613"; g.font = "800 20px Sora, Inter, sans-serif";
+    g.fillText(T("Сильные стороны"), 410, 390);
+    top.forEach((k, i) => {
+      const y = 420 + i * 44;
+      g.fillStyle = "#4b433c"; g.font = "600 17px Inter, sans-serif";
+      let name = T(k.title); if (name.length > 26) name = name.slice(0, 25) + "…";
+      g.fillText(name, 410, y + 14);
+      g.fillStyle = "#fde3d0"; roundRect(g, 690, y, 400, 14, 7); g.fill();
+      if (k.pct) { g.fillStyle = "#f2620a"; roundRect(g, 690, y, Math.max(14, 4 * k.pct), 14, 7); g.fill(); }
+      g.fillStyle = "#db5300"; g.font = "800 17px Inter, sans-serif"; g.textAlign = "right";
+      g.fillText(String(k.pct), 1150, y + 14); g.textAlign = "left";
     });
     g.fillStyle = "#b3a99e"; g.font = "500 18px Inter, sans-serif";
     g.fillText(T("Бесплатная платформа · учись этично, применяй ответственно"), 410, 600);
@@ -2775,6 +2858,52 @@ const App = (() => {
     el.style.transform = `perspective(600px) rotateX(${(-y * 8).toFixed(2)}deg) rotateY(${(x * 10).toFixed(2)}deg) translateY(-3px)`;
   }
 
+  /* ---------- Послужной список (доп. сводка профиля) ---------- */
+  function profileExtras() {
+    const st = Progress._state();
+    const M = (n) => Progress.metric(n);
+    const missionsDone = typeof MISSIONS !== "undefined" ? MISSIONS.filter((m) => st.completed["mission_" + m.id]).length : 0;
+    const missionsTotal = typeof MISSIONS !== "undefined" ? MISSIONS.length : 0;
+    const roomsTotal = COURSES.reduce((n, c) => n + c.rooms.filter((r) => r.tasks.length).length, 0);
+    const since = st.createdAt ? new Date(st.createdAt) : new Date();
+    const days = Math.max(1, Math.round((Date.now() - since.getTime()) / 86400000));
+    const active = Object.keys(st.activeDays || {}).length;
+    const rec = [
+      [Icon.ui("check"), M("rooms") + "/" + roomsTotal, T("комнат пройдено")],
+      [Icon.ui("terminal"), M("labs"), T("лабораторных")],
+      [Icon.ui("book"), M("exams"), T("экзаменов сдано")],
+      [Icon.ui("target"), missionsDone + "/" + missionsTotal, T("CTF-миссий")],
+      [Icon.ui("shield"), M("tools") + "/6", T("расследований Blue Team")],
+      [Icon.ui("flag"), M("flags") + "/6", T("флагов найдено")],
+      [Icon.ui("code"), M("cmds"), T("команд в терминале")],
+      [Icon.ui("bolt"), M("combo"), T("лучшее комбо")],
+    ];
+    const skills = Progress.skillRadar().slice().sort((a, b) => b.pct - a.pct).slice(0, 4);
+    const goals = ACHIEVEMENTS.filter((a) => a.metric && !Progress.hasAchievement(a.id))
+      .map((a) => ({ a, cur: Math.min(a.goal, M(a.metric)) }))
+      .sort((x, y) => y.cur / y.a.goal - x.cur / x.a.goal).slice(0, 3);
+    const recent = Object.entries(st.achievements || {}).filter(([, t]) => typeof t === "number")
+      .sort((x, y) => y[1] - x[1]).slice(0, 4)
+      .map(([id, t]) => ({ a: ACHIEVEMENTS.find((x) => x.id === id), t })).filter((x) => x.a);
+    return `
+      <h2 class="rooms-title">${T("Послужной список")}</h2>
+      <p class="pe-since">${T("В CyberPath с")} <b>${since.toLocaleDateString(window.I18N && I18N.current() === "en" ? "en-GB" : "ru-RU")}</b> · ${days} ${T("дн.")} · ${active} ${T("активных дней")}</p>
+      <div class="pe-grid">
+        ${rec.map(([ic, v, l]) => `<div class="pe-cell"><span class="pe-ic">${ic}</span><b>${v}</b><span>${l}</span></div>`).join("")}
+      </div>
+      <div class="pe-cols">
+        <div class="card pe-card"><h3>${T("Сильные стороны")}</h3>
+          ${skills.map((k) => `<div class="pe-skill"><span>${T(k.title)}</span><div class="pe-sbar"><i style="width:${k.pct}%;background:${k.color}"></i></div><b>${k.pct}</b></div>`).join("")}
+        </div>
+        <div class="card pe-card"><h3>${T("Ближайшие цели")}</h3>
+          ${goals.length ? goals.map(({ a, cur }) => `<div class="pe-goal"><span class="pe-gi">${a.icon}</span><div><b>${a.title}</b><div class="pe-sbar"><i style="width:${Math.round(cur / a.goal * 100)}%"></i></div></div><em>${cur}/${a.goal}</em></div>`).join("") : `<p class="muted">${T("Все цели достигнуты")}</p>`}
+        </div>
+        <div class="card pe-card"><h3>${T("Последние достижения")}</h3>
+          ${recent.length ? recent.map(({ a, t }) => `<div class="pe-goal"><span class="pe-gi">${a.icon}</span><div><b>${a.title}</b><small>${new Date(t).toLocaleDateString()}</small></div></div>`).join("") : `<p class="muted">${T("Пока пусто")}</p>`}
+        </div>
+      </div>`;
+  }
+
   function renderProfile() {
     const s = Progress.overallStats();
     root().innerHTML = `
@@ -2782,6 +2911,8 @@ const App = (() => {
         <div class="page-title"><h1>${T("Профиль и прогресс")}</h1></div>
 
         ${playerCard(s)}
+
+        ${profileExtras()}
 
         ${dashboardSection()}
 
@@ -3116,6 +3247,7 @@ const App = (() => {
     const root = document.documentElement;
     root.classList.add("theme-anim");
     applyTheme(next);
+    renderNav();
     if (next === "dark") Progress.unlockAchievement("dark_side");
     clearTimeout(toggleTheme._t);
     toggleTheme._t = setTimeout(() => root.classList.remove("theme-anim"), 360);
@@ -3149,7 +3281,7 @@ const App = (() => {
       if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
         e.preventDefault(); palette.open ? closePalette() : openPalette();
       } else if (e.key === "Escape") {
-        closePalette(); closeShortcuts(); closeRanks();
+        closePalette(); closeShortcuts(); closeRanks(); closeUserMenu();
       } else if (e.key === "?" && !typing) {
         e.preventDefault(); openShortcuts();
       }
@@ -3247,6 +3379,7 @@ const App = (() => {
 
   return {
     init, go, submit, markInfo, showHint, toast, toastAchievement, resetConfirm, toggleTheme,
+    toggleUserMenu, closeUserMenu,
     catalogSearch, catalogLevel, catalogSort, downloadCertificate, exportProgress, importProgress,
     submitChoice, submitMatch, orderPick, orderReset, submitDaily,
     submitMission, toggleShell, openShortcuts, closeShortcuts,
