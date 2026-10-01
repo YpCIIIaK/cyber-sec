@@ -421,21 +421,47 @@ const COURSES = [
         id: "cmd_basics",
         title: "Командная строка Windows (cmd)",
         intro: `
-<h3>Консоль Windows — ваш инструмент</h3>
-<p>Открыть: <kbd>Win+R</kbd> → введите <code>cmd</code> → Enter. Базовые команды:</p>
+<h3>Зачем безопаснику консоль</h3>
+<p>Графический интерфейс удобен, но медленный и «немой»: он не логируется, его не автоматизировать и не запустить по SSH. Любой инцидент, аудит или реагирование в Windows рано или поздно упирается в <b>командную строку</b>. Это язык, на котором общаются с системой и администраторы, и атакующие — поэтому понимать его обязан каждый.</p>
+<p>Открыть cmd: <kbd>Win+R</kbd> → <code>cmd</code> → Enter. Для действий с правами администратора — <kbd>Win</kbd>, набрать «cmd», <kbd>Ctrl+Shift+Enter</kbd>.</p>
+
+<h3>Навигация по файловой системе</h3>
+<table>
+  <thead><tr><th>Команда</th><th>Что делает</th></tr></thead>
+  <tbody>
+    <tr><td><code>dir</code></td><td>Список файлов и папок в текущем каталоге</td></tr>
+    <tr><td><code>cd путь</code></td><td>Перейти в каталог; <code>cd ..</code> — на уровень вверх; <code>cd \\</code> — в корень</td></tr>
+    <tr><td><code>type файл.txt</code></td><td>Вывести содержимое текстового файла</td></tr>
+    <tr><td><code>tree</code></td><td>Показать дерево каталогов</td></tr>
+    <tr><td><code>copy</code> / <code>move</code> / <code>del</code></td><td>Копировать / переместить / удалить файл</td></tr>
+  </tbody>
+</table>
+
+<h3>Кто я и где я</h3>
 <ul>
-  <li><code>dir</code> — список файлов и папок в текущем каталоге.</li>
-  <li><code>cd путь</code> — сменить каталог; <code>cd ..</code> — на уровень вверх.</li>
-  <li><code>type файл.txt</code> — вывести содержимое файла.</li>
-  <li><code>whoami</code> — под каким пользователем я работаю.</li>
-  <li><code>cls</code> — очистить экран; <code>ver</code> — версия Windows.</li>
+  <li><code>whoami</code> — под каким пользователем работаю.</li>
+  <li><code>hostname</code> — имя компьютера.</li>
+  <li><code>cls</code> — очистить экран; <code>ver</code> — версия Windows; <code>exit</code> — выход.</li>
 </ul>
-<div class="callout">🧪 Откройте вкладку <b>Песочница</b> и попробуйте команды вживую! Наберите <code>help</code>.</div>
+
+<h3>Полезные приёмы</h3>
+<ul>
+  <li><b>Поиск внутри файлов:</b> <code>findstr "пароль" *.txt</code> — найти строку во всех txt. Аналог grep в Linux.</li>
+  <li><b>Вывод в файл:</b> <code>systeminfo > info.txt</code> — перенаправление <code>&gt;</code> сохраняет результат.</li>
+  <li><b>Конвейер:</b> <code>tasklist | findstr chrome</code> — передать вывод одной команды на вход другой.</li>
+  <li><b>История:</b> стрелки ↑↓ листают прошлые команды; <kbd>Tab</kbd> автодополняет имена.</li>
+</ul>
+<div class="callout warn">⚠️ Команды cmd не похожи на Linux: тут <code>dir</code>, а не <code>ls</code>; <code>type</code>, а не <code>cat</code>; <code>cls</code>, а не <code>clear</code>; разделитель пути — обратный слэш <code>\\</code>.</div>
+<div class="callout">🧪 Откройте вкладку <b>Песочница</b> и попробуйте команды вживую. Наберите <code>help</code>, затем <code>dir</code>.</div>
 `,
         tasks: [
-          { id: "cmd_read", type: "info", title: "Изучить команды cmd", prompt: "Прочитайте список базовых команд.", points: 5 },
+          { id: "cmd_read", type: "info", title: "Изучить команды cmd", prompt: "Прочитайте материал о командной строке.", points: 5 },
           { id: "cmd_dir", type: "question", title: "Список файлов", prompt: "Какая команда cmd показывает содержимое текущего каталога? (англ.)", answers: ["dir"], hints: ["Не 'ls', а короткое слово из 3 букв."], points: 10, sandbox: true },
+          { id: "cmd_type", type: "question", title: "Прочитать файл", prompt: "Какая команда выводит содержимое текстового файла в cmd? (англ., одно слово)", answers: ["type"], hints: ["Не 'cat'.", "4 буквы."], points: 10, sandbox: true },
           { id: "cmd_clear", type: "question", title: "Очистить экран", prompt: "Какая команда очищает экран в cmd? (англ., 3 буквы)", answers: ["cls"], hints: ["Clear Screen."], points: 10, sandbox: true },
+          { id: "cmd_findstr", type: "question", title: "Поиск в файлах", prompt: "Какая команда cmd ищет строку внутри файлов (аналог grep)? (англ., одно слово)", answers: ["findstr"], hints: ["find + str"], points: 15, sandbox: true },
+          { id: "cmd_redirect", type: "question", title: "Сохранить вывод", prompt: "Какой символ перенаправляет вывод команды в файл (перезапись)? (1 символ)", answers: [">"], hints: ["Стрелка вправо."], points: 10 },
+          { id: "cmd_choice", type: "choice", title: "Linux vs Windows", prompt: "Какая команда НЕ работает в стандартном cmd?", options: ["ls", "dir", "type", "cls"], answers: ["ls"], points: 15 },
           { id: "cmd_flag", type: "flag", title: "🚩 Найдите флаг в песочнице", prompt: "В песочнице в домашней папке есть файл secret.txt. Прочитайте его командой type и введите флаг (формат CYBER{...}).", answers: ["CYBER{windows_explorer}"], hints: ["Сначала dir, потом type secret.txt", "type secret.txt"], points: 25, sandbox: true, caseSensitive: true },
         ],
       },
@@ -443,69 +469,140 @@ const COURSES = [
         id: "powershell",
         title: "Основы PowerShell",
         intro: `
-<h3>PowerShell — мощнее, чем cmd</h3>
-<p>Открыть: меню Пуск → введите <code>PowerShell</code>. Команды имеют вид <b>Глагол-Существительное</b> (Verb-Noun):</p>
-<ul>
-  <li><code>Get-Content файл.txt</code> — прочитать файл (алиас <code>gc</code>, <code>cat</code>).</li>
-  <li><code>Get-Process</code> — список процессов (алиас <code>ps</code>).</li>
-  <li><code>Get-Service</code> — службы Windows.</li>
-  <li><code>Get-Help команда</code> — справка по командлету.</li>
-  <li><code>Get-ChildItem</code> — список файлов (алиас <code>ls</code>, <code>dir</code>).</li>
+<h3>PowerShell — не «cmd на стероидах», а другой зверь</h3>
+<p>cmd работает с <b>текстом</b>. PowerShell работает с <b>объектами</b>: каждая команда возвращает не строки, а структурированные данные, у которых есть свойства. Это делает его невероятно мощным для автоматизации — и поэтому же он любимый инструмент атакующих (бесфайловые атаки, <code>-enc</code> запуск). Разбираться в нём обязан и админ, и блю-тим.</p>
+<p>Открыть: Пуск → <code>PowerShell</code>. Для админ-прав — правый клик → «Запуск от имени администратора».</p>
+
+<h3>Verb-Noun: предсказуемые имена</h3>
+<p>Командлеты называются по схеме <b>Глагол-Существительное</b>, поэтому их легко угадывать:</p>
+<table>
+  <thead><tr><th>Командлет</th><th>Что делает</th><th>Алиасы</th></tr></thead>
+  <tbody>
+    <tr><td><code>Get-Content</code></td><td>Прочитать файл</td><td><code>gc</code>, <code>cat</code>, <code>type</code></td></tr>
+    <tr><td><code>Get-ChildItem</code></td><td>Список файлов/папок</td><td><code>ls</code>, <code>dir</code>, <code>gci</code></td></tr>
+    <tr><td><code>Get-Process</code></td><td>Запущенные процессы</td><td><code>ps</code>, <code>gps</code></td></tr>
+    <tr><td><code>Get-Service</code></td><td>Службы Windows</td><td><code>gsv</code></td></tr>
+    <tr><td><code>Get-Help</code></td><td>Справка по командлету</td><td><code>help</code>, <code>man</code></td></tr>
+  </tbody>
+</table>
+<div class="callout">💡 Почти всё, что <b>читает</b> данные, начинается с <code>Get-</code>. Меняет — <code>Set-</code>, создаёт — <code>New-</code>, удаляет — <code>Remove-</code>.</div>
+
+<h3>Конвейер объектов</h3>
+<p>Сила PowerShell — в <b>пайплайне</b> <code>|</code>: вывод одного командлета передаётся следующему как объекты, а не текст.</p>
+<pre><code>Get-Process | Where-Object { $_.CPU -gt 100 } | Sort-Object CPU -Descending | Select-Object -First 5</code></pre>
+<p>Здесь мы взяли процессы, отфильтровали по нагрузке ЦП, отсортировали и взяли топ-5 — одной строкой, без парсинга текста.</p>
+
+<h3>Почему PowerShell важен для безопасности</h3>
+<ul class="tl">
+  <li><b>Для защиты:</b> сбор инвентаря, автоматизация харденинга, анализ логов (<code>Get-WinEvent</code>).</li>
+  <li><b>Для атаки:</b> запуск в памяти без файла на диске, обфускация, <code>powershell -enc &lt;base64&gt;</code>.</li>
+  <li><b>Для блю-тим:</b> именно поэтому включают <b>логирование блоков скриптов</b> (Script Block Logging) и следят за событием 4104.</li>
 </ul>
-<div class="callout">💡 Почти каждый командлет чтения начинается с глагола <code>Get-</code>.</div>
+<div class="callout danger">🚨 Команда вида <code>powershell -w hidden -enc SQBFAFgA...</code> в логах почти всегда означает атаку: скрытое окно + закодированная команда. Запомните этот паттерн — он встретится в лабораториях по форензике и SOC.</div>
 `,
         tasks: [
-          { id: "ps_read", type: "info", title: "Изучить PowerShell", prompt: "Прочитайте о структуре командлетов.", points: 5 },
-          { id: "ps_verb", type: "question", title: "Глагол чтения", prompt: "С какого глагола начинаются командлеты получения данных? (англ., напр. Set/New/...)", answers: ["get", "get-"], hints: ["Get-Content, Get-Process..."], points: 10 },
+          { id: "ps_read", type: "info", title: "Изучить PowerShell", prompt: "Прочитайте о командлетах, пайплайне и безопасности.", points: 5 },
+          { id: "ps_verb", type: "question", title: "Глагол чтения", prompt: "С какого глагола начинаются командлеты получения данных? (англ.)", answers: ["get", "get-"], hints: ["Get-Content, Get-Process..."], points: 10 },
           { id: "ps_read_file", type: "question", title: "Прочитать файл", prompt: "Какой командлет читает содержимое файла? (Глагол-Существительное)", answers: ["get-content", "gc"], hints: ["Get-...", "Get-Content"], points: 15 },
           { id: "ps_proc", type: "question", title: "Список процессов", prompt: "Какой командлет показывает запущенные процессы? (Глагол-Существительное)", answers: ["get-process", "ps"], hints: ["Get-Process"], points: 15 },
+          { id: "ps_pipe", type: "question", title: "Конвейер", prompt: "Какой символ соединяет командлеты в конвейер (передаёт объекты дальше)? (1 символ)", answers: ["|"], hints: ["Вертикальная черта."], points: 10 },
+          { id: "ps_verb_new", type: "question", title: "Глагол создания", prompt: "С какого глагола начинаются командлеты создания объектов? (англ., напр. ...-Item)", answers: ["new", "new-"], hints: ["New-Item, New-LocalUser..."], points: 10 },
+          { id: "ps_enc", type: "choice", title: "Признак атаки", prompt: "Что в логах PowerShell сильнее всего намекает на вредоносную активность?", options: ["powershell -w hidden -enc <base64>", "Get-Help Get-Process", "Get-Content report.txt", "Get-Service"], answers: ["powershell -w hidden -enc <base64>"], points: 15 },
+          { id: "ps_log", type: "question", title: "Защита блю-тим", prompt: "Как называется логирование содержимого выполняемых скриптов PowerShell? (2 слова, англ., напр. Script ...)", answers: ["script block logging", "script block", "scriptblock logging"], hints: ["Script Block ...", "Событие 4104."], points: 15 },
         ],
       },
       {
         id: "win_users",
-        title: "Учётные записи и права NTFS",
+        title: "Учётные записи, права NTFS и привилегии",
         intro: `
-<h3>Пользователи, группы и UAC</h3>
-<p>Windows разделяет обычных пользователей и администраторов. Ключевое:</p>
-<ul>
-  <li><code>net user</code> — список учётных записей; <code>net user имя</code> — детали.</li>
-  <li><code>net localgroup administrators</code> — кто в группе админов.</li>
-  <li><b>UAC</b> (User Account Control) — запрос подтверждения на действия с правами администратора.</li>
-</ul>
-<h3>Права на файлы (NTFS)</h3>
-<ul>
-  <li><code>icacls файл</code> — показать права доступа к файлу/папке.</li>
-  <li>Права: (F) полный, (M) изменение, (RX) чтение+выполнение, (R) чтение, (W) запись.</li>
-</ul>
-<div class="callout">🛡️ Принцип минимальных привилегий: работайте под обычным аккаунтом, админ — только когда нужно.</div>
+<h3>Модель доступа Windows</h3>
+<p>Безопасность Windows держится на том, <b>кто</b> что-то делает (учётная запись), <b>в какой группе</b> он состоит (набор прав) и <b>что ему разрешено</b> с конкретным объектом (права NTFS). Понимание этой тройки — база и для харденинга, и для расследования, и для разбора повышения привилегий.</p>
+
+<h3>Пользователи и группы</h3>
+<table>
+  <thead><tr><th>Команда</th><th>Что показывает</th></tr></thead>
+  <tbody>
+    <tr><td><code>net user</code></td><td>Список локальных учёток</td></tr>
+    <tr><td><code>net user имя</code></td><td>Детали учётки: группы, последний вход, срок пароля</td></tr>
+    <tr><td><code>net localgroup administrators</code></td><td>Кто входит в группу админов</td></tr>
+    <tr><td><code>whoami /groups</code></td><td>В каких группах состою я</td></tr>
+  </tbody>
+</table>
+<p>Ключевые встроенные учётки: <b>Administrator</b> (полный контроль), <b>SYSTEM</b> (ещё выше — сама ОС), <b>Guest</b> (гость, обычно отключён).</p>
+
+<h3>UAC — заслон на пути к админ-правам</h3>
+<p><b>User Account Control</b> заставляет подтверждать действия, требующие прав администратора, даже если вы админ. Это не «назойливое окно», а важный рубеж: без него любая запущенная программа молча получала бы полный доступ.</p>
+
+<h3>Права NTFS</h3>
+<p>Файловая система NTFS хранит для каждого файла/папки список прав (ACL). Посмотреть — <code>icacls файл</code>:</p>
+<table>
+  <thead><tr><th>Обозначение</th><th>Право</th></tr></thead>
+  <tbody>
+    <tr><td>(F)</td><td>Full — полный доступ</td></tr>
+    <tr><td>(M)</td><td>Modify — изменение</td></tr>
+    <tr><td>(RX)</td><td>Чтение и выполнение</td></tr>
+    <tr><td>(R)</td><td>Только чтение</td></tr>
+    <tr><td>(W)</td><td>Только запись</td></tr>
+  </tbody>
+</table>
+<div class="callout warn">⚠️ Неправильные NTFS-права — частая причина повышения привилегий: если обычный пользователь может <b>записать</b> в файл службы, запускаемой от SYSTEM, он фактически получает SYSTEM.</div>
+
+<h3>Принцип минимальных привилегий</h3>
+<p>Золотое правило: у каждого аккаунта и процесса — <b>ровно столько прав, сколько нужно для задачи, и ни каплей больше</b>. Повседневная работа — под обычным пользователем; админ-права — только на конкретное действие. Это резко сокращает ущерб при взломе любой учётки.</p>
+<div class="callout">🛡️ Отдельный админ-аккаунт для админ-задач и обычный — для почты и браузера: даже если «обычный» скомпрометируют фишингом, до админ-прав атакующий сразу не дотянется.</div>
 `,
         tasks: [
-          { id: "wu_read", type: "info", title: "Изучить права Windows", prompt: "Разберитесь с учётками и NTFS.", points: 5 },
+          { id: "wu_read", type: "info", title: "Изучить права Windows", prompt: "Разберитесь с учётками, UAC, NTFS и минимальными привилегиями.", points: 5 },
           { id: "wu_netuser", type: "question", title: "Список учёток", prompt: "Какая команда (2 слова) показывает список локальных пользователей?", answers: ["net user"], hints: ["net ...", "net user"], points: 15 },
           { id: "wu_uac", type: "question", title: "Запрос прав админа", prompt: "Как называется механизм запроса подтверждения прав администратора? (аббревиатура, 3 буквы)", answers: ["uac"], hints: ["User Account Control."], points: 15 },
           { id: "wu_icacls", type: "question", title: "Права на файл", prompt: "Какая команда показывает NTFS-права на файл? (англ., одно слово)", answers: ["icacls"], hints: ["i + cacls"], points: 15 },
+          { id: "wu_system", type: "question", title: "Самая мощная учётка", prompt: "Какая встроенная учётная запись имеет прав БОЛЬШЕ, чем Administrator (это сама ОС)? (англ., одно слово)", answers: ["system", "nt authority\\\\system"], hints: ["Пишется заглавными.", "NT AUTHORITY\\\\SYSTEM"], points: 15 },
+          { id: "wu_priv", type: "question", title: "Главный принцип", prompt: "Как называется принцип «ровно столько прав, сколько нужно»? (2 слова, рус.)", answers: ["минимальные привилегии", "минимальных привилегий", "принцип минимальных привилегий"], hints: ["Least privilege."], points: 15 },
+          { id: "wu_choice", type: "choice", title: "Повышение привилегий", prompt: "Почему право ЗАПИСИ в файл службы, работающей от SYSTEM, опасно?", options: ["Пользователь сможет подменить его и получить SYSTEM", "Файл станет больше", "Служба будет быстрее", "Ничего страшного"], answers: ["Пользователь сможет подменить его и получить SYSTEM"], points: 15 },
         ],
       },
       {
         id: "win_recon",
-        title: "Разведка системы Windows",
+        title: "Разведка и триаж системы Windows",
         intro: `
 <h3>Ситуационная осведомлённость</h3>
-<p>При авторизованном аудите (или на своей машине) сначала собирают информацию:</p>
+<p>Первое, что делает и аудитор, и реагирующий на инцидент, и (увы) атакующий после доступа — <b>осматривается</b>. Кто я, что это за машина, что на ней запущено, куда она ходит по сети. Эти же команды вы применяете на собственной машине, чтобы понять её состояние.</p>
+<div class="callout">🔎 Всё ниже — легитимные шаги при авторизованном пентесте или аудите своей же машины. На чужих системах без разрешения — нельзя.</div>
+
+<h3>Кто я и какие у меня права</h3>
 <ul>
-  <li><code>whoami /priv</code> — мои привилегии; <code>whoami /groups</code> — группы.</li>
-  <li><code>systeminfo</code> — полная информация о системе и патчах.</li>
-  <li><code>tasklist</code> — список запущенных процессов.</li>
-  <li><code>ipconfig /all</code> — сетевая конфигурация.</li>
-  <li><code>netstat -ano</code> — открытые порты и соединения с PID.</li>
+  <li><code>whoami /priv</code> — мои привилегии (ищем «интересные»: SeImpersonate, SeBackup…).</li>
+  <li><code>whoami /groups</code> — членство в группах.</li>
+  <li><code>net user %username%</code> — детали моей учётки.</li>
 </ul>
-<div class="callout">🔎 Всё это — легитимные шаги при авторизованном пентесте или аудите своей же машины.</div>
+
+<h3>Что за система</h3>
+<ul>
+  <li><code>systeminfo</code> — версия ОС, патчи (hotfixes), железо, домен. Отсутствие свежих патчей = потенциальные уязвимости.</li>
+  <li><code>hostname</code> — имя машины.</li>
+</ul>
+
+<h3>Что запущено и куда ходит</h3>
+<table>
+  <thead><tr><th>Команда</th><th>Что показывает</th><th>На что смотреть</th></tr></thead>
+  <tbody>
+    <tr><td><code>tasklist</code></td><td>Запущенные процессы</td><td>Странные имена, процессы из Temp</td></tr>
+    <tr><td><code>netstat -ano</code></td><td>Порты и соединения + PID</td><td>Связи с внешними IP, бэкдор-порты</td></tr>
+    <tr><td><code>ipconfig /all</code></td><td>Сетевая конфигурация</td><td>IP, шлюз, DNS, домен</td></tr>
+    <tr><td><code>schtasks</code></td><td>Запланированные задачи</td><td>Задачи-закрепление вредоноса</td></tr>
+  </tbody>
+</table>
+<div class="deepdive"><b>Связка для триажа</b>
+<p>Нашли подозрительное соединение в <code>netstat -ano</code> → запомнили PID → <code>tasklist | findstr &lt;PID&gt;</code> покажет, какой процесс его открыл. Так из «странного порта» выходят на конкретный вредоносный процесс. Эту логику вы отработаете в лаборатории с Диспетчером задач ниже.</p></div>
+<div class="callout warn">⚠️ Те же команды используют атакующие для разведки после проникновения. Поэтому их массовый запуск с одной учётки — сам по себе сигнал для SOC.</div>
 `,
         tasks: [
-          { id: "wr_read", type: "info", title: "Изучить разведку", prompt: "Прочитайте о сборе информации.", points: 5 },
+          { id: "wr_read", type: "info", title: "Изучить разведку", prompt: "Прочитайте о сборе информации и триаже.", points: 5 },
           { id: "wr_systeminfo", type: "question", title: "Инфо о системе", prompt: "Какая команда выводит полную информацию о системе и установленных патчах? (англ., одно слово)", answers: ["systeminfo"], hints: ["system + info"], points: 10, sandbox: true },
           { id: "wr_tasklist", type: "question", title: "Процессы в cmd", prompt: "Какая команда cmd показывает список запущенных процессов? (англ., одно слово)", answers: ["tasklist"], hints: ["task + list"], points: 10, sandbox: true },
           { id: "wr_netstat", type: "question", title: "Открытые порты", prompt: "Какая команда показывает сетевые соединения и порты? (англ., одно слово)", answers: ["netstat"], hints: ["net + stat"], points: 15, sandbox: true },
+          { id: "wr_priv", type: "question", title: "Мои привилегии", prompt: "Какой флаг команды whoami показывает список привилегий? (с косой чертой)", answers: ["/priv"], hints: ["whoami /...", "/priv"], points: 15 },
+          { id: "wr_schtasks", type: "question", title: "Запланированные задачи", prompt: "Какая команда показывает запланированные задачи (частое место закрепления)? (англ., одно слово)", answers: ["schtasks"], hints: ["sch + tasks"], points: 15 },
           { id: "wr_lab", type: "lab", lab: "taskmgr", title: "Лаборатория: диспетчер задач", prompt: "Найдите и завершите вредоносный процесс в диспетчере задач.", points: 25 },
         ],
       },
