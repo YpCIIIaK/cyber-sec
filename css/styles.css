@@ -1655,3 +1655,96 @@ button.nav-xp:hover { border-color: var(--o-200); }
   .corp-dash .cd-kpis { grid-template-columns: 1fr; }
   .signup, .corp-login { padding: 18px 14px; }
 }
+
+/* ============================================================
+   Реалистичные лаборатории — пакет 2 (терминал, таблицы, панели)
+   ============================================================ */
+/* терминал */
+.tw { border-radius: 11px; overflow: hidden; box-shadow: var(--sh); margin-bottom: 12px; background: #0d1117; border: 1px solid #1d2430; }
+.tw-top { display: flex; align-items: center; gap: 12px; padding: 8px 13px; background: #161b22; border-bottom: 1px solid #1d2430; }
+.tw-title { font-size: .8rem; color: #8b98a8; font-family: var(--mono); }
+.tw-body { padding: 13px 15px; font-family: var(--mono); font-size: .82rem; color: #c9d4e0; }
+.tw-line { margin-bottom: 4px; word-break: break-all; }
+.tw-line.out { margin-top: 10px; }
+.tw-prompt { color: #58d68d; } .tw-dim { color: #6b7685; }
+.tw-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: .8rem; }
+.tw-table th { text-align: left; padding: 5px 8px; color: #7e8ca3; border-bottom: 1px solid #222b3a; font-weight: 600; }
+.tw-row { cursor: pointer; } .tw-row td { padding: 7px 8px; border-bottom: 1px solid #161d28; }
+.tw-row:hover { background: #141b26; }
+.tw-row.sel { background: #1b2740; } .tw-row.sel .pl-box { background: var(--o-500); border-color: var(--o-500); }
+.tw-row.bad { background: rgba(224,91,74,.12); }
+.tw-row .pl-box { border-color: #39465a; }
+.tw-port { color: #e6c07b; } .tw-open { color: #58d68d; }
+.str-list, .caesar-ctl { margin-top: 10px; }
+.str-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+.str-row:hover { background: #141b26; } .str-row code { color: #c9d4e0; word-break: break-all; }
+.str-row.sel { background: #1b2740; border-color: #2d3b56; } .str-row.sel .pl-box { background: var(--o-500); border-color: var(--o-500); }
+.str-row.bad { background: rgba(224,91,74,.12); } .str-row .pl-box { border-color: #39465a; }
+/* декодер Цезаря */
+.caesar-ctl { display: flex; align-items: center; gap: 14px; padding: 10px 0; color: #9fb0c8; }
+.caesar-ctl b { color: #e6c07b; }
+.caesar-range { flex: 1; accent-color: var(--o-500); }
+.cz-out { color: #8b98a8; transition: color .2s; } .cz-out.readable { color: #58d68d; font-weight: 700; }
+
+/* Диспетчер задач (Windows) */
+.tm-tabs { display: flex; gap: 2px; padding: 8px 12px 0; border-bottom: 1px solid var(--line); }
+.tm-tabs span { padding: 7px 13px; font-size: .82rem; color: var(--muted); border-bottom: 2px solid transparent; }
+.tm-tabs span.on { color: var(--ink); border-bottom-color: var(--o-500); font-weight: 600; }
+.tm-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+.tm-table th { text-align: left; padding: 8px 12px; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--line); }
+.tm-row { cursor: pointer; } .tm-row td { padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.tm-row:hover { background: var(--o-50); } .tm-row.sel { background: var(--o-100); }
+.tm-n { font-weight: 600; } .tm-path { font-family: var(--mono); font-size: .74rem; color: var(--muted); }
+.tm-hot { color: var(--err); font-weight: 700; } .tm-unsig { color: var(--err); }
+.tm-row.killed { opacity: .4; text-decoration: line-through; }
+.tm-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; }
+.tm-sel { font-size: .82rem; color: var(--muted); } .tm-kill { background: var(--err); color: #fff; }
+.tm-kill:disabled { opacity: .4; }
+
+/* EXIF (OSINT) */
+.exif { padding: 16px 18px; }
+.exif-photo { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; font-size: .8rem; color: var(--muted); }
+.exif-thumb { width: 58px; height: 58px; border-radius: 9px; background: linear-gradient(145deg,#8ec5ff,#4a89dc); display: grid; place-items: center; font-size: 1.8rem; }
+.exif-table { width: 100%; border-collapse: collapse; font-size: .82rem; margin-bottom: 14px; }
+.exif-table td { padding: 7px 10px; border-bottom: 1px solid var(--line); }
+.exif-table td:first-child { color: var(--muted); width: 42%; }
+.exif-table td:last-child { font-family: var(--mono); }
+.exif-hot td { background: color-mix(in srgb, var(--o-500) 9%, var(--surface)); color: var(--o-700); font-weight: 600; }
+.exif-q b { display: block; margin-bottom: 9px; }
+.exif-opts, .quiz-opt { display: flex; flex-wrap: wrap; gap: 8px; }
+.quiz-btn { padding: 9px 14px; border: 1.5px solid var(--line); border-radius: 9px; background: var(--surface); font-family: var(--sans); font-size: .86rem; font-weight: 600; color: var(--ink-2); cursor: pointer; transition: .12s; }
+.quiz-btn:hover { border-color: var(--o-300); }
+.quiz-btn.right { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+.quiz-btn.wrong { background: #fdecec; border-color: var(--err); color: var(--err); }
+
+/* Autoruns / AD / Sandbox таблицы */
+.arun-path, .adt-head { font-family: var(--mono); font-size: .76rem; color: var(--muted); padding: 10px 12px; background: var(--bg-2); border-bottom: 1px solid var(--line); word-break: break-all; }
+.arun-table, .adt-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+.arun-table th, .adt-table th { text-align: left; padding: 8px 10px; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--line); }
+.arun-row, .adt-row { cursor: pointer; } .arun-row td, .adt-row td { padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.arun-row:hover, .adt-row:hover { background: var(--o-50); }
+.arun-row.sel, .adt-row.sel { background: var(--o-100); }
+.arun-row.sel .pl-box, .adt-row.sel .pl-box, .sbox-row.sel .pl-box { background: var(--o-500); border-color: var(--o-500); }
+.arun-row.bad, .adt-row.bad, .sbox-row.bad { background: color-mix(in srgb, var(--err) 9%, var(--surface)); }
+.arun-n, .adt-n { font-weight: 600; } .arun-cmd { font-family: var(--mono); font-size: .74rem; color: var(--ink-2); word-break: break-all; }
+.arun-cmd.unsig { color: var(--err); } .arun-x { color: var(--err); font-size: .74rem; }
+.adt-spn { font-family: var(--mono); font-size: .75rem; color: var(--o-700); }
+.enc-badge { font-size: .68rem; font-weight: 800; padding: 2px 8px; border-radius: 10px; }
+.enc-badge.weak { background: #fdecec; color: var(--err); } .enc-badge.ok { background: var(--ok-bg); color: var(--ok); }
+
+/* Sandbox report (malware) */
+.sbox-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.sbox-head b { font-size: 1rem; } .sbox-hash { display: block; font-family: var(--mono); font-size: .72rem; color: var(--muted); }
+.sbox-verdict { font-size: .8rem; color: var(--muted); } .sbox-verdict b { color: var(--err); text-transform: uppercase; }
+.sbox-sub { font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 12px 16px 6px; }
+.sbox-list { padding: 0 12px 14px; }
+.sbox-row { display: flex; align-items: center; gap: 11px; padding: 9px 8px; border-radius: 7px; cursor: pointer; border: 1px solid transparent; }
+.sbox-row:hover { background: var(--o-50); } .sbox-row.sel { background: var(--o-100); }
+.sbox-tag { font-family: var(--mono); font-size: .7rem; font-weight: 700; color: #fff; background: #8b5cf6; padding: 2px 7px; border-radius: 6px; flex-shrink: 0; min-width: 48px; text-align: center; }
+.sbox-tag.muted { background: var(--bg-3); color: var(--muted); }
+.sbox-txt { font-size: .84rem; }
+
+@media (max-width: 560px) {
+  .tm-path, .arun-cmd { font-size: .68rem; }
+  .exif-table td:first-child { width: 38%; }
+}

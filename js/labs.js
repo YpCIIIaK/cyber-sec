@@ -35,6 +35,32 @@ const Labs = (() => {
       </div>`;
   }
 
+  /* ---------- «хром» терминала ---------- */
+  function term(title, bodyHTML, extraClass = "") {
+    return `
+      <div class="tw ${extraClass}">
+        <div class="tw-top"><span class="bw-dots"><i></i><i></i><i></i></span><span class="tw-title">${esc(title)}</span></div>
+        <div class="tw-body">${bodyHTML}</div>
+      </div>`;
+  }
+
+  /* ---------- общий обработчик: клик-выбор строк + проверка множества ---------- */
+  function selectable(el, rowSel, btnSel, outEl, correctIdx, okMsg, noMsg, onSolve) {
+    const sel = new Set(); let solved = false;
+    el.querySelectorAll(rowSel).forEach((row) => row.addEventListener("click", () => {
+      if (solved) return; const i = +row.dataset.i;
+      if (sel.has(i)) { sel.delete(i); row.classList.remove("sel"); } else { sel.add(i); row.classList.add("sel"); }
+    }));
+    el.querySelector(btnSel).addEventListener("click", () => {
+      if (solved) return;
+      const out = el.querySelector(outEl);
+      const ok = correctIdx.length === sel.size && correctIdx.every((i) => sel.has(i));
+      el.querySelectorAll(rowSel).forEach((row) => row.classList.toggle("bad", correctIdx.includes(+row.dataset.i)));
+      if (ok) { out.className = "lab-out ok"; out.innerHTML = "✓ " + okMsg; solved = true; onSolve(); }
+      else { out.className = "lab-out no"; out.textContent = "✗ " + noMsg; }
+    });
+  }
+
   const DEFS = {
     /* ================================================================
        Измеритель надёжности пароля — форма регистрации (Основы)
@@ -412,6 +438,294 @@ const Labs = (() => {
           out.textContent = "✗ " + t("В инцидент попало не всё. Строки цепочки атаки подсвечены — сравните.");
         }
       });
+    },
+
+    /* ================================================================
+       Сканер портов nmap — терминал (Сети)
+       ================================================================ */
+    portscan(el, onSolve) {
+      const ports = [
+        { p: "22/tcp", st: "open", svc: "ssh", ver: "OpenSSH 8.9", risk: false },
+        { p: "23/tcp", st: "open", svc: "telnet", ver: "Linux telnetd", risk: true },
+        { p: "80/tcp", st: "open", svc: "http", ver: "nginx 1.24", risk: false },
+        { p: "445/tcp", st: "open", svc: "microsoft-ds", ver: "Samba smbd 3.X (SMBv1)", risk: true },
+        { p: "3306/tcp", st: "open", svc: "mysql", ver: "MySQL 8.0 (0.0.0.0)", risk: true },
+        { p: "3389/tcp", st: "open", svc: "ms-wbt-server", ver: "Microsoft Terminal Services", risk: true },
+        { p: "443/tcp", st: "open", svc: "https", ver: "nginx 1.24 (TLS 1.3)", risk: false },
+      ];
+      el.innerHTML = `
+        <p class="lab-hint">${t("Вы просканировали сервер в рамках аудита. Отметьте порты, которые представляют риск и должны быть закрыты или ограничены.")}</p>
+        ${term("analyst@kali: ~", `
+          <div class="tw-line"><span class="tw-prompt">$</span> nmap -sV 10.10.14.7</div>
+          <div class="tw-dim">Starting Nmap 7.94 · scan report for 10.10.14.7</div>
+          <div class="tw-dim">Host is up (0.011s latency).</div>
+          <table class="tw-table">
+            <thead><tr><th></th><th>PORT</th><th>STATE</th><th>SERVICE</th><th>VERSION</th></tr></thead>
+            <tbody>
+              ${ports.map((p, i) => `<tr class="tw-row" data-i="${i}"><td><span class="pl-box"></span></td>
+                <td class="tw-port">${p.p}</td><td class="tw-open">${p.st}</td><td>${esc(p.svc)}</td><td class="tw-dim">${esc(p.ver)}</td></tr>`).join("")}
+            </tbody>
+          </table>`)}
+        <button class="btn btn-primary btn-sm" id="ps-go">${t("Отметить рискованные порты")}</button>
+        <div class="lab-out" id="ps-out"></div>`;
+      selectable(el, ".tw-row", "#ps-go", "#ps-out",
+        ports.map((p, i) => p.risk ? i : -1).filter((i) => i >= 0),
+        t("Верно! Telnet (23) передаёт пароли открытым текстом, SMBv1 (445) уязвим к EternalBlue, MySQL (3306) и RDP (3389) не должны смотреть в интернет. SSH, HTTP и HTTPS — в порядке."),
+        t("Отмечено не всё. Рискованные порты подсвечены — сравните. HTTPS и SSH закрывать не нужно."), onSolve);
+    },
+
+    /* ================================================================
+       Диспетчер задач — поиск вредоносного процесса (Windows)
+       ================================================================ */
+    taskmgr(el, onSolve) {
+      const procs = [
+        { n: "explorer.exe", pid: 2184, cpu: "0.4%", path: "C:\\Windows\\explorer.exe", sig: "Microsoft", bad: false },
+        { n: "chrome.exe", pid: 6620, cpu: "3.1%", path: "C:\\Program Files\\Google\\Chrome\\chrome.exe", sig: "Google LLC", bad: false },
+        { n: "svch0st.exe", pid: 7788, cpu: "48.7%", path: "C:\\Users\\user\\AppData\\Local\\Temp\\svch0st.exe", sig: "—", bad: true },
+        { n: "svchost.exe", pid: 1040, cpu: "0.1%", path: "C:\\Windows\\System32\\svchost.exe", sig: "Microsoft", bad: false },
+        { n: "Code.exe", pid: 9112, cpu: "1.8%", path: "C:\\Program Files\\Microsoft VS Code\\Code.exe", sig: "Microsoft", bad: false },
+      ];
+      el.innerHTML = `
+        <p class="lab-hint">${t("Пользователь жалуется на тормоза. Откройте Диспетчер задач и найдите подозрительный процесс, затем завершите его.")}</p>
+        ${appwin(t("Диспетчер задач"), "📋", `
+          <div class="tm">
+            <div class="tm-tabs"><span class="on">${t("Процессы")}</span><span>${t("Производительность")}</span><span>${t("Автозагрузка")}</span></div>
+            <table class="tm-table">
+              <thead><tr><th>${t("Имя")}</th><th>PID</th><th>${t("ЦП")}</th><th>${t("Расположение")}</th><th>${t("Издатель")}</th></tr></thead>
+              <tbody>
+                ${procs.map((p, i) => `<tr class="tm-row" data-i="${i}"><td class="tm-n">${esc(p.n)}</td><td>${p.pid}</td>
+                  <td class="${parseFloat(p.cpu) > 20 ? "tm-hot" : ""}">${p.cpu}</td><td class="tm-path">${esc(p.path)}</td>
+                  <td class="${p.sig === "—" ? "tm-unsig" : ""}">${esc(p.sig)}</td></tr>`).join("")}
+              </tbody>
+            </table>
+            <div class="tm-foot"><span id="tm-pick" class="tm-sel">${t("Процесс не выбран")}</span>
+              <button class="btn btn-sm tm-kill" id="tm-go" disabled>${t("Завершить задачу")}</button></div>
+          </div>`)}
+        <div class="lab-out" id="tm-out"></div>`;
+      let picked = null, solved = false;
+      const go = el.querySelector("#tm-go"), pick = el.querySelector("#tm-pick");
+      el.querySelectorAll(".tm-row").forEach((row) => row.addEventListener("click", () => {
+        if (solved) return;
+        el.querySelectorAll(".tm-row").forEach((r) => r.classList.remove("sel"));
+        row.classList.add("sel"); picked = +row.dataset.i;
+        pick.textContent = procs[picked].n + " (PID " + procs[picked].pid + ")"; go.disabled = false;
+      }));
+      go.addEventListener("click", () => {
+        if (solved || picked == null) return;
+        const out = el.querySelector("#tm-out");
+        if (procs[picked].bad) {
+          const row = el.querySelector(`.tm-row[data-i="${picked}"]`); row.classList.add("killed");
+          out.className = "lab-out ok";
+          out.innerHTML = "✓ " + t("Верно! <b>svch0st.exe</b> — маскировка под системный svchost: запуск из папки Temp, без цифровой подписи и 48% ЦП. Настоящий svchost живёт в System32 и подписан Microsoft.");
+          solved = true; onSolve();
+        } else {
+          out.className = "lab-out no";
+          out.textContent = "✗ " + t("Это легитимный процесс. Ищите подделку: странное имя, путь в Temp, нет подписи, аномальная нагрузка.");
+        }
+      });
+    },
+
+    /* ================================================================
+       EXIF-метаданные фото — геолокация (OSINT)
+       ================================================================ */
+    exif(el, onSolve) {
+      const opts = [t("Берлин, Германия"), t("Париж, Франция"), t("Рим, Италия"), t("Прага, Чехия")];
+      el.innerHTML = `
+        <p class="lab-hint">${t("Вам прислали фото без подписи. Изучите EXIF-метаданные и определите, где оно снято.")}</p>
+        ${appwin(t("Свойства — photo_4821.jpg"), "🖼", `
+          <div class="exif">
+            <div class="exif-photo"><div class="exif-thumb">🗼</div><span>photo_4821.jpg · 4.2 MB · 4032×3024</span></div>
+            <table class="exif-table">
+              <tr><td>${t("Камера")}</td><td>Apple iPhone 14 Pro</td></tr>
+              <tr><td>${t("Дата съёмки")}</td><td>2026:07:14 16:32:08</td></tr>
+              <tr><td>${t("Выдержка")}</td><td>1/1200 s · f/1.8 · ISO 50</td></tr>
+              <tr class="exif-hot"><td>GPS Latitude</td><td>48°51′29.6″N (48.8582)</td></tr>
+              <tr class="exif-hot"><td>GPS Longitude</td><td>2°17′40.2″E (2.2945)</td></tr>
+              <tr><td>Software</td><td>16.5.1</td></tr>
+            </table>
+            <div class="exif-q"><b>${t("Где сделано фото?")}</b>
+              <div class="exif-opts">${opts.map((o, i) => `<button class="quiz-btn" data-i="${i}">${o}</button>`).join("")}</div></div>
+            <div class="lab-out" id="ex-out"></div>
+          </div>`)}`;
+      let solved = false;
+      el.querySelectorAll(".exif-opts .quiz-btn").forEach((b) => b.addEventListener("click", () => {
+        if (solved) return;
+        const out = el.querySelector("#ex-out");
+        if (+b.dataset.i === 1) {
+          b.classList.add("right");
+          out.className = "lab-out ok";
+          out.innerHTML = "✓ " + t("Верно! Координаты 48.8582, 2.2945 — Эйфелева башня, Париж. GPS в EXIF часто выдаёт точное место съёмки — поэтому соцсети вырезают эти данные.");
+          solved = true; onSolve();
+        } else {
+          b.classList.add("wrong");
+          out.className = "lab-out no";
+          out.textContent = "✗ " + t("Не то. Вбейте координаты 48.8582, 2.2945 мысленно в карту — это известная достопримечательность.");
+        }
+      }));
+    },
+
+    /* ================================================================
+       Реестр автозапуска — охота на закрепление (Форензика)
+       ================================================================ */
+    autoruns(el, onSolve) {
+      const rows = [
+        { name: "Google Update", cmd: "C:\\Program Files\\Google\\Update\\GoogleUpdate.exe", pub: "Google LLC", signed: true, bad: false },
+        { name: "Realtek HD Audio", cmd: "C:\\Program Files\\Realtek\\Audio\\RtkNGUI64.exe", pub: "Realtek", signed: true, bad: false },
+        { name: "Updater", cmd: "powershell -w hidden -enc JABjAD0A...", pub: "—", signed: false, bad: true },
+        { name: "OneDrive", cmd: "C:\\Users\\user\\AppData\\Local\\Microsoft\\OneDrive\\OneDrive.exe", pub: "Microsoft", signed: true, bad: false },
+        { name: "SysMonitor", cmd: "C:\\Users\\user\\AppData\\Roaming\\svc\\mon.exe", pub: "—", signed: false, bad: true },
+      ];
+      el.innerHTML = `
+        <p class="lab-hint">${t("Вы исследуете заражённый хост. В разделе автозапуска реестра найдите записи закрепления вредоноса.")}</p>
+        ${appwin("Autoruns — HKCU\\...\\Run", "🔑", `
+          <div class="arun">
+            <div class="arun-path">HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run</div>
+            <table class="arun-table">
+              <thead><tr><th></th><th>${t("Имя")}</th><th>${t("Команда")}</th><th>${t("Издатель")}</th></tr></thead>
+              <tbody>
+                ${rows.map((r, i) => `<tr class="arun-row" data-i="${i}"><td><span class="pl-box"></span></td>
+                  <td class="arun-n">${esc(r.name)}</td><td class="arun-cmd ${r.signed ? "" : "unsig"}">${esc(r.cmd)}</td>
+                  <td>${r.signed ? esc(r.pub) : `<span class="arun-x">${t("не подписано")}</span>`}</td></tr>`).join("")}
+              </tbody>
+            </table>
+          </div>`)}
+        <button class="btn btn-primary btn-sm" id="ar-go">${t("Отметить вредоносные записи")}</button>
+        <div class="lab-out" id="ar-out"></div>`;
+      selectable(el, ".arun-row", "#ar-go", "#ar-out",
+        rows.map((r, i) => r.bad ? i : -1).filter((i) => i >= 0),
+        t("Верно! «Updater» запускает закодированный PowerShell (-enc, hidden), а «SysMonitor» — неподписанный бинарь из AppData\\Roaming. Обе записи — закрепление вредоноса. Остальные подписаны и легитимны."),
+        t("Отмечено не всё. Легитимные автозапуски подписаны известными вендорами; вредоносные — без подписи, из папок пользователя или с -enc PowerShell."), onSolve);
+    },
+
+    /* ================================================================
+       Отчёт песочницы — анализ поведения (Вредоносное ПО)
+       ================================================================ */
+    sandbox(el, onSolve) {
+      const acts = [
+        { tag: "T1112", txt: "Создаёт ключ реестра HKCU\\...\\Run\\Updater", bad: true },
+        { tag: "—", txt: "Читает C:\\Windows\\win.ini", bad: false },
+        { tag: "T1071", txt: "Исходящее TCP-соединение с 185.212.47.19:443", bad: true },
+        { tag: "T1055", txt: "Внедряет код в explorer.exe (process injection)", bad: true },
+        { tag: "—", txt: "Создаёт временный файл %TEMP%\\~setup.tmp", bad: false },
+        { tag: "T1486", txt: "Массово шифрует файлы в \\Users\\ (.locked)", bad: true },
+      ];
+      el.innerHTML = `
+        <p class="lab-hint">${t("Образец прогнали в песочнице. Отметьте вредоносные действия в отчёте (они помечены техниками MITRE ATT&CK).")}</p>
+        ${appwin(t("Отчёт песочницы — sample.exe"), "🧪", `
+          <div class="sbox">
+            <div class="sbox-head">
+              <div><b>sample.exe</b><span class="sbox-hash">SHA256: 9f2c…a71b</span></div>
+              <span class="sbox-verdict">${t("ВЕРДИКТ")}: <b>malicious</b> 92/100</span>
+            </div>
+            <div class="sbox-sub">${t("Поведение при запуске")}</div>
+            <div class="sbox-list">
+              ${acts.map((a, i) => `<div class="sbox-row" data-i="${i}"><span class="pl-box"></span>
+                <span class="sbox-tag ${a.tag === "—" ? "muted" : ""}">${a.tag}</span><span class="sbox-txt">${esc(t(a.txt))}</span></div>`).join("")}
+            </div>
+          </div>`)}
+        <button class="btn btn-primary btn-sm" id="sb-go">${t("Пометить вредоносное поведение")}</button>
+        <div class="lab-out" id="sb-out"></div>`;
+      selectable(el, ".sbox-row", "#sb-go", "#sb-out",
+        acts.map((a, i) => a.bad ? i : -1).filter((i) => i >= 0),
+        t("Верно! Закрепление в реестре (T1112), связь с C2 (T1071), инъекция в процесс (T1055) и шифрование файлов (T1486) — это рансомвар. Чтение win.ini и временный файл сами по себе безобидны."),
+        t("Отмечено не всё. Вредоносные действия имеют тег MITRE ATT&CK и подсвечены — сравните."), onSolve);
+    },
+
+    /* ================================================================
+       Декодер Цезаря — шифр сдвига (Криптография)
+       ================================================================ */
+    caesar(el, onSolve) {
+      const SHIFT = 7, PLAIN = "THE PASSWORD IS GRANITE";
+      const enc = PLAIN.replace(/[A-Z]/g, (c) => String.fromCharCode((c.charCodeAt(0) - 65 + SHIFT) % 26 + 65));
+      el.innerHTML = `
+        <p class="lab-hint">${t("Перехвачено зашифрованное шифром Цезаря сообщение. Подберите сдвиг, прочитайте текст и введите слово-пароль.")}</p>
+        ${term(t("Декодер Цезаря"), `
+          <div class="tw-line"><span class="tw-prompt">ciphertext:</span> ${enc}</div>
+          <div class="caesar-ctl"><span>${t("Сдвиг")}: <b id="cz-n">0</b></span>
+            <input type="range" id="cz-sl" min="0" max="25" value="0" class="caesar-range"></div>
+          <div class="tw-line out"><span class="tw-prompt">plaintext: </span><span id="cz-out" class="cz-out">${enc}</span></div>
+        `)}
+        <div class="lab-form" style="margin-top:12px">
+          <label style="flex:1">${t("Слово-пароль из сообщения")}<input class="fld-in" id="cz-in" placeholder="${t("введите слово")}" autocomplete="off"></label>
+          <button class="btn btn-primary btn-sm" id="cz-go">${t("Проверить")}</button>
+        </div>
+        <div class="lab-out" id="cz-out2"></div>`;
+      const sl = el.querySelector("#cz-sl"), nn = el.querySelector("#cz-n"), oo = el.querySelector("#cz-out");
+      const dec = (s) => enc.replace(/[A-Z]/g, (c) => String.fromCharCode((c.charCodeAt(0) - 65 - s + 26) % 26 + 65));
+      sl.addEventListener("input", () => { const s = +sl.value; nn.textContent = s; oo.textContent = dec(s); oo.classList.toggle("readable", s === SHIFT); });
+      let solved = false;
+      el.querySelector("#cz-go").addEventListener("click", () => {
+        if (solved) return;
+        const out = el.querySelector("#cz-out2");
+        if (el.querySelector("#cz-in").value.trim().toUpperCase() === "GRANITE") {
+          out.className = "lab-out ok";
+          out.innerHTML = "✓ " + t("Верно! Сдвиг 7 превращает шифртекст в «THE PASSWORD IS GRANITE». Шифр Цезаря ломается за 26 попыток — поэтому его не используют всерьёз.");
+          solved = true; onSolve();
+        } else {
+          out.className = "lab-out no";
+          out.textContent = "✗ " + t("Пока не то. Двигайте ползунок сдвига, пока текст не станет читаемым, и возьмите слово после «IS».");
+        }
+      });
+    },
+
+    /* ================================================================
+       Строки бинарника — извлечение IOC (Реверс-инжиниринг)
+       ================================================================ */
+    strings(el, onSolve) {
+      const lines = [
+        { s: "!This program cannot be run in DOS mode", ioc: false },
+        { s: "http://185.212.47.19/gate.php", ioc: true },
+        { s: "GetProcAddress", ioc: false },
+        { s: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", ioc: true },
+        { s: "KERNEL32.DLL", ioc: false },
+        { s: "Global\\Mutex_7f3a9b2c", ioc: true },
+        { s: "Mozilla/5.0 (Windows NT 10.0)", ioc: false },
+      ];
+      el.innerHTML = `
+        <p class="lab-hint">${t("Вы анализируете подозрительный бинарник. В выводе strings отметьте индикаторы компрометации (IOC), которые стоит занести в отчёт.")}</p>
+        ${term("analyst@lab: ~", `
+          <div class="tw-line"><span class="tw-prompt">$</span> strings suspicious.exe</div>
+          <div class="str-list">
+            ${lines.map((l, i) => `<div class="str-row" data-i="${i}"><span class="pl-box"></span><code>${esc(l.s)}</code></div>`).join("")}
+          </div>`)}
+        <button class="btn btn-primary btn-sm" id="st-go">${t("Отметить IOC")}</button>
+        <div class="lab-out" id="st-out"></div>`;
+      selectable(el, ".str-row", "#st-go", "#st-out",
+        lines.map((l, i) => l.ioc ? i : -1).filter((i) => i >= 0),
+        t("Верно! C2-URL (185.212.47.19), ключ автозапуска в реестре и имя мьютекса — полезные IOC. Остальное — обычные строки из любого PE-файла (импорты, заголовок DOS, User-Agent)."),
+        t("Отмечено не всё. IOC — это сетевые адреса, пути закрепления и уникальные маркеры; стандартные строки PE не в счёт."), onSolve);
+    },
+
+    /* ================================================================
+       Аудит Kerberoasting — сервисные учётки AD (Active Directory)
+       ================================================================ */
+    kerberoast(el, onSolve) {
+      const accts = [
+        { n: "svc_sql", spn: "MSSQLSvc/db01", pw: "412 дн.", enc: "RC4", risk: true },
+        { n: "svc_web", spn: "HTTP/web01", pw: "фев 2019", enc: "RC4", risk: true },
+        { n: "Administrator", spn: "—", pw: "28 дн.", enc: "AES256", risk: false },
+        { n: "svc_backup", spn: "CIFS/bkp01", pw: "15 дн.", enc: "AES256", risk: false },
+        { n: "j.smith", spn: "—", pw: "9 дн.", enc: "AES256", risk: false },
+      ];
+      el.innerHTML = `
+        <p class="lab-hint">${t("Аудит безопасности домена. Найдите сервисные учётки, уязвимые к Kerberoasting (есть SPN + слабое шифрование RC4 + старый пароль), которые нужно усилить.")}</p>
+        ${appwin("Active Directory — " + t("Сервисные учётки"), "🗄", `
+          <div class="adt">
+            <table class="adt-table">
+              <thead><tr><th></th><th>${t("Учётка")}</th><th>SPN</th><th>${t("Пароль задан")}</th><th>${t("Шифрование")}</th></tr></thead>
+              <tbody>
+                ${accts.map((a, i) => `<tr class="adt-row" data-i="${i}"><td><span class="pl-box"></span></td>
+                  <td class="adt-n">${esc(a.n)}</td><td class="${a.spn === "—" ? "tw-dim" : "adt-spn"}">${esc(a.spn)}</td>
+                  <td>${esc(t(a.pw))}</td><td><span class="enc-badge ${a.enc === "RC4" ? "weak" : "ok"}">${a.enc}</span></td></tr>`).join("")}
+              </tbody>
+            </table>
+          </div>`)}
+        <button class="btn btn-primary btn-sm" id="kr-go">${t("Отметить уязвимые учётки")}</button>
+        <div class="lab-out" id="kr-out"></div>`;
+      selectable(el, ".adt-row", "#kr-go", "#kr-out",
+        accts.map((a, i) => a.risk ? i : -1).filter((i) => i >= 0),
+        t("Верно! svc_sql и svc_web имеют SPN, слабое RC4 и древние пароли — их Kerberos-билет можно выгрузить и брутфорсить офлайн. Защита: длинные пароли (25+), gMSA и AES. Учётки без SPN или на AES — не роастятся."),
+        t("Отмечено не всё. Под Kerberoasting попадают только учётки с SPN и слабым шифрованием/старым паролем. AES-учётки и обычные пользователи без SPN не уязвимы."), onSolve);
     },
   };
 

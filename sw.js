@@ -1,5 +1,5 @@
 /* CyberPath Service Worker — офлайн-режим (network-first для своих файлов) */
-const CACHE = "cyberpath-v12";
+const CACHE = "cyberpath-v13";
 const CORE = [
   "./",
   "./index.html",

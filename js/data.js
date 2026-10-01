@@ -382,6 +382,7 @@ const COURSES = [
           { id: "wr_systeminfo", type: "question", title: "Инфо о системе", prompt: "Какая команда выводит полную информацию о системе и установленных патчах? (англ., одно слово)", answers: ["systeminfo"], hints: ["system + info"], points: 10, sandbox: true },
           { id: "wr_tasklist", type: "question", title: "Процессы в cmd", prompt: "Какая команда cmd показывает список запущенных процессов? (англ., одно слово)", answers: ["tasklist"], hints: ["task + list"], points: 10, sandbox: true },
           { id: "wr_netstat", type: "question", title: "Открытые порты", prompt: "Какая команда показывает сетевые соединения и порты? (англ., одно слово)", answers: ["netstat"], hints: ["net + stat"], points: 15, sandbox: true },
+          { id: "wr_lab", type: "lab", lab: "taskmgr", title: "Лаборатория: диспетчер задач", prompt: "Найдите и завершите вредоносный процесс в диспетчере задач.", points: 25 },
         ],
       },
     ],
@@ -443,6 +444,7 @@ const COURSES = [
           { id: "nm_version", type: "question", title: "Определение версий", prompt: "Какой флаг Nmap определяет версии сервисов? (например -X)", answers: ["-sv", "-sV"], hints: ["s + Version"], points: 15, caseSensitive: false },
           { id: "nm_allports", type: "question", title: "Все порты", prompt: "Какой флаг сканирует все 65535 портов?", answers: ["-p-"], hints: ["p и дефис."], points: 15 },
           { id: "nm_flag", type: "flag", title: "🚩 Скан цели в песочнице", prompt: "Запустите nmap на 10.10.10.5 в песочнице. Один из портов необычный — введите его номер.", answers: ["1337"], hints: ["nmap 10.10.10.5", "Ищите порт, которого нет в стандартном списке."], points: 25, sandbox: true },
+          { id: "nm_lab", type: "lab", lab: "portscan", title: "Лаборатория: разбор скана портов", prompt: "Отметьте рискованные открытые порты в выводе nmap.", points: 25 },
         ],
       },
     ],
@@ -641,6 +643,7 @@ const COURSES = [
           { id: "enc_read", type: "info", title: "Изучить кодировки", prompt: "Прочитайте про кодировки.", points: 5 },
           { id: "enc_b64", type: "flag", title: "🚩 Раскодируй Base64", prompt: "Раскодируйте строку Q1lCRVJ7YmFzZTY0X2lzX2Vhc3l9 (можно в песочнице: base64 -d). Введите результат.", answers: ["CYBER{base64_is_easy}"], hints: ["base64 -d в песочнице.", "Начинается с CYBER{"], points: 25, sandbox: true, caseSensitive: true },
           { id: "enc_reversible", type: "question", title: "Ключевое отличие", prompt: "Base64 — это шифрование или кодирование? (1 слово, рус.)", answers: ["кодирование"], hints: ["Не требует ключа."], points: 10 },
+          { id: "enc_lab", type: "lab", lab: "caesar", title: "Лаборатория: шифр Цезаря", prompt: "Подберите сдвиг и расшифруйте перехваченное сообщение.", points: 25 },
         ],
       },
       {
@@ -710,6 +713,7 @@ const COURSES = [
           { id: "os_read", type: "info", title: "Изучить OSINT", prompt: "Прочитайте вступление.", points: 5 },
           { id: "os_abbr", type: "question", title: "Расшифровка", prompt: "Как расшифровывается OSINT — первое слово? (англ.)", answers: ["open"], hints: ["Open Source Intelligence."], points: 10 },
           { id: "os_exif", type: "question", title: "Данные в фото", prompt: "Как называются метаданные внутри фотографий (GPS, камера)? (англ., 4 буквы)", answers: ["exif"], hints: ["Exchangeable Image File Format."], points: 15 },
+          { id: "osi_lab", type: "lab", lab: "exif", title: "Лаборатория: геолокация по EXIF", prompt: "Определите место съёмки фото по метаданным.", points: 25 },
         ],
       },
       {
@@ -789,6 +793,7 @@ const COURSES = [
           { id: "adr_users", type: "question", title: "Пользователи домена", prompt: "Какая команда (3 слова) показывает пользователей домена?", answers: ["net user /domain"], hints: ["net user ...", "net user /domain"], points: 15 },
           { id: "adr_kerb", type: "question", title: "Атака на сервисы", prompt: "Как называется атака запроса TGS и офлайн-подбора паролей сервисных аккаунтов? (англ., одно слово)", answers: ["kerberoasting"], hints: ["Kerber..."], points: 20 },
           { id: "adr_flag", type: "flag", title: "🚩 Флаг в песочнице", prompt: "Прочитайте файл Documents\\domain.txt в песочнице и введите флаг.", answers: ["CYBER{ad_recon_ok}"], hints: ["cd Documents, затем type domain.txt", "type Documents\\domain.txt"], points: 25, sandbox: true, caseSensitive: true },
+          { id: "adr_lab", type: "lab", lab: "kerberoast", title: "Лаборатория: аудит Kerberoasting", prompt: "Найдите сервисные учётки, уязвимые к Kerberoasting.", points: 25 },
         ],
       },
       {
@@ -860,6 +865,7 @@ const COURSES = [
           { id: "res_tool", type: "question", title: "Извлечь текст", prompt: "Какая утилита извлекает читаемые строки из бинарного файла? (англ., одно слово)", answers: ["strings"], hints: ["Так и называется."], points: 15 },
           { id: "res_b64", type: "flag", title: "🚩 Раскодируй строку", prompt: "Из бинаря извлекли строку Q1lCRVJ7cmV2X2VuZ19zdHJpbmdzfQ== — раскодируйте её (base64 -d в песочнице) и введите флаг.", answers: ["CYBER{rev_eng_strings}"], hints: ["base64 -d Q1lCRVJ7cmV2X2VuZ19zdHJpbmdzfQ==", "Начинается с CYBER{"], points: 25, sandbox: true, caseSensitive: true },
           { id: "res_rot", type: "flag", title: "🚩 Сдвинутая строка", prompt: "Строка PLORE{ebg13_qrpbqrq} зашифрована ROT13. Раскодируйте (rot13 в песочнице) и введите результат.", answers: ["CYBER{rot13_decoded}"], hints: ["rot13 PLORE{ebg13_qrpbqrq}", "ROT13 обратим тем же ROT13."], points: 25, sandbox: true, caseSensitive: true },
+          { id: "res_lab", type: "lab", lab: "strings", title: "Лаборатория: извлечение IOC", prompt: "Отметьте индикаторы компрометации в выводе strings.", points: 25 },
         ],
       },
       {
@@ -932,6 +938,7 @@ const COURSES = [
           { id: "foa_evtx", type: "question", title: "Журналы событий", prompt: "Какое расширение у файлов журналов событий Windows? (с точкой)", answers: [".evtx", "evtx"], hints: ["Event log → .e____"], points: 15 },
           { id: "foa_mft", type: "question", title: "Таблица файлов NTFS", prompt: "Как называется главная таблица файлов NTFS? (аббревиатура, 3 буквы)", answers: ["mft"], hints: ["Master File Table."], points: 15 },
           { id: "foa_flag", type: "flag", title: "🚩 Флаг в логе", prompt: "Найдите флаг в файле Documents\\system.log с помощью findstr и введите его.", answers: ["CYBER{forensics_artifacts}"], hints: ["findstr CYBER Documents\\system.log", "Ищите строку AUDIT."], points: 25, sandbox: true, caseSensitive: true },
+          { id: "foa_lab", type: "lab", lab: "autoruns", title: "Лаборатория: охота на автозапуск", prompt: "Найдите записи закрепления вредоноса в реестре.", points: 25 },
         ],
       },
       {
@@ -1260,6 +1267,7 @@ const COURSES = [
           { id: "mwb_persist", type: "question", title: "Закрепление", prompt: "Общий англ. термин для закрепления в системе (автозагрузка, задачи, службы)?", answers: ["persistence"], hints: ["Persist..."], points: 15 },
           { id: "mwb_c2", type: "question", title: "Сервер управления", prompt: "Аббревиатура сервера управления вредоносом (2 символа)?", answers: ["c2", "c&c"], hints: ["Command & Control."], points: 15 },
           { id: "mwb_flag", type: "flag", title: "🚩 Найдите закрепление в песочнице", prompt: "Пройдите в песочнице цепочку netstat → reg query …Run → certutil -decode и введите флаг закрепления.", answers: ["CYBER{persistence_found}"], hints: ["Квест «Разбор закрепления в системе» на вкладке Песочница.", "certutil -decode <строка из ключа updater>"], points: 25, sandbox: true, caseSensitive: true },
+          { id: "mwb_lab", type: "lab", lab: "sandbox", title: "Лаборатория: отчёт песочницы", prompt: "Отметьте вредоносные действия в отчёте песочницы.", points: 25 },
         ],
       },
     ],
