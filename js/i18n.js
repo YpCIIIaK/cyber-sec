@@ -11,6 +11,56 @@ const I18N = (() => {
 
   /* -------- UI-словарь (ключ = русская строка) -------- */
   const UI = {
+    // Инструменты Blue Team
+    "Инструменты": "Tools", "Инструменты Blue Team": "Blue Team toolkit", "Открыть": "Open",
+    "Безопасные учебные симуляторы на вымышленных данных: разбор писем, журналов, трафика, процессов и инцидентов. Решайте задания — получайте XP.":
+      "Safe training simulators on fictional data: dissect emails, logs, traffic, processes and incidents. Solve tasks to earn XP.",
+    "Инструменты недоступны.": "Tools are unavailable.",
+    "Образец": "Sample", "Свой текст": "Custom text", "Разобрать": "Analyze", "Проверить": "Check",
+    "Порядок триажа: сначала Authentication-Results, затем сверьте From / Return-Path / Reply-To.":
+      "Triage order: Authentication-Results first, then compare From / Return-Path / Reply-To.",
+    "Задание": "Task", "Решено": "Solved", "Разобрать": "Analyze", "Вердикт": "Verdict",
+    "Красных флагов не обнаружено.": "No red flags found.",
+    "Разберите все три образца. Для какого из них вердикт — «пройдено» (не фишинг)?":
+      "Analyze all three samples. Which one gets a “pass” verdict (not phishing)?",
+    "Верно! Рассылка GitHub проходит SPF, DKIM и DMARC.": "Correct! The GitHub newsletter passes SPF, DKIM and DMARC.",
+    "Нет. Разберите Authentication-Results этого образца ещё раз.": "No. Re-read this sample's Authentication-Results.",
+    "Фильтр": "Filter", "Все": "All", "отказы": "failures", "входы": "logons", "критичные": "critical",
+    "Время": "Time", "Уровень": "Level", "Описание": "Description", "Учётка": "Account",
+    "С какого IP велась атака перебором пароля (brute-force), которая завершилась успешным входом?":
+      "Which IP ran the password brute-force that ended in a successful logon?",
+    "Подсказка: ищите серию 4625 подряд, за которой идёт 4624 с той же учётки и IP, ночью.":
+      "Hint: look for a run of 4625 followed by a 4624 from the same account and IP, at night.",
+    "Верно! Серия 4625 → 4624 → 4672 → 4688 указывает на успешный перебор и повышение привилегий.":
+      "Correct! The 4625 → 4624 → 4672 → 4688 chain shows a successful brute-force and privilege escalation.",
+    "Неверно. Отфильтруйте 4625 и посмотрите повторяющийся IP ночью.": "Wrong. Filter 4625 and look for the repeated IP at night.",
+    "Протокол": "Protocol", "Источник": "Source", "Назначение": "Destination",
+    "Хост обращается к одному адресу через равные промежутки (~60 с) с одинаковым запросом. Это «маяк» (beacon) C2. Назовите IP управляющего сервера.":
+      "A host contacts one address at even intervals (~60s) with the same request. That's a C2 beacon. Name the control server IP.",
+    "Признак beaconing: повторяющиеся запросы к /gate.php с одинаковым размером ответа и ровным интервалом.":
+      "Beaconing sign: repeated /gate.php requests with constant response size and a fixed interval.",
+    "Верно! Регулярные GET /gate.php — классический HTTP-beacon к C2.": "Correct! Regular GET /gate.php is a classic HTTP beacon to C2.",
+    "Неверно. Отфильтруйте HTTP и найдите повторяющийся адрес.": "Wrong. Filter HTTP and find the repeating address.",
+    "Процессы": "Processes", "Автозапуск": "Autoruns", "Имя": "Name", "Путь": "Path", "Родитель": "Parent",
+    "Подпись": "Signed", "да": "yes", "нет": "no", "Пометить": "Flag", "Ключ реестра": "Registry key", "Команда": "Command",
+    "Кликните строку автозапуска, которая закрепляет вредонос.": "Click the autorun entry that provides persistence.",
+    "Пометьте вредоносный процесс (кнопка «Пометить») и выберите вредоносную запись автозапуска.":
+      "Flag the malicious process (the “Flag” button) and select the malicious autorun entry.",
+    "Признаки: имя-двойник (svch0st), путь в AppData, запуск из PowerShell, нет подписи, скрытая -enc команда.":
+      "Clues: look-alike name (svch0st), AppData path, launched from PowerShell, unsigned, hidden -enc command.",
+    "Политика": "Policy",
+    "Нужен доступ сотрудников в интернет по HTTPS и удалённый доступ по RDP только через VPN. Из интернета ничего лишнего. Отметьте правила, которые должны войти в набор.":
+      "Staff need HTTPS outbound and RDP only via VPN. Nothing extra from the internet. Tick the rules that belong in the set.",
+    "Проверить набор": "Check ruleset", "Ошибок": "Errors",
+    "Идеально! Минимум доступа + default deny.": "Perfect! Least access + default deny.",
+    "Подумайте: открытый из интернета RDP и any/any опасны, а default deny обязателен.":
+      "Think: internet-exposed RDP and any/any are dangerous, and default deny is a must.",
+    "Выберите технику в матрице, чтобы увидеть идею обнаружения.": "Pick a technique in the matrix to see a detection idea.",
+    "Тактика": "Tactic", "Как обнаружить": "How to detect",
+    "Сценарий": "Scenario", "Шаг": "Step", "шагов": "steps", "Разобрано": "Solved", "Верно": "Correct",
+    "Рабочая станция WIN-7F3A ведёт себя странно. Соберите цепочку атаки, отвечая на вопросы по шагам. Используйте другие инструменты как улики.":
+      "Workstation WIN-7F3A is behaving oddly. Reconstruct the attack chain step by step. Use the other tools as evidence.",
+    "Нет, сверьтесь с матрицей ATT&CK.": "No, check against the ATT&CK matrix.",
     // Навигация
     "В заметки": "Save note", "Сохранено в заметки": "Saved to notes", "Такая заметка уже есть": "Already saved",
     "Заметки": "Notes", "Мои заметки": "My notes", "Поиск по заметкам…": "Search notes…", "Скачать конспект (.md)": "Download notes (.md)",
@@ -323,6 +373,7 @@ const I18N = (() => {
     profile_custom: ["Your own face", "Set a nickname or avatar"],
     notes_1: ["Note taker", "Save your first note"], notes_10: ["Top student", "Collect 10 notes"],
     polyglot: ["Bilingual", "Switch the interface language"], dark_side: ["Dark side", "Turn on dark theme"],
+    tools_1: ["Analyst", "Solve your first Blue Team tool task"], tools_all: ["Debrief", "Solve a task in every Blue Team tool"],
     first_blood: ["First Blood", "Complete your first task"],
     level_5: ["Rising Star", "Reach level 5"],
     level_10: ["Pro", "Reach level 10"],

@@ -39,6 +39,13 @@ const Icon = (() => {
     book: svg(`<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 5.5v15"/>`),
     sun: svg(`<circle cx="12" cy="12" r="4"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/>`),
     moon: svg(`<path d="M20 14.5A8 8 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5z"/>`),
+    mail: svg(`<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5l8.5 6 8.5-6"/>`),
+    list: svg(`<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>`),
+    activity: svg(`<path d="M3 12h4l3 7 4-14 3 7h4"/>`),
+    cpu: svg(`<rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M10 3v2M14 3v2M10 19v2M14 19v2M3 10h2M3 14h2M19 10h2M19 14h2"/>`),
+    grid: svg(`<rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/>`),
+    search: svg(`<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.3-4.3"/>`),
+    alert: svg(`<path d="M12 3l9.5 16.5H2.5L12 3z"/><path d="M12 10v4M12 17v.01"/>`),
   };
 
   return {

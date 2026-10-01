@@ -1,5 +1,5 @@
 /* CyberPath Service Worker — офлайн-режим (network-first для своих файлов) */
-const CACHE = "cyberpath-v9";
+const CACHE = "cyberpath-v10";
 const CORE = [
   "./",
   "./index.html",
@@ -16,6 +16,7 @@ const CORE = [
   "./js/i18n.js",
   "./js/labs.js",
   "./js/terminal.js",
+  "./js/toolkit.js",
   "./js/app.js",
   "./manifest.json",
   "./assets/icon.svg",

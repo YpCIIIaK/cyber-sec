@@ -224,6 +224,25 @@ const Progress = (() => {
     save();
     if (window.App) ev.newAchievements.forEach((id) => App.toastAchievement(id));
   }
+  // Разовая премия XP (учебные инструменты Blue Team). once=ключ, чтобы не начислять повторно.
+  function awardBonus(amount, once) {
+    const st = stats();
+    if (once) {
+      st.bonus = st.bonus || {};
+      if (st.bonus[once]) return { already: true, xpGained: 0, newAchievements: [] };
+      st.bonus[once] = 1;
+    }
+    const events = { xpGained: amount, newAchievements: [] };
+    awardXP(amount, events);
+    st.tools = (st.tools || 0) + 1;
+    checkMeta(events);
+    save();
+    return events;
+  }
+  function bonusDone(once) {
+    const st = stats();
+    return !!(st.bonus && st.bonus[once]);
+  }
   function metric(name) {
     const st = stats();
     const tasks = () => COURSES.reduce((n, c) => n + c.rooms.reduce((m, r) => m + r.tasks.filter((t) => state.completed[t.id]).length, 0), 0);
@@ -239,6 +258,7 @@ const Progress = (() => {
       case "cmds": return st.cmds || 0;
       case "labs": return COURSES.reduce((n, c) => n + c.rooms.reduce((m, r) => m + r.tasks.filter((t) => t.type === "lab" && state.completed[t.id]).length, 0), 0);
       case "exams": return Object.values(state.exams || {}).filter((e) => e.passed).length;
+      case "tools": return st.tools || 0;
     }
     return 0;
   }
@@ -595,7 +615,7 @@ const Progress = (() => {
     getDraft, setDraft, clearDraft,
     srsEnsure, srsDueList, srsDueCount, srsTotal, srsReview, srsEligible,
     weakTasks, weakCourses, xpByWeek, activityMap, skillRadar, courseMastery,
-    metric, bumpStat, stats, profile, setProfile, weekKey, challengeRec, recordChallenge, challenges, notes, addNote, updateNote, deleteNote,
+    metric, bumpStat, awardBonus, bonusDone, stats, profile, setProfile, weekKey, challengeRec, recordChallenge, challenges, notes, addNote, updateNote, deleteNote,
     _state: () => state,
   };
 })();
@@ -639,6 +659,7 @@ const App = (() => {
     if (view === "notes") return "#/notes";
     if (view === "boss") return `#/course/${params.courseId}/boss`;
     if (view === "weekly") return "#/weekly";
+    if (view === "tools") return params.tool ? `#/tools/${params.tool}` : "#/tools";
     return "#/";
   }
   function parseHash() {
@@ -653,6 +674,7 @@ const App = (() => {
     if (parts[0] === "review") return { view: "review" };
     if (parts[0] === "notes") return { view: "notes" };
     if (parts[0] === "weekly") return { view: "weekly" };
+    if (parts[0] === "tools") return { view: "tools", tool: parts[1] || null };
     if (parts[0] === "course" && parts[1]) {
       if (parts[2] === "room" && parts[3])
         return { view: "room", courseId: parts[1], roomId: parts[3] };
@@ -738,6 +760,7 @@ const App = (() => {
       case "notes": renderNotes(); break;
       case "boss": renderBoss(c.courseId); break;
       case "weekly": renderWeekly(); break;
+      case "tools": renderTools(c.tool); break;
       case "exam": renderExam(c.courseId); break;
       default: renderHome();
     }
@@ -1500,6 +1523,25 @@ const App = (() => {
     Sandbox.init(document.getElementById("term-out"), document.getElementById("term-input"));
     Sandbox.setHook(null); // миссии сдаются по кнопке «Сдать флаг»
     setTimeout(() => { const i = document.getElementById("term-input"); if (i) i.focus(); }, 100);
+  }
+
+  /* ---------- Blue Team: учебные инструменты ---------- */
+  function renderTools(tool) {
+    if (!window.Toolkit) { root().innerHTML = `<section class="section"><p>${T("Инструменты недоступны.")}</p></section>`; return; }
+    Toolkit.render(root(), {
+      T, tool: tool || null,
+      Progress,
+      crumbs,
+      go,
+      icon: (n) => (typeof Icon !== "undefined" ? Icon.ui(n) : ""),
+      award: (amount, once) => {
+        const res = Progress.awardBonus(amount, once);
+        if (res && !res.already) { celebrate(res); return true; }
+        return false;
+      },
+      toast,
+    });
+    highlightNav();
   }
 
   // Авто-детект флагов миссий по выводу терминала (страница песочницы)
