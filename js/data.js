@@ -803,23 +803,38 @@ const COURSES = [
     rooms: [
       {
         id: "owasp_intro",
-        title: "OWASP Top 10",
+        title: "OWASP Top 10 — карта веб-рисков",
         intro: `
-<h3>Карта веб-рисков</h3>
-<p><b>OWASP Top 10</b> — список самых критичных рисков веб-приложений. Ключевые категории:</p>
-<ul>
-  <li><b>Broken Access Control</b> — доступ к чужим данным (IDOR).</li>
-  <li><b>Injection</b> — SQL/команды в вводе.</li>
-  <li><b>Cryptographic Failures</b> — слабое/отсутствующее шифрование.</li>
-  <li><b>Security Misconfiguration</b> — дефолтные пароли, открытые панели.</li>
-  <li><b>XSS</b> — внедрение скриптов в страницу.</li>
-</ul>
-<div class="callout">📚 Всё изучаем с точки зрения защиты: чтобы находить и чинить, надо понимать, как оно работает.</div>
+<h3>Зачем нужен Top 10</h3>
+<p><b>OWASP</b> (Open Worldwide Application Security Project) — некоммерческое сообщество, которое раз в несколько лет публикует <b>Top 10</b>: список самых критичных и распространённых рисков веб-приложений. Это не «10 конкретных багов», а 10 <i>категорий</i>, с которых начинают и разработчик, и пентестер, и аудитор. Знать их наизусть — профессиональный минимум.</p>
+
+<h3>OWASP Top 10 (редакция 2021)</h3>
+<table>
+  <thead><tr><th>#</th><th>Категория</th><th>О чём</th></tr></thead>
+  <tbody>
+    <tr><td>A01</td><td><b>Broken Access Control</b></td><td>Доступ к чужим данным/действиям (IDOR, обход прав)</td></tr>
+    <tr><td>A02</td><td><b>Cryptographic Failures</b></td><td>Нет/слабое шифрование, пароли в открытом виде</td></tr>
+    <tr><td>A03</td><td><b>Injection</b></td><td>SQL/команды/LDAP в вводе; сюда входит и XSS</td></tr>
+    <tr><td>A04</td><td><b>Insecure Design</b></td><td>Небезопасная архитектура, нет моделирования угроз</td></tr>
+    <tr><td>A05</td><td><b>Security Misconfiguration</b></td><td>Дефолтные пароли, открытые панели, лишние функции</td></tr>
+    <tr><td>A06</td><td><b>Vulnerable Components</b></td><td>Старые библиотеки с известными CVE</td></tr>
+    <tr><td>A07</td><td><b>Auth Failures</b></td><td>Слабая аутентификация, перебор, угон сессий</td></tr>
+    <tr><td>A08</td><td><b>Data Integrity Failures</b></td><td>Небезопасная десериализация, недоверенные обновления</td></tr>
+    <tr><td>A09</td><td><b>Logging Failures</b></td><td>Нет логов и мониторинга — атаку не замечают</td></tr>
+    <tr><td>A10</td><td><b>SSRF</b></td><td>Сервер заставляют делать запросы от своего имени</td></tr>
+  </tbody>
+</table>
+<div class="callout">📚 Всё изучаем с точки зрения защиты: чтобы находить и чинить уязвимости, надо понимать их механику. Тестировать можно только свои приложения и учебные полигоны.</div>
+<div class="callout warn">⚠️ #1 уже много лет — <b>Broken Access Control</b>. Самая частая реальная дыра — не хитрый эксплойт, а банально «проверку прав забыли».</div>
 `,
         tasks: [
-          { id: "ow_read", type: "info", title: "Изучить OWASP", prompt: "Прочитайте про Top 10.", points: 5 },
+          { id: "ow_read", type: "info", title: "Изучить OWASP", prompt: "Прочитайте про Top 10 и его категории.", points: 5 },
           { id: "ow_idor", type: "question", title: "Доступ к чужому", prompt: "Как называется уязвимость, когда сменив id в URL видишь чужие данные? (англ., аббревиатура 4 буквы)", answers: ["idor"], hints: ["Insecure Direct Object Reference."], points: 15 },
           { id: "ow_org", type: "question", title: "Кто это составляет", prompt: "Как называется организация-автор Top 10? (аббревиатура, 5 букв)", answers: ["owasp"], hints: ["Open Worldwide Application Security Project."], points: 10 },
+          { id: "ow_first", type: "question", title: "Риск №1", prompt: "Какая категория много лет занимает 1-е место в OWASP Top 10? (2 слова англ., Broken ...)", answers: ["broken access control", "access control", "broken access"], hints: ["Контроль доступа.", "A01:2021."], points: 15 },
+          { id: "ow_ssrf", type: "question", title: "Запрос от сервера", prompt: "Как называется атака, где сервер заставляют делать запросы от своего имени? (аббревиатура, 4 буквы)", answers: ["ssrf"], hints: ["Server-Side Request Forgery."], points: 15 },
+          { id: "ow_cve", type: "question", title: "Старые библиотеки", prompt: "Как называется идентификатор известной публичной уязвимости (напр. ...-2021-44228)? (аббревиатура, 3 буквы)", answers: ["cve"], hints: ["Common Vulnerabilities and Exposures."], points: 15 },
+          { id: "ow_choice", type: "choice", title: "Куда отнести SQLi", prompt: "К какой категории OWASP относится SQL-инъекция?", options: ["Injection", "Cryptographic Failures", "Logging Failures", "SSRF"], answers: ["Injection"], points: 15 },
         ],
       },
       {
@@ -827,23 +842,40 @@ const COURSES = [
         title: "SQL-инъекции",
         intro: `
 <h3>Когда ввод становится кодом</h3>
-<p>Если приложение вставляет пользовательский ввод прямо в SQL-запрос, атакующий может изменить логику запроса.</p>
+<p>База данных понимает язык SQL. Если приложение <b>склеивает</b> пользовательский ввод с текстом запроса, атакующий может дописать свой SQL и изменить логику — прочитать чужие данные, обойти вход, иногда даже выполнить команды ОС.</p>
 <p>Уязвимый код:</p>
-<pre>SELECT * FROM users WHERE name='<b>$input</b>';</pre>
-<p>Ввод <code>' OR '1'='1</code> превращает условие в всегда-истинное:</p>
+<pre>query = "SELECT * FROM users WHERE name='" + <b>input</b> + "';"</pre>
+<p>Ввод <code>' OR '1'='1</code> превращает условие во всегда-истинное, и возвращается первая строка (обычно admin):</p>
 <pre>SELECT * FROM users WHERE name='' OR '1'='1';</pre>
-<h3>Защита</h3>
-<ul>
-  <li><b>Параметризованные запросы</b> (prepared statements) — главный способ.</li>
-  <li>Валидация и экранирование ввода.</li>
-  <li>Принцип минимальных привилегий для БД-пользователя.</li>
+
+<h3>Виды SQL-инъекций</h3>
+<table>
+  <thead><tr><th>Тип</th><th>Как извлекают данные</th></tr></thead>
+  <tbody>
+    <tr><td><b>In-band / Error-based</b></td><td>Данные/ошибки прямо в ответе страницы</td></tr>
+    <tr><td><b>UNION-based</b></td><td><code>UNION SELECT</code> подклеивает чужую таблицу к результату</td></tr>
+    <tr><td><b>Blind (boolean/time)</b></td><td>Ответа не видно — вывод по «да/нет» или по задержке <code>SLEEP()</code></td></tr>
+  </tbody>
+</table>
+
+<h3>Защита — по слоям</h3>
+<ul class="tl">
+  <li><b>Параметризованные запросы (prepared statements)</b> — главный способ: данные и код строго разделены, ввод никогда не становится командой.</li>
+  <li><b>ORM</b> и безопасные библиотеки — используют подготовленные запросы под капотом.</li>
+  <li><b>Валидация ввода</b> — проверка типов и форматов (дополнение, не замена).</li>
+  <li><b>Минимальные привилегии БД</b> — у веб-пользователя нет прав DROP/админа, чтобы ограничить ущерб.</li>
+  <li><b>WAF</b> — отсекает типовые пейлоады (последний рубеж, а не основной).</li>
 </ul>
-<div class="callout">🛡️ Понимая механику, вы сможете писать безопасный код и находить дыры в аудите.</div>
+<div class="callout danger">🚫 Экранирование кавычек вручную — ненадёжно: легко забыть случай или обойти кодировкой. Только prepared statements дают гарантию.</div>
+<div class="callout">🛡️ Понимая механику, вы сможете писать безопасный код и находить дыры в аудите. Отработайте атаку в лаборатории ниже.</div>
 `,
         tasks: [
-          { id: "sql_read", type: "info", title: "Изучить SQLi", prompt: "Прочитайте про инъекции.", points: 5 },
+          { id: "sql_read", type: "info", title: "Изучить SQLi", prompt: "Прочитайте про инъекции, их виды и защиту.", points: 5 },
           { id: "sql_payload", type: "question", title: "Классический пейлоад", prompt: "Введите классическое условие, всегда истинное: ' OR '1'='... (закончите: цифра)", answers: ["1", "'1"], hints: ["'1'='1"], points: 15 },
           { id: "sql_defense", type: "question", title: "Главная защита", prompt: "Как называются запросы с плейсхолдерами вместо конкатенации? (2 слова, англ.)", answers: ["prepared statements", "parameterized queries", "prepared statement"], hints: ["Prepared ...", "'prepared statements' или 'parameterized queries'"], points: 20 },
+          { id: "sql_union", type: "question", title: "Подклеить таблицу", prompt: "Какой оператор SQL подклеивает результат другого SELECT к текущему (используется в инъекциях)? (англ., 1 слово)", answers: ["union"], hints: ["UNION SELECT..."], points: 15 },
+          { id: "sql_blind", type: "question", title: "Инъекция вслепую", prompt: "Как называется SQLi, где ответа не видно и вывод определяют по «да/нет» или задержке? (англ., 1 слово)", answers: ["blind"], hints: ["Слепая инъекция."], points: 15 },
+          { id: "sql_priv", type: "choice", title: "Снизить ущерб", prompt: "Что ограничивает ущерб от успешной SQLi, даже если она сработала?", options: ["Минимальные привилегии у БД-пользователя", "Более длинный пароль админа сайта", "Отключение JavaScript", "Более быстрый сервер"], answers: ["Минимальные привилегии у БД-пользователя"], points: 15 },
           { id: "sql_lab", type: "lab", lab: "sqli", title: "Лаборатория: обход входа SQLi", prompt: "Войдите как admin через SQL-инъекцию в учебной форме.", points: 25 },
         ],
       },
@@ -852,26 +884,86 @@ const COURSES = [
         title: "XSS — межсайтовый скриптинг",
         intro: `
 <h3>Чужой JavaScript на вашей странице</h3>
-<p><b>XSS</b> позволяет внедрить JS, который выполнится в браузере жертвы (кража cookie/сессий).</p>
+<p>Если приложение выводит пользовательский ввод на страницу <b>без экранирования</b>, атакующий может внедрить свой HTML/JS, который выполнится в браузере <i>другого</i> пользователя — с его правами и его сессией. Это и есть <b>XSS</b> (Cross-Site Scripting).</p>
+
+<h3>Что крадут через XSS</h3>
 <ul>
-  <li><b>Reflected</b> — пейлоад в URL, отражается в ответе.</li>
-  <li><b>Stored</b> — сохраняется в БД (комментарий) и бьёт всех.</li>
-  <li><b>DOM-based</b> — уязвимость в клиентском JS.</li>
+  <li><b>Cookie сессии</b> → вход в аккаунт жертвы без пароля.</li>
+  <li><b>Ввод с клавиатуры</b> (кейлоггер на странице), данные форм.</li>
+  <li><b>Действия от лица жертвы</b>: перевод, смена пароля, публикация.</li>
 </ul>
-<p>Простой тест: <code>&lt;script&gt;alert(1)&lt;/script&gt;</code>.</p>
-<h3>Защита</h3>
-<ul>
-  <li>Экранирование вывода (HTML-encode).</li>
-  <li><b>Content Security Policy (CSP)</b>.</li>
-  <li>Атрибут <code>HttpOnly</code> у cookie.</li>
+
+<h3>Три типа XSS</h3>
+<table>
+  <thead><tr><th>Тип</th><th>Где живёт пейлоад</th><th>Кого бьёт</th></tr></thead>
+  <tbody>
+    <tr><td><b>Reflected</b></td><td>В ссылке/запросе, отражается в ответе</td><td>Того, кто кликнул по ссылке</td></tr>
+    <tr><td><b>Stored</b></td><td>Сохраняется в БД (комментарий, профиль)</td><td>Всех, кто открыл страницу — самый опасный</td></tr>
+    <tr><td><b>DOM-based</b></td><td>В клиентском JS, сервер не при чём</td><td>Того, у кого выполнился уязвимый скрипт</td></tr>
+  </tbody>
+</table>
+<p>Простой тест-пейлоад: <code>&lt;script&gt;alert(1)&lt;/script&gt;</code> или <code>&lt;img src=x onerror=alert(1)&gt;</code>.</p>
+
+<h3>Защита — по слоям</h3>
+<ul class="tl">
+  <li><b>Экранирование вывода по контексту</b> — главное. HTML-encode (<code>&lt;</code> → <code>&amp;lt;</code>) не даёт тегам «ожить». Контекст важен: HTML, атрибут, JS и URL экранируются по-разному.</li>
+  <li><b>Content Security Policy (CSP)</b> — заголовок, который запрещает выполнять сторонние/встроенные скрипты.</li>
+  <li><b>HttpOnly у cookie</b> — JS не может прочитать cookie сессии, даже если XSS сработал.</li>
+  <li><b>Фреймворки</b> (React, Angular) экранируют вывод по умолчанию — не обходите это вручную.</li>
 </ul>
+<div class="callout warn">⚠️ XSS и SQLi — родственники: оба про «ввод, который стал кодом». Разница в том, <i>где</i> он выполняется: SQLi — в базе, XSS — в браузере жертвы.</div>
 `,
         tasks: [
-          { id: "xss_read", type: "info", title: "Изучить XSS", prompt: "Прочитайте про XSS.", points: 5 },
+          { id: "xss_read", type: "info", title: "Изучить XSS", prompt: "Прочитайте про типы XSS и защиту.", points: 5 },
           { id: "xss_stored", type: "question", title: "Самый опасный тип", prompt: "Какой тип XSS сохраняется в БД и бьёт всех посетителей? (англ., 1 слово)", answers: ["stored"], hints: ["Хранимый."], points: 15 },
+          { id: "xss_reflected", type: "question", title: "Через ссылку", prompt: "Какой тип XSS передаётся в ссылке и отражается в ответе сервера? (англ., 1 слово)", answers: ["reflected"], hints: ["Отражённый."], points: 15 },
           { id: "xss_csp", type: "question", title: "Заголовок защиты", prompt: "Какая политика (аббревиатура, 3 буквы) ограничивает источники скриптов?", answers: ["csp"], hints: ["Content Security Policy."], points: 15 },
           { id: "xss_cookie", type: "question", title: "Защита cookie", prompt: "Какой атрибут cookie запрещает доступ к ней из JS? (1 слово, англ.)", answers: ["httponly"], hints: ["Http____"], points: 15 },
+          { id: "xss_defense", type: "choice", title: "Главная защита", prompt: "Что в первую очередь предотвращает XSS?", options: ["Экранирование вывода (HTML-encode)", "Более сложный пароль", "HTTPS вместо HTTP", "Сжатие страницы"], answers: ["Экранирование вывода (HTML-encode)"], points: 15 },
           { id: "xss_lab", type: "lab", lab: "xss", title: "Лаборатория: reflected XSS", prompt: "Внедрите скрипт в поле комментария учебного сайта.", points: 25 },
+        ],
+      },
+      {
+        id: "web_auth",
+        title: "Аутентификация, сессии, IDOR и CSRF",
+        intro: `
+<h3>Как веб «помнит», кто вы</h3>
+<p>HTTP не имеет памяти: каждый запрос сам по себе. Чтобы сайт узнавал вас после входа, он выдаёт <b>сессию</b> — обычно cookie с длинным случайным идентификатором. Украсть или подделать этот идентификатор = войти как вы. Поэтому защита сессий — сердце веб-безопасности.</p>
+
+<h3>Broken Access Control и IDOR</h3>
+<p><b>IDOR</b> (Insecure Direct Object Reference) — когда объект берут прямо по идентификатору из запроса, не проверяя, <i>ваш</i> ли он:</p>
+<pre>GET /api/invoice?id=<b>1024</b>   →  меняем на  id=<b>1025</b>  →  чужой счёт</pre>
+<p>Это частный случай <b>Broken Access Control</b> (риск №1 OWASP). Защита: проверять права на <i>каждый</i> объект на сервере, а не прятать ссылки на клиенте.</p>
+<div class="callout danger">🚫 «Безопасность через неясность» (просто не показывать кнопку/ссылку) — не защита. Если сервер не проверяет права, объект достанут напрямую по URL.</div>
+
+<h3>CSRF — действие вашими руками</h3>
+<p><b>CSRF</b> (Cross-Site Request Forgery) заставляет <i>ваш</i> браузер отправить запрос на сайт, где вы залогинены, — например, со стороннего сайта с картинкой <code>&lt;img src="bank.com/transfer?to=attacker"&gt;</code>. Браузер сам приложит ваши cookie, и перевод уйдёт.</p>
+<ul class="tl">
+  <li><b>CSRF-токен</b> — случайное значение в форме, которого нет у чужого сайта.</li>
+  <li><b>SameSite cookie</b> — браузер не шлёт cookie в межсайтовых запросах.</li>
+  <li><b>Повторная аутентификация</b> для важных операций.</li>
+</ul>
+
+<h3>Защита сессий и входа</h3>
+<table>
+  <thead><tr><th>Риск</th><th>Защита</th></tr></thead>
+  <tbody>
+    <tr><td>Перебор пароля</td><td>Лимит попыток, CAPTCHA, MFA</td></tr>
+    <tr><td>Угон cookie</td><td>Флаги HttpOnly + Secure, HTTPS</td></tr>
+    <tr><td>Фиксация сессии</td><td>Новый ID сессии после входа</td></tr>
+    <tr><td>Вечная сессия</td><td>Таймаут и выход по бездействию</td></tr>
+  </tbody>
+</table>
+<div class="callout">🛡️ Связка-минимум для сессионной cookie: <code>HttpOnly</code> (не читается из JS) + <code>Secure</code> (только по HTTPS) + <code>SameSite</code> (защита от CSRF).</div>
+`,
+        tasks: [
+          { id: "wa_read", type: "info", title: "Изучить сессии и доступ", prompt: "Прочитайте про сессии, IDOR и CSRF.", points: 5 },
+          { id: "wa_idor", type: "question", title: "Чужой объект по id", prompt: "Как называется уязвимость доступа к объекту по идентификатору без проверки прав? (аббревиатура, 4 буквы)", answers: ["idor"], hints: ["Insecure Direct Object Reference."], points: 15 },
+          { id: "wa_csrf", type: "question", title: "Действие вашими руками", prompt: "Как называется атака, заставляющая ваш браузер отправить запрос на сайт, где вы залогинены? (аббревиатура, 4 буквы)", answers: ["csrf"], hints: ["Cross-Site Request Forgery."], points: 15 },
+          { id: "wa_token", type: "question", title: "Защита от CSRF", prompt: "Как называется случайное значение в форме, защищающее от CSRF? (2 слова, англ., ...-token)", answers: ["csrf token", "csrf-token", "anti-csrf token", "token"], hints: ["CSRF-..."], points: 15 },
+          { id: "wa_samesite", type: "question", title: "Атрибут cookie против CSRF", prompt: "Какой атрибут cookie запрещает отправку в межсайтовых запросах? (1 слово, англ.)", answers: ["samesite"], hints: ["Same + Site"], points: 15 },
+          { id: "wa_secure", type: "question", title: "Только по HTTPS", prompt: "Какой флаг cookie запрещает её передачу по незашифрованному HTTP? (1 слово, англ.)", answers: ["secure"], hints: ["Безопасный."], points: 10 },
+          { id: "wa_obscurity", type: "choice", title: "Это не защита", prompt: "Почему «просто спрятать кнопку» не защищает от IDOR?", options: ["Сервер всё равно отдаёт объект по прямому URL без проверки прав", "Кнопку можно перекрасить", "Браузер кэширует страницу", "JS работает медленно"], answers: ["Сервер всё равно отдаёт объект по прямому URL без проверки прав"], points: 15 },
         ],
       },
     ],
