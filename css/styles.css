@@ -1768,3 +1768,19 @@ button.nav-xp:hover { border-color: var(--o-200); }
 .lesson .tl li:last-child { border-left-color: transparent; padding-bottom: 0; }
 .lesson .tl li::before { content: ""; position: absolute; left: -7px; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--o-500); border: 2px solid var(--surface); }
 .lesson .tl b { color: var(--ink); }
+
+/* ---------- Лаборатория scope (пентест) ---------- */
+.roe-card { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-bottom: 12px; background: var(--surface); }
+.roe-head { background: var(--bg-2); border-bottom: 1px solid var(--line); padding: 10px 14px; font-weight: 700; font-size: .9rem; }
+.roe-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.roe-table td { padding: 8px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.roe-table td:first-child { color: var(--muted); width: 42%; }
+.roe-table tr:last-child td { border-bottom: 0; }
+.roe-ban td { background: color-mix(in srgb, var(--err) 7%, var(--surface)); color: var(--err); font-weight: 600; }
+.scope-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.scope-table th { text-align: left; padding: 8px 10px; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--line); }
+.scope-row { cursor: pointer; } .scope-row td { padding: 9px 10px; border-bottom: 1px solid var(--line); }
+.scope-row:hover { background: var(--o-50); } .scope-row.sel { background: var(--o-100); }
+.scope-row.sel .pl-box { background: var(--o-500); border-color: var(--o-500); }
+.scope-row.bad { background: color-mix(in srgb, var(--err) 9%, var(--surface)); }
+.scope-h { font-family: var(--mono); font-weight: 600; } .scope-ip { font-family: var(--mono); color: var(--muted); }

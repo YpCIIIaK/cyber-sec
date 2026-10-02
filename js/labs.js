@@ -727,6 +727,45 @@ const Labs = (() => {
         t("Верно! svc_sql и svc_web имеют SPN, слабое RC4 и древние пароли — их Kerberos-билет можно выгрузить и брутфорсить офлайн. Защита: длинные пароли (25+), gMSA и AES. Учётки без SPN или на AES — не роастятся."),
         t("Отмечено не всё. Под Kerberoasting попадают только учётки с SPN и слабым шифрованием/старым паролем. AES-учётки и обычные пользователи без SPN не уязвимы."), onSolve);
     },
+
+    /* ================================================================
+       Проверка границ теста — scope / RoE (Пентест)
+       ================================================================ */
+    scope(el, onSolve) {
+      const assets = [
+        { host: "www.acme-corp.com", ip: "203.0.113.10", note: "Корпоративный сайт", inScope: true },
+        { host: "dev.acme-corp.com", ip: "203.0.113.25", note: "Тестовый стенд", inScope: true },
+        { host: "pay.acme-corp.com", ip: "203.0.113.9", note: "Платёжная система (PROD)", inScope: false },
+        { host: "acme.salesforce.com", ip: "—", note: "Сторонний SaaS (не ваш)", inScope: false },
+        { host: "blog.acme-corp.com", ip: "198.51.100.5", note: "Хостинг вне диапазона", inScope: false },
+        { host: "john-ceo-blog.net", ip: "198.51.100.77", note: "Личный сайт сотрудника", inScope: false },
+      ];
+      el.innerHTML = `
+        <p class="lab-hint">${t("Перед началом теста сверьтесь с договором. Отметьте ТОЛЬКО те активы, которые входят в разрешённый периметр и которые можно тестировать.")}</p>
+        <div class="roe-card">
+          <div class="roe-head">📄 ${t("Договор на тестирование — Rules of Engagement")}</div>
+          <table class="roe-table">
+            <tr><td>${t("Разрешённые домены")}</td><td><code>*.acme-corp.com</code></td></tr>
+            <tr><td>${t("Разрешённый диапазон IP")}</td><td><code>203.0.113.0/24</code></td></tr>
+            <tr><td>${t("Окно тестирования")}</td><td>${t("будни 20:00–06:00")}</td></tr>
+            <tr class="roe-ban"><td>${t("Исключено")}</td><td>${t("продакшн-платёжная система, сторонние сервисы, DoS, соц. инженерия")}</td></tr>
+          </table>
+        </div>
+        ${appwin(t("Обнаруженные активы"), "🗂", `
+          <table class="scope-table">
+            <thead><tr><th></th><th>${t("Хост")}</th><th>IP</th><th>${t("Заметка")}</th></tr></thead>
+            <tbody>
+              ${assets.map((a, i) => `<tr class="scope-row" data-i="${i}"><td><span class="pl-box"></span></td>
+                <td class="scope-h">${esc(a.host)}</td><td class="scope-ip">${esc(a.ip)}</td><td class="tw-dim">${esc(t(a.note))}</td></tr>`).join("")}
+            </tbody>
+          </table>`)}
+        <button class="btn btn-primary btn-sm" id="sc-go">${t("Подтвердить периметр")}</button>
+        <div class="lab-out" id="sc-out"></div>`;
+      selectable(el, ".scope-row", "#sc-go", "#sc-out",
+        assets.map((a, i) => a.inScope ? i : -1).filter((i) => i >= 0),
+        t("Верно! В периметре только www и dev: домен *.acme-corp.com И IP из 203.0.113.0/24. Платёжный PROD исключён договором, Salesforce — чужой сервис, blog и личный сайт — вне диапазона IP. Тронуть их — выйти за рамки закона."),
+        t("Неверно. Проверяйте оба условия: домен И диапазон IP, и всегда учитывайте явные исключения. Подсвечены активы, которые реально в периметре."), onSolve);
+    },
   };
 
   function mount(labId, el, onSolve) {
