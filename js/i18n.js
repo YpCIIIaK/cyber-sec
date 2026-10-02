@@ -11,6 +11,8 @@ const I18N = (() => {
 
   /* -------- UI-словарь (ключ = русская строка) -------- */
   const UI = {
+    "скопировано": "copied",
+    "копировать": "copy",
     "Создаёт ключ реестра HKCU\\...\\Run\\Updater": "Creates registry key HKCU\\...\\Run\\Updater",
     "Читает C:\\Windows\\win.ini": "Reads C:\\Windows\\win.ini",
     "Исходящее TCP-соединение с 185.212.47.19:443": "Outbound TCP connection to 185.212.47.19:443",

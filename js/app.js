@@ -1324,10 +1324,10 @@ const App = (() => {
       const btn = document.createElement("button");
       btn.className = "copy-btn";
       btn.type = "button";
-      btn.textContent = "копировать";
+      btn.textContent = T("копировать");
       btn.addEventListener("click", () => {
-        const text = pre.innerText.replace(/копировать|скопировано$/g, "").trim();
-        const done = () => { btn.textContent = "скопировано"; setTimeout(() => (btn.textContent = "копировать"), 1400); };
+        const text = pre.innerText.replace(new RegExp(T("копировать") + "|" + T("скопировано") + "$", "g"), "").trim();
+        const done = () => { btn.textContent = T("скопировано"); setTimeout(() => (btn.textContent = T("копировать")), 1400); };
         if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(done);
         else { try { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); done(); } catch (e) {} }
       });
