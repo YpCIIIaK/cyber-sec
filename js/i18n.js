@@ -718,6 +718,22 @@ const I18N = (() => {
     "The NTFS master file table (abbreviation, 3 letters)?",
     "The memory-dump analysis framework? (Eng.)",
     "The Windows executable format (abbreviation, 2 letters)?",
+    "The attack forcing your browser to send a request to a site you're logged into? (abbr., 4 letters)",
+    "The attack where the server is made to send requests on its own behalf? (abbr., 4 letters)",
+    "The system scoring a vulnerability's severity 0–10? (abbr., 4 letters)",
+    "The public vulnerability identifier like ...-2021-44228? (abbr., 3 letters)",
+    "The attack requesting a TGS and cracking service-account passwords offline? (Eng.)",
+    "The Windows unique local-admin password solution? (abbr., 4 letters)",
+    "A hash with a secret key for integrity and authenticity? (abbr., 4 letters)",
+    "The HTTPS encryption protocol that replaced SSL? (abbr., 3 letters)",
+    "The man-in-the-middle attack (abbr., 4 letters)?",
+    "The main SQLi defense is parameterized queries, a.k.a. prepared ...? (Eng., 1 word)",
+    "Periodic identical calls from malware to its control server? (Eng.)",
+    "Proactive threat search in a SOC — threat ...? (Eng., 1 word)",
+    "The cookie attribute forbidding access from JavaScript? (Eng.)",
+    "Microsoft's mnemonic for threat types (6 letters)?",
+    "A popular graphical network-traffic analyzer? (Eng.)",
+    "What is faking the DNS reply to reach a fake site called? (2 words, Eng., or the first word)",
   ];
   // для DDoS-вопроса в EN принимаем 'availability'
   const DAILY_EXTRA_ANSWERS = { 4: ["availability", "доступность"] };
@@ -734,6 +750,12 @@ const I18N = (() => {
       steps: ["Look into the documents: <code>dir Documents</code>",
         "Read the backup file: <code>type Documents\\backup.txt</code>",
         "The string is ROT13-encoded. Decode it: <code>rot13 &lt;string&gt;</code>",
+        "Enter the resulting flag below."] },
+    m_config: { title: "Hidden Config", level: "Beginner",
+      brief: "A config in Downloads holds a Base64-encoded token. Extract and decode it.",
+      steps: ["List the downloads folder: <code>dir Downloads</code>",
+        "Open the config: <code>type Downloads\\config.cfg</code>",
+        "The token= value is Base64-encoded. Decode it: <code>base64 -d &lt;string&gt;</code>",
         "Enter the resulting flag below."] },
   };
 

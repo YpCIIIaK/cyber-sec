@@ -24,6 +24,7 @@ const Sandbox = (() => {
           type: "dir",
           children: {
             "creds.bak": { type: "file", content: { ru: "user:hacker\r\nnote: это учебные данные, не настоящие\r\n", en: "user:hacker\r\nnote: this is training data, not real\r\n" } },
+            "config.cfg": { type: "file", content: { ru: "# конфиг приложения\r\nmode=prod\r\ntoken=Q1lCRVJ7aGlkZGVuX2NvbmZpZ30=\r\n", en: "# application config\r\nmode=prod\r\ntoken=Q1lCRVJ7aGlkZGVuX2NvbmZpZ30=\r\n" } },
           },
         },
         "Documents": {
