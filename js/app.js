@@ -2009,7 +2009,7 @@ const App = (() => {
     const pool = course.rooms.flatMap((r) => r.tasks)
       .filter((t) => (t.type === "question" || t.type === "choice") && (t.answers || t.answer));
     const shuffled = pool.slice().sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, Math.min(5, shuffled.length));
+    return shuffled.slice(0, Math.min(10, shuffled.length));
   }
   function renderExam(courseId) {
     const course = COURSES.find((c) => c.id === courseId);
