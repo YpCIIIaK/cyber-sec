@@ -12,7 +12,7 @@ const Cloud = (() => {
   const NICK_RE = /^[A-Za-z0-9_]{3,20}$/;
 
   let sb = null, libP = null, connectP = null;
-  const st = { status: enabled ? "out" : "off", user: null, nick: null, pending: 0, error: null, syncing: false, settings: null };
+  const st = { status: enabled ? "out" : "off", user: null, nick: null, pending: 0, error: null, syncing: false, settings: null, shop: null };
   const subs = new Set();
   let serverSolved = null;                 // Set id заданий, уже засчитанных базой
   let serverBonuses = null;                // Set ключей бонусов, уже засчитанных базой
@@ -71,7 +71,7 @@ const Cloud = (() => {
   }
 
   function reset() {
-    st.status = enabled ? "out" : "off"; st.user = null; st.nick = null; st.pending = 0; st.settings = null;
+    st.status = enabled ? "out" : "off"; st.user = null; st.nick = null; st.pending = 0; st.settings = null; st.shop = null;
     serverSolved = null; serverBonuses = null; waitingBonuses = new Set(); flag(false);
     clearTimeout(flushTimer); clearTimeout(pushTimer); clearTimeout(retryTimer);
     notify();
@@ -126,6 +126,7 @@ const Cloud = (() => {
       serverBonuses = new Set((bon || []).map((r) => r.key));
       await flush();
       await syncAvatar();
+      await shopState().catch(() => {});
     } catch (e) { st.error = "sync"; }
     st.syncing = false; notify();
   }
@@ -169,7 +170,7 @@ const Cloud = (() => {
   async function flush() {
     if (st.status !== "in" || !serverSolved || flushing) return;
     flushing = true; clearTimeout(retryTimer);
-    let limited = false;
+    let limited = false, sentAny = false;
     try {
       updatePending();
       let queue = pendingSolves();
@@ -178,6 +179,7 @@ const Cloud = (() => {
         const { data, error } = await sb.rpc("submit_solves", { items: batch });
         if (error) { st.error = "sync"; break; }
         (data.accepted || []).forEach((id) => serverSolved.add(id));
+        if ((data.accepted || []).length) sentAny = true;
         (data.rejected || []).forEach((id) => serverSolved.add(id)); // нет в каталоге — не повторяем
         updatePending();
         if ((data.deferred || []).length) { limited = true; break; }  // лимит — продолжим через минуту
@@ -189,6 +191,7 @@ const Cloud = (() => {
         const { data, error } = await sb.rpc("submit_bonuses", { keys: bq.slice(0, 20) });
         if (error) { st.error = "sync"; break; }
         (data.accepted || []).forEach((k) => serverBonuses.add(k));
+        if ((data.accepted || []).length) sentAny = true;
         (data.rejected || []).forEach((k) => serverBonuses.add(k));
         (data.waiting || []).forEach((k) => waitingBonuses.add(k));
         updatePending();
@@ -198,6 +201,7 @@ const Cloud = (() => {
     } finally { flushing = false; }
     if (limited) retryTimer = setTimeout(flush, 61000);
     updatePending();
+    if (sentAny && st.status === "in") shopState().catch(() => {});   // баланс монет вырос
   }
 
   async function pushProgress() {
@@ -261,6 +265,30 @@ const Cloud = (() => {
     if (error) throw error;
     return data;
   }
+
+  /* ---------- Магазин и монеты (всё считает сервер) ---------- */
+  function shopErr(error) {
+    const m = (error && error.message) || "";
+    const k = (m.match(/not_enough_coins|already_owned|req_not_met|not_owned|no_item/) || [])[0];
+    return new Error(k || "error");
+  }
+  async function shopState() {
+    if (st.status !== "in") return null;
+    const { data, error } = await sb.rpc("shop_state");
+    if (error) throw error;
+    st.shop = data; notify(); return data;
+  }
+  async function shopBuy(id) {
+    const { data, error } = await sb.rpc("shop_buy", { p_item: id });
+    if (error) throw shopErr(error);
+    st.shop = data; notify(); return data;
+  }
+  async function shopEquip(kind, id) {
+    const { data, error } = await sb.rpc("shop_equip", { p_kind: kind, p_item: id || null });
+    if (error) throw shopErr(error);
+    st.shop = data; notify(); return data;
+  }
+  async function viewProfile(nick) { if (st.status === "in") await sb.rpc("view_profile", { p_nick: nick }).catch(() => {}); }
 
   /* ---------- Вход / регистрация ---------- */
   function redirectTo() { return location.origin + location.pathname; }
@@ -365,7 +393,7 @@ const Cloud = (() => {
     enabled, state: st, onChange, init, connect,
     signInOAuth, signUpNick, signInNick, claimNick, nickAvailable, linkProvider, identities, isPasswordAccount,
     signOut, deleteAccount, leaderboard, flush, captchaEnabled, renderCaptcha, NICK_RE,
-    setSettings, publicProfile, nickCheck,
+    setSettings, publicProfile, nickCheck, shopState, shopBuy, shopEquip, viewProfile,
     _mergeState: mergeState,
   };
 })();

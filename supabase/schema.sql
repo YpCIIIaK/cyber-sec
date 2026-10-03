@@ -100,6 +100,35 @@ alter table public.profiles drop constraint if exists profiles_accent_check;
 alter table public.profiles add  constraint profiles_accent_check
   check (accent in ('tier','orange','blue','green','purple','pink','red','teal','gold'));
 
+-- ---------- Монеты и магазин ----------
+-- Каталог предметов (заполняет catalog.sql из js/shop.js). price null — только за условие req.
+create table if not exists public.shop_items (
+  id    text primary key check (id ~ '^[a-z0-9_]{2,40}$'),
+  kind  text not null check (kind in ('frame','nick','title','bg','effect')),
+  price int  check (price is null or price between 0 and 10000),
+  req   text
+);
+create table if not exists public.purchases (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  item_id text not null references public.shop_items(id) on delete cascade,
+  price   int  not null default 0,
+  at      timestamptz not null default now(),
+  primary key (user_id, item_id)
+);
+-- Надетые предметы (по одному на слот)
+alter table public.profiles add column if not exists eq_frame  text;
+alter table public.profiles add column if not exists eq_nick   text;
+alter table public.profiles add column if not exists eq_title  text;
+alter table public.profiles add column if not exists eq_bg     text;
+alter table public.profiles add column if not exists eq_effect text;
+alter table public.profiles add column if not exists views     int not null default 0;
+create table if not exists public.profile_views (
+  viewer uuid not null references auth.users(id) on delete cascade,
+  target uuid not null references auth.users(id) on delete cascade,
+  day    date not null default ((now() at time zone 'utc')::date),
+  primary key (viewer, target, day)
+);
+
 -- С какого уровня доступна тема карточки (совпадает с CARD_THEMES в js/app.js)
 create or replace function public.cp_theme_min(p_theme int) returns int
 language sql immutable as $$
@@ -167,6 +196,9 @@ alter table public.reserved_nicks enable row level security;
 alter table public.bonus_catalog  enable row level security;
 alter table public.bonuses        enable row level security;
 alter table public.banned_words   enable row level security;
+alter table public.shop_items     enable row level security;
+alter table public.purchases      enable row level security;
+alter table public.profile_views  enable row level security;
 
 drop policy if exists own_profile_read  on public.profiles;
 drop policy if exists own_solves_read   on public.solves;
@@ -406,7 +438,7 @@ drop function if exists public.leaderboard(text, int);
 create function public.leaderboard(p_period text default 'all', p_limit int default 50)
 returns table (place bigint, nick text, xp bigint, solved bigint, is_me boolean,
                anonymous boolean, is_public boolean, av smallint, av_bg smallint, av_ring text,
-               card_theme smallint, accent text)
+               card_theme smallint, accent text, eq_frame text, eq_nick text, eq_title text, eq_bg text)
 language sql stable security definer set search_path = public, pg_temp as $$
   with ev as (
     select user_id, xp, solved_at as at, 1 as task from solves
@@ -428,7 +460,11 @@ language sql stable security definer set search_path = public, pg_temp as $$
          case when p.anonymous and p.id is distinct from auth.uid() then 6::smallint else p.av_bg end,
          case when p.anonymous and p.id is distinct from auth.uid() then 'mono' else p.av_ring end,
          case when p.anonymous and p.id is distinct from auth.uid() then 0::smallint else p.card_theme end,
-         case when p.anonymous and p.id is distinct from auth.uid() then 'tier' else p.accent end
+         case when p.anonymous and p.id is distinct from auth.uid() then 'tier' else p.accent end,
+         case when p.anonymous and p.id is distinct from auth.uid() then null else p.eq_frame end,
+         case when p.anonymous and p.id is distinct from auth.uid() then null else p.eq_nick end,
+         case when p.anonymous and p.id is distinct from auth.uid() then null else p.eq_title end,
+         case when p.anonymous and p.id is distinct from auth.uid() then null else p.eq_bg end
     from s join profiles p on p.id = s.user_id
    where not p.hidden
    order by s.xp desc, s.last_at asc
@@ -515,6 +551,8 @@ begin
     'found', true, 'private', false, 'me', coalesce(me, false),
     'nick', p.nick::text, 'is_public', p.is_public, 'anonymous', p.anonymous,
     'av', p.av, 'av_bg', p.av_bg, 'av_ring', p.av_ring, 'card_theme', p.card_theme, 'accent', p.accent,
+    'eq_frame', p.eq_frame, 'eq_nick', p.eq_nick, 'eq_title', p.eq_title, 'eq_bg', p.eq_bg, 'eq_effect', p.eq_effect,
+    'views', p.views, 'coins_earned', cp_coins_earned(p.id),
     'joined', p.created_at, 'xp', t_xp + b_xp, 'solved', t_n, 'place', place,
     'streak', cp_streak_before(p.id) + case when c_today >= 3 then 1 else 0 end,
     'courses', coalesce((
@@ -539,6 +577,113 @@ begin
   return res;
 end $$;
 
+-- Заработанные монеты — считаются из подтверждённых сервером событий (подделать нельзя)
+create or replace function public.cp_coins_earned(p_uid uuid) returns int
+language sql stable security definer set search_path = public, pg_temp as $$
+  select (
+    coalesce((select sum(case when c.points >= 15 then 2 else 1 end) from solves s join task_catalog c using (task_id) where s.user_id = p_uid), 0)
+  + 25 * (select count(*) from (
+      select t.course_id from task_catalog t left join solves s on s.task_id = t.task_id and s.user_id = p_uid
+       group by t.course_id having count(*) = count(s.task_id)) c)
+  + coalesce((select sum(case
+      when key like 'exam:%' then 15 when key like 'weekly:%' then 15 when key like 'boss:%' then 10
+      when key like 'flag:%' or key like 'mission:%' or key like 'tool:%' then 10
+      when key like 'daily:%' then 3 else 0 end) from bonuses where user_id = p_uid), 0)
+  )::int
+$$;
+
+-- Условие получения предмета (проверяет сервер)
+create or replace function public.cp_req_ok(p_uid uuid, p_req text) returns boolean
+language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare n int; c_today int;
+begin
+  if p_req is null then return true; end if;
+  if p_req in ('first_course', 'courses_all') then
+    select count(*) into n from (select t.course_id from task_catalog t
+      left join solves s on s.task_id = t.task_id and s.user_id = p_uid group by t.course_id having count(*) = count(s.task_id)) c;
+    return case when p_req = 'first_course' then n >= 1 else n >= (select count(distinct course_id) from task_catalog) end;
+  elsif p_req = 'tasks_100' then return (select count(*) from solves where user_id = p_uid) >= 100;
+  elsif p_req = 'exams_5'   then return (select count(*) from bonuses where user_id = p_uid and key like 'exam:%') >= 5;
+  elsif p_req = 'bosses_5'  then return (select count(*) from bonuses where user_id = p_uid and key like 'boss:%') >= 5;
+  elsif p_req = 'flags_all' then
+    return (select count(*) from bonuses where user_id = p_uid and key like 'flag:%')
+        >= (select count(*) from bonus_catalog where key like 'flag:%');
+  elsif p_req in ('streak_7', 'streak_30') then
+    select count(*) into c_today from solves where user_id = p_uid
+       and solved_at >= ((now() at time zone 'utc')::date)::timestamp at time zone 'utc';
+    return cp_streak_before(p_uid) + case when c_today >= 3 then 1 else 0 end >= case when p_req = 'streak_7' then 7 else 30 end;
+  end if;
+  return false;
+end $$;
+
+-- Состояние магазина для текущего пользователя
+create or replace function public.shop_state() returns jsonb
+language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare uid uuid := auth.uid(); earned int; spent int;
+begin
+  if uid is null then raise exception 'auth_required'; end if;
+  earned := cp_coins_earned(uid);
+  select coalesce(sum(price), 0) into spent from purchases where user_id = uid;
+  return jsonb_build_object(
+    'earned', earned, 'spent', spent, 'balance', earned - spent,
+    'owned', coalesce((select jsonb_agg(item_id) from purchases where user_id = uid), '[]'::jsonb),
+    'req_ok', coalesce((select jsonb_object_agg(r, cp_req_ok(uid, r)) from (select distinct req as r from shop_items where req is not null) q), '{}'::jsonb),
+    'equipped', (select jsonb_build_object('frame', eq_frame, 'nick', eq_nick, 'title', eq_title, 'bg', eq_bg, 'effect', eq_effect) from profiles where id = uid));
+end $$;
+
+-- Купить (или забрать бесплатный предмет за достижение)
+create or replace function public.shop_buy(p_item text) returns jsonb
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare uid uuid := auth.uid(); it shop_items%rowtype; bal int;
+begin
+  if uid is null then raise exception 'auth_required'; end if;
+  if not exists (select 1 from profiles where id = uid) then raise exception 'no_profile'; end if;
+  perform pg_advisory_xact_lock(hashtextextended(uid::text, 0));   -- без гонок при двойном клике
+  select * into it from shop_items where id = p_item;
+  if not found then raise exception 'no_item'; end if;
+  if exists (select 1 from purchases where user_id = uid and item_id = p_item) then raise exception 'already_owned'; end if;
+  if it.req is not null and not cp_req_ok(uid, it.req) then raise exception 'req_not_met'; end if;
+  if it.price is null and it.req is null then raise exception 'no_item'; end if;
+  bal := cp_coins_earned(uid) - (select coalesce(sum(price), 0) from purchases where user_id = uid);
+  if coalesce(it.price, 0) > bal then raise exception 'not_enough_coins'; end if;
+  insert into purchases (user_id, item_id, price) values (uid, p_item, coalesce(it.price, 0));
+  return shop_state();
+end $$;
+
+-- Надеть / снять предмет (p_item null — снять слот)
+create or replace function public.shop_equip(p_kind text, p_item text) returns jsonb
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare uid uuid := auth.uid();
+begin
+  if uid is null then raise exception 'auth_required'; end if;
+  if p_kind not in ('frame','nick','title','bg','effect') then raise exception 'bad_input'; end if;
+  if p_item is not null and not exists (
+      select 1 from purchases pu join shop_items s on s.id = pu.item_id
+       where pu.user_id = uid and pu.item_id = p_item and s.kind = p_kind) then
+    raise exception 'not_owned';
+  end if;
+  update profiles set
+    eq_frame  = case when p_kind = 'frame'  then p_item else eq_frame  end,
+    eq_nick   = case when p_kind = 'nick'   then p_item else eq_nick   end,
+    eq_title  = case when p_kind = 'title'  then p_item else eq_title  end,
+    eq_bg     = case when p_kind = 'bg'     then p_item else eq_bg     end,
+    eq_effect = case when p_kind = 'effect' then p_item else eq_effect end
+  where id = uid;
+  return shop_state();
+end $$;
+
+-- Отметить просмотр чужого профиля (раз в сутки от одного зрителя)
+create or replace function public.view_profile(p_nick text) returns void
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare uid uuid := auth.uid(); tid uuid;
+begin
+  if uid is null then return; end if;
+  select id into tid from profiles where nick = p_nick::citext and not hidden;
+  if tid is null or tid = uid then return; end if;
+  insert into profile_views (viewer, target) values (uid, tid) on conflict do nothing;
+  if found then update profiles set views = views + 1 where id = tid; end if;
+end $$;
+
 -- Удаление своего аккаунта со всеми данными (каскадом)
 create or replace function public.delete_my_account() returns void
 language plpgsql security definer set search_path = public, auth, pg_temp as $$
@@ -561,6 +706,10 @@ grant execute on function public.submit_bonuses(jsonb)       to authenticated;
 grant execute on function public.save_progress(jsonb)        to authenticated;
 grant execute on function public.my_place(text)              to authenticated;
 grant execute on function public.delete_my_account()         to authenticated;
+grant execute on function public.shop_state()                to authenticated;
+grant execute on function public.shop_buy(text)              to authenticated;
+grant execute on function public.shop_equip(text, text)      to authenticated;
+grant execute on function public.view_profile(text)          to authenticated;
 
 -- ============================================================
 -- Модерация (выполнять вручную в SQL Editor):

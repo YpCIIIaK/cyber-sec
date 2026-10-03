@@ -753,6 +753,7 @@ const App = (() => {
     if (view === "boss") return `#/course/${params.courseId}/boss`;
     if (view === "weekly") return "#/weekly";
     if (view === "start") return "#/start";
+    if (view === "shop") return "#/shop";
     if (view === "user") return "#/u/" + encodeURIComponent(params.nick || "");
     if (view === "leaderboard") return params.period === "week" ? "#/leaderboard/week" : "#/leaderboard";
     if (view === "legal") return `#/legal/${params.page || "about"}`;
@@ -774,6 +775,7 @@ const App = (() => {
     if (parts[0] === "weekly") return { view: "weekly" };
     if (parts[0] === "tools") return { view: "tools", tool: parts[1] || null };
     if (parts[0] === "start") return { view: "start" };
+    if (parts[0] === "shop") return { view: "shop" };
     if (parts[0] === "u" && parts[1]) return { view: "user", nick: decodeURIComponent(parts[1]) };
     if (parts[0] === "leaderboard") return { view: "leaderboard", period: parts[1] === "week" ? "week" : "all" };
     if (parts[0] === "legal") return { view: "legal", page: parts[1] || "about" };
@@ -824,6 +826,7 @@ const App = (() => {
               ${item(Icon.ui("list"), T("Заметки"), "App.go('notes')", `<em class="um-count">${Progress.notes().length}</em>`)}
               ${item(Icon.ui("shield"), T("Звания"), "App.openRanks()")}
               ${item(Icon.ui("bolt"), T("Рейтинг"), "App.go('leaderboard')")}
+              ${window.Cloud && Cloud.enabled ? item("🪙", T("Магазин"), "App.go('shop')", Cloud.state.shop ? `<em class="um-count">${Number(Cloud.state.shop.balance)}</em>` : "") : ""}
               ${window.Cloud && Cloud.enabled ? item(Icon.ui("lock"), Cloud.state.status === "in" ? `${T("Аккаунт")} · ${escapeHtml(Cloud.state.nick || "")}` : T("Войти"), "App.openAccount()") : ""}
             </div>
             <div class="um-list um-set">
@@ -909,6 +912,7 @@ const App = (() => {
       case "start": renderPlacement(); break;
       case "leaderboard": renderLeaderboard(c.period); break;
       case "user": renderPublicProfile(c.nick); break;
+      case "shop": renderShop(); break;
       default: renderHome();
     }
     highlightNav();
@@ -1655,7 +1659,70 @@ const App = (() => {
   }
 
   // Палитра сертификата: светлая/тёмная по текущей теме
+  /* ---------- Оформление для картинок (сертификаты, карточка для шеринга) ----------
+     Берём тему карточки / живой фон, акцент, стиль ника, рамку и титул — как в профиле. */
+  const CANVAS_BG = {
+    sunset: { c: ["#ffe4d4", "#ffd1e1"] }, ocean: { c: ["#dff3fc", "#d5f5f0"], p: "waves" }, forest: { c: ["#e3f7e7", "#eef7d9"], p: "lines", pc: "rgba(22,163,74,.12)" },
+    paper: { c: ["#fbf4e6", "#f5ead2"], p: "dots", pc: "rgba(0,0,0,.08)" }, royal: { c: ["#fff1cf", "#efe0ff"], p: "lines", pc: "rgba(212,166,58,.18)" },
+    midnight: { c: ["#0f172a", "#1e1b4b"], d: 1, p: "stars" }, matrix: { c: ["#03140a", "#062b15"], d: 1, p: "grid", pc: "rgba(34,197,94,.16)" },
+    blueprint: { c: ["#0b2545", "#13315c"], d: 1, p: "grid", pc: "rgba(255,255,255,.08)" }, neon: { c: ["#1a0024", "#08202a"], d: 1, p: "glow", pc: ["rgba(236,72,153,.45)", "rgba(34,211,238,.35)"] },
+    aurora: { c: ["#052e2b", "#3b0764"], d: 1, p: "glow", pc: ["rgba(52,211,153,.35)", "rgba(167,139,250,.35)"] }, carbon: { c: ["#141414", "#262626"], d: 1, p: "lines", pc: "rgba(255,255,255,.05)" },
+    bg_circuits: { c: ["#06231f", "#0a3a33"], d: 1, p: "grid", pc: "rgba(45,212,191,.2)" }, bg_terminal: { c: ["#050a06", "#0b1a0e"], d: 1, p: "scan", pc: "rgba(74,222,128,.12)" },
+    bg_starfield: { c: ["#090a0f", "#1b2735"], d: 1, p: "stars" }, bg_radar: { c: ["#021208", "#052e16"], d: 1, p: "radar" },
+    bg_legend: { c: ["#3b0764", "#7c2d12"], d: 1, p: "stars" },
+  };
+  const NICK_CANVAS = { nk_sunset: ["#f97316", "#ec4899"], nk_ocean: ["#0ea5e9", "#14b8a6"], nk_rainbow: ["#ef4444", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7"],
+    nk_gold: ["#b45309", "#fbbf24", "#b45309"], nk_ice: ["#38bdf8", "#bae6fd", "#38bdf8"], nk_terminal: "term", nk_glitch: "glitch" };
+  const FRAME_CANVAS = { fr_pixel: ["#22c55e", "#15803d"], fr_circuit: ["#2dd4bf", "#0f766e"], fr_neon: ["#f0abfc", "#22d3ee"], fr_glitch: ["#ef4444", "#3b82f6"],
+    fr_vine: ["#fde68a", "#b45309"], fr_crystal: ["#e0f2fe", "#a5b4fc"], fr_fire: ["#fde047", "#dc2626"], fr_legend: ["#fde68a", "#f472b6", "#60a5fa", "#34d399"] };
+  function styleKit() {
+    const pr = Progress.profile(), eq = myEquip(), rk = Progress.overallStats().rank;
+    const bgKey = eq.bg && CANVAS_BG[eq.bg] ? eq.bg : (CARD_THEMES[pr.theme] || {}).key;
+    const acc = ACCENTS[pr.accent] || TIER_COLORS[rk.tier] || ["#ff8c47", "#db5300"];
+    return { bg: CANVAS_BG[bgKey] || null, acc, nick: NICK_CANVAS[eq.nick] || null, frame: FRAME_CANVAS[eq.frame] || null,
+      title: eq.title && shopItem(eq.title) ? itemName(shopItem(eq.title)) : "" };
+  }
+  function paintBg(g, W, H, B) {
+    const gr = g.createLinearGradient(0, 0, W, H); gr.addColorStop(0, B.c[0]); gr.addColorStop(1, B.c[1]);
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    g.save();
+    if (B.p === "grid" || B.p === "scan") {
+      g.strokeStyle = B.pc; g.lineWidth = 1; const st = B.p === "grid" ? 24 : 9;
+      for (let y = 0; y < H; y += st) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+      if (B.p === "grid") for (let x = 0; x < W; x += st) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
+    } else if (B.p === "stars") {
+      let seed = 7; const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+      for (let i = 0; i < 160; i++) { g.fillStyle = `rgba(255,255,255,${0.3 + rnd() * 0.7})`; g.beginPath(); g.arc(rnd() * W, rnd() * H, rnd() * 1.6 + 0.3, 0, 7); g.fill(); }
+    } else if (B.p === "dots") {
+      g.fillStyle = B.pc; for (let y = 8; y < H; y += 16) for (let x = 8; x < W; x += 16) { g.beginPath(); g.arc(x, y, 1, 0, 7); g.fill(); }
+    } else if (B.p === "lines") {
+      g.strokeStyle = B.pc; g.lineWidth = 2; for (let x = -H; x < W; x += 18) { g.beginPath(); g.moveTo(x, H); g.lineTo(x + H, 0); g.stroke(); }
+    } else if (B.p === "waves") {
+      g.fillStyle = "rgba(14,165,233,.12)"; g.beginPath(); g.ellipse(W * 0.5, H * 1.15, W * 0.7, H * 0.35, 0, 0, 7); g.fill();
+      g.fillStyle = "rgba(20,184,166,.10)"; g.beginPath(); g.ellipse(W * 0.2, H * 1.2, W * 0.6, H * 0.35, 0, 0, 7); g.fill();
+    } else if (B.p === "glow") {
+      [[0, 0, B.pc[0]], [W, H, B.pc[1]]].forEach(([x, y, c]) => { const r = g.createRadialGradient(x, y, 0, x, y, Math.max(W, H) * 0.6); r.addColorStop(0, c); r.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = r; g.fillRect(0, 0, W, H); });
+    } else if (B.p === "radar") {
+      g.strokeStyle = "rgba(34,197,94,.25)"; g.lineWidth = 1.5; [0.15, 0.3, 0.45].forEach((k) => { g.beginPath(); g.arc(W * 0.85, H * 0.5, H * k * 2, 0, 7); g.stroke(); });
+    }
+    g.restore();
+  }
+  // Текст в стиле ника (градиент / терминал / глитч); учитывает textAlign
+  function fillStyled(g, text, x, y, nk, fallback) {
+    if (!nk) { g.fillStyle = fallback; g.fillText(text, x, y); return; }
+    if (nk === "term") { g.save(); g.fillStyle = "#22c55e"; g.shadowColor = "rgba(34,197,94,.6)"; g.shadowBlur = 10; g.fillText(text + "_", x, y); g.restore(); return; }
+    if (nk === "glitch") { g.save(); g.globalAlpha = 0.7; g.fillStyle = "#ef4444"; g.fillText(text, x + 3, y); g.fillStyle = "#3b82f6"; g.fillText(text, x - 3, y); g.restore(); g.fillStyle = fallback; g.fillText(text, x, y); return; }
+    const w = g.measureText(text).width, x0 = g.textAlign === "center" ? x - w / 2 : g.textAlign === "right" ? x - w : x;
+    const gr = g.createLinearGradient(x0, 0, x0 + w, 0); nk.forEach((c, i) => gr.addColorStop(i / (nk.length - 1), c));
+    g.fillStyle = gr; g.fillText(text, x, y);
+  }
   function certPalette() {
+    const K = styleKit();
+    if (K.bg) {
+      return K.bg.d
+        ? { dark: true, kit: K, ink: "#f4ede4", sub: "#d9d1c6", muted: "#aaa196", line: "rgba(255,255,255,.18)", cell: "rgba(255,255,255,.08)", ok: "#4ade80", goldCell: "rgba(255,255,255,.08)", goldLine: "rgba(255,255,255,.2)" }
+        : { dark: false, kit: K, ink: "#1a1613", sub: "#4b433c", muted: "#736960", line: "rgba(0,0,0,.12)", cell: "rgba(255,255,255,.65)", ok: "#157a4a", goldCell: "rgba(255,255,255,.65)", goldLine: "#f0dcae" };
+    }
     const dark = currentTheme() === "dark";
     return dark
       ? { dark: true, bg: "#17120d", ink: "#f3ece2", sub: "#cabfb2", muted: "#9a8d7e", line: "#3a2f24", cell: "#221b14", ok: "#4fc27e", goldCell: "#241d12", goldLine: "#5a4820" }
@@ -1684,9 +1751,12 @@ const App = (() => {
     const date = Progress.completedAtISO();
     const gold = "#c9951f", goldL = "#e9c15a";
     // фон
-    const bg = g.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, P.dark ? "#1a140d" : "#fffdf8"); bg.addColorStop(1, P.dark ? "#120e09" : "#fff7ea");
-    g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    if (P.kit) paintBg(g, W, H, P.kit.bg);
+    else {
+      const bg = g.createLinearGradient(0, 0, 0, H);
+      bg.addColorStop(0, P.dark ? "#1a140d" : "#fffdf8"); bg.addColorStop(1, P.dark ? "#120e09" : "#fff7ea");
+      g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    }
     // золотые рамки
     g.strokeStyle = gold; g.lineWidth = 7; g.strokeRect(26, 26, W - 52, H - 52);
     g.strokeStyle = goldL; g.lineWidth = 2; g.strokeRect(42, 42, W - 84, H - 84);
@@ -1701,8 +1771,8 @@ const App = (() => {
     g.fillText(L("CYBERPATH · ДИПЛОМ МАСТЕРА", "CYBERPATH · MASTER DIPLOMA"), cx, 162);
     g.fillStyle = P.sub; g.font = "400 24px Inter, sans-serif";
     g.fillText(L("Настоящим подтверждается, что", "This is to certify that"), cx, 214);
-    g.fillStyle = P.ink; g.font = "800 54px Sora, Inter, sans-serif";
-    g.fillText(displayName().slice(0, 30), cx, 282);
+    g.font = "800 54px Sora, Inter, sans-serif";
+    fillStyled(g, displayName().slice(0, 30), cx, 282, (P.kit || styleKit()).nick, P.ink);
     g.strokeStyle = goldL; g.lineWidth = 1.5; g.beginPath(); g.moveTo(cx - 300, 304); g.lineTo(cx + 300, 304); g.stroke();
     g.fillStyle = P.sub; g.font = "400 23px Inter, sans-serif";
     g.fillText(L("прошёл(-ла) полную программу CyberPath и освоил(-а) все " + s.coursesTotal + " курсов", "has completed the full CyberPath program, mastering all " + s.coursesTotal + " courses"), cx, 344);
@@ -1761,10 +1831,10 @@ const App = (() => {
     const g = cv.getContext("2d");
     g.scale(scale, scale);
     const P = certPalette();
-    // фон
-    g.fillStyle = P.bg; g.fillRect(0, 0, W, H);
+    // фон: оформление профиля (тема/живой фон) или стандартный
+    if (P.kit) paintBg(g, W, H, P.kit.bg); else { g.fillStyle = P.bg; g.fillRect(0, 0, W, H); }
     // рамка
-    g.strokeStyle = course.color; g.lineWidth = 6; g.strokeRect(28, 28, W - 56, H - 56);
+    g.strokeStyle = P.kit ? P.kit.acc[1] : course.color; g.lineWidth = 6; g.strokeRect(28, 28, W - 56, H - 56);
     g.strokeStyle = P.line; g.lineWidth = 1.5; g.strokeRect(44, 44, W - 88, H - 88);
     const cx = W / 2;
     const en = window.I18N && I18N.current() === "en";
@@ -1781,13 +1851,15 @@ const App = (() => {
     g.fillText(L("CYBERPATH · СЕРТИФИКАТ О ПРОХОЖДЕНИИ КУРСА", "CYBERPATH · CERTIFICATE OF COMPLETION"), cx, 160);
     g.fillStyle = P.sub; g.font = "400 24px Inter, sans-serif";
     g.fillText(L("Настоящим подтверждается, что", "This is to certify that"), cx, 222);
-    g.fillStyle = P.ink; g.font = "800 50px Sora, Inter, sans-serif";
-    g.fillText(displayName().slice(0, 32), cx, 290);
+    g.font = "800 50px Sora, Inter, sans-serif";
+    fillStyled(g, displayName().slice(0, 32), cx, 290, (P.kit || styleKit()).nick, P.ink);
     g.strokeStyle = P.line; g.lineWidth = 1.5; g.beginPath(); g.moveTo(cx - 260, 312); g.lineTo(cx + 260, 312); g.stroke();
     g.fillStyle = P.sub; g.font = "400 24px Inter, sans-serif";
     g.fillText(L("успешно прошёл(-ла) курс", "has successfully completed the course"), cx, 356);
     g.fillStyle = course.color; g.font = "800 52px Sora, Inter, sans-serif";
-    wrapText(g, "«" + T(course.title) + "»", cx, 430, W - 220, 58);
+    const ctitle = "«" + T(course.title) + "»";
+    if (g.measureText(ctitle).width > W - 220) { g.font = "800 38px Sora, Inter, sans-serif"; wrapText(g, ctitle, cx, 418, W - 220, 44); }
+    else wrapText(g, ctitle, cx, 430, W - 220, 58);
     // плашки со статистикой
     const total = totalTasksInCourse(course);
     const m = Progress.courseMastery(course);
@@ -2521,13 +2593,14 @@ const App = (() => {
     const cv = document.createElement("canvas");
     cv.width = W * sc; cv.height = H * sc;
     const g = cv.getContext("2d"); g.scale(sc, sc);
-    // фон-градиент
-    const grad = g.createLinearGradient(0, 0, W, H);
-    grad.addColorStop(0, "#fff6f0"); grad.addColorStop(1, "#ffe9db");
-    g.fillStyle = grad; g.fillRect(0, 0, W, H);
-    // оранжевая панель слева
+    // оформление профиля: фон темы/живого фона, панель в цвет акцента
+    const K = styleKit(), dk = !!(K.bg && K.bg.d);
+    const C = dk ? { ink: "#f4ede4", sub: "#aaa196", tile: "rgba(255,255,255,.08)", tileLine: "rgba(255,255,255,.16)", num: K.acc[0], bar: "rgba(255,255,255,.12)" }
+                 : { ink: "#1a1613", sub: "#736960", tile: "rgba(255,255,255,.85)", tileLine: "#fde3d0", num: K.acc[1], bar: "#fde3d0" };
+    if (K.bg) paintBg(g, W, H, K.bg);
+    else { const grad = g.createLinearGradient(0, 0, W, H); grad.addColorStop(0, "#fff6f0"); grad.addColorStop(1, "#ffe9db"); g.fillStyle = grad; g.fillRect(0, 0, W, H); }
     const p = g.createLinearGradient(0, 0, 360, H);
-    p.addColorStop(0, "#ff8c47"); p.addColorStop(1, "#db5300");
+    p.addColorStop(0, K.acc[0]); p.addColorStop(1, K.acc[1]);
     g.fillStyle = p; g.fillRect(0, 0, 360, H);
     // аватар на панели
     const pr = Progress.profile();
@@ -2540,18 +2613,27 @@ const App = (() => {
     if (avImg) g.drawImage(avImg, cx - R, cy - R, R * 2, R * 2);
     else { g.fillStyle = "#fff"; g.textAlign = "center"; g.textBaseline = "middle"; g.font = "90px 'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif"; g.fillText(pr.avatar.value || "🦊", cx, cy + 6); }
     g.restore();
-    g.beginPath(); g.arc(cx, cy, R + 4, 0, Math.PI * 2); g.strokeStyle = "rgba(255,255,255,.9)"; g.lineWidth = 6; g.stroke();
-    // ник и ранг на панели
+    // рамка аватара: из магазина (градиент) или белая
+    if (K.frame) {
+      const fg = g.createLinearGradient(cx - R, cy - R, cx + R, cy + R); K.frame.forEach((c, i) => fg.addColorStop(i / (K.frame.length - 1), c));
+      g.beginPath(); g.arc(cx, cy, R + 7, 0, Math.PI * 2); g.strokeStyle = fg; g.lineWidth = 10; g.stroke();
+    } else { g.beginPath(); g.arc(cx, cy, R + 4, 0, Math.PI * 2); g.strokeStyle = "rgba(255,255,255,.9)"; g.lineWidth = 6; g.stroke(); }
+    // ник (в стиле из магазина), титул и ранг на панели
     g.textBaseline = "alphabetic";
     g.fillStyle = "#fff"; g.textAlign = "center";
-    g.font = "800 30px Sora, Inter, sans-serif"; g.fillText(displayName().slice(0, 18), 180, 340);
-    g.font = "700 24px Sora, Inter, sans-serif"; g.fillText((s.rank.icon || "") + " " + s.rank.name, 180, 390);
-    g.font = "600 22px Inter, sans-serif"; g.fillStyle = "rgba(255,255,255,.85)"; g.fillText("LVL " + s.level, 180, 430);
+    g.font = "800 30px Sora, Inter, sans-serif";
+    if (K.nick) { g.save(); g.shadowColor = "rgba(0,0,0,.35)"; g.shadowBlur = 6; fillStyled(g, displayName().slice(0, 18), 180, 340, K.nick, "#fff"); g.restore(); }
+    else g.fillText(displayName().slice(0, 18), 180, 340);
+    if (K.title) { g.font = "700 16px Inter, sans-serif"; const tw = g.measureText("🏷 " + K.title).width + 24;
+      g.fillStyle = "rgba(255,255,255,.22)"; roundRect(g, 180 - tw / 2, 352, tw, 26, 13); g.fill(); g.fillStyle = "#fff"; g.fillText("🏷 " + K.title, 180, 370); }
+    g.fillStyle = "#fff";
+    g.font = "700 24px Sora, Inter, sans-serif"; g.fillText((s.rank.icon || "") + " " + s.rank.name, 180, K.title ? 412 : 390);
+    g.font = "600 22px Inter, sans-serif"; g.fillStyle = "rgba(255,255,255,.85)"; g.fillText("LVL " + s.level, 180, K.title ? 448 : 430);
     if (pr.showcase.length) { g.font = "40px 'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif"; g.fillText(pr.showcase.map((id) => (ACHIEVEMENTS.find((a) => a.id === id) || {}).icon || "").join("  "), 180, 510); }
     // правая часть — заголовок
-    g.textAlign = "left"; g.fillStyle = "#1a1613";
+    g.textAlign = "left"; g.fillStyle = C.ink;
     g.font = "800 30px Sora, Inter, sans-serif"; g.fillText("CyberPath", 410, 90);
-    g.fillStyle = "#8c8178"; g.font = "600 20px Inter, sans-serif";
+    g.fillStyle = C.sub; g.font = "600 20px Inter, sans-serif";
     g.fillText(T("Мой прогресс в кибербезопасности"), 410, 122);
     // метрики: 4×2 плитки
     const M = (n) => Progress.metric(n);
@@ -2569,27 +2651,27 @@ const App = (() => {
     stats.forEach((st, i) => {
       const col = i % 4, row = (i / 4) | 0;
       const x = x0 + col * cw, y = y0 + row * (ch + 14);
-      g.fillStyle = "#fff"; roundRect(g, x, y, cw - 14, ch, 14); g.fill();
-      g.strokeStyle = "#fde3d0"; g.lineWidth = 1.5; roundRect(g, x, y, cw - 14, ch, 14); g.stroke();
-      g.fillStyle = "#db5300"; g.font = "800 32px Sora, Inter, sans-serif"; g.textAlign = "left";
+      g.fillStyle = C.tile; roundRect(g, x, y, cw - 14, ch, 14); g.fill();
+      g.strokeStyle = C.tileLine; g.lineWidth = 1.5; roundRect(g, x, y, cw - 14, ch, 14); g.stroke();
+      g.fillStyle = C.num; g.font = "800 32px Sora, Inter, sans-serif"; g.textAlign = "left";
       g.fillText(st[0], x + 18, y + 48);
-      g.fillStyle = "#8c8178"; g.font = "600 16px Inter, sans-serif"; g.fillText(st[1], x + 18, y + 76);
+      g.fillStyle = C.sub; g.font = "600 16px Inter, sans-serif"; g.fillText(st[1], x + 18, y + 76);
     });
     // топ навыков
     const top = Progress.skillRadar().slice().sort((a, b) => b.pct - a.pct).slice(0, 3);
-    g.fillStyle = "#1a1613"; g.font = "800 20px Sora, Inter, sans-serif";
+    g.fillStyle = C.ink; g.font = "800 20px Sora, Inter, sans-serif";
     g.fillText(T("Сильные стороны"), 410, 390);
     top.forEach((k, i) => {
       const y = 420 + i * 44;
-      g.fillStyle = "#4b433c"; g.font = "600 17px Inter, sans-serif";
+      g.fillStyle = C.ink; g.font = "600 17px Inter, sans-serif";
       let name = T(k.title); if (name.length > 26) name = name.slice(0, 25) + "…";
       g.fillText(name, 410, y + 14);
-      g.fillStyle = "#fde3d0"; roundRect(g, 690, y, 400, 14, 7); g.fill();
-      if (k.pct) { g.fillStyle = "#f2620a"; roundRect(g, 690, y, Math.max(14, 4 * k.pct), 14, 7); g.fill(); }
-      g.fillStyle = "#db5300"; g.font = "800 17px Inter, sans-serif"; g.textAlign = "right";
+      g.fillStyle = C.bar; roundRect(g, 690, y, 400, 14, 7); g.fill();
+      if (k.pct) { const bg = g.createLinearGradient(690, 0, 1090, 0); bg.addColorStop(0, K.acc[0]); bg.addColorStop(1, K.acc[1]); g.fillStyle = bg; roundRect(g, 690, y, Math.max(14, 4 * k.pct), 14, 7); g.fill(); }
+      g.fillStyle = C.num; g.font = "800 17px Inter, sans-serif"; g.textAlign = "right";
       g.fillText(String(k.pct), 1150, y + 14); g.textAlign = "left";
     });
-    g.fillStyle = "#b3a99e"; g.font = "500 18px Inter, sans-serif";
+    g.fillStyle = C.sub; g.font = "500 18px Inter, sans-serif";
     g.fillText(T("Бесплатная платформа · учись этично, применяй ответственно"), 410, 600);
     return cv;
   }
@@ -3333,6 +3415,7 @@ const App = (() => {
     try { d = await Cloud.publicProfile(nick); }
     catch (e) { if (current.view === "user") root().querySelector(".card").outerHTML = emptyState("📡", T("Не удалось загрузить профиль"), cloudErr(e)); return; }
     if (current.view !== "user" || current.nick !== nick) return;
+    if (d && d.found && !d.private && !d.me) Cloud.viewProfile(d.nick);
     if (!d || !d.found) { root().innerHTML = `<section class="section">${head}${emptyState("🔍", T("Профиль не найден"), T("Проверьте ник в ссылке."), `<a class="btn btn-ghost btn-sm" href="#/leaderboard">${T("К рейтингу")}</a>`)}</section>`; updateTitle(); return; }
     if (d.private) { root().innerHTML = `<section class="section">${head}${emptyState("🔒", escapeHtml(d.nick), T("Участник скрыл свой профиль."), `<a class="btn btn-ghost btn-sm" href="#/leaderboard">${T("К рейтингу")}</a>`)}</section>`; updateTitle(); return; }
     const lvl = Math.floor(Number(d.xp) / 100) + 1, rk = rankForLevel(lvl), nx = nextRank(lvl);
@@ -3351,15 +3434,16 @@ const App = (() => {
     root().innerHTML = `
       <section class="section pub-profile">
         ${head}
-        <div class="player-card tier-${rk.tier}${cardDeco(d.card_theme, d.accent).cls}"${cardDeco(d.card_theme, d.accent).style}>
+        <div class="player-card tier-${rk.tier}${cardDeco(d.card_theme, d.accent).cls}${cardCx(d.eq_bg, d.eq_effect)}${cardDeco(d.card_theme, d.accent).style}>
           <div class="pc-glow"></div>
-          <div class="pc-left">${avatarHTML(104, serverAvatar(d))}<span class="pc-tier">${T(TIER_NAMES[rk.tier])}</span></div>
+          <div class="pc-left">${framed(avatarHTML(104, serverAvatar(d)), d.eq_frame)}<span class="pc-tier">${T(TIER_NAMES[rk.tier])}</span></div>
           <div class="pc-main">
-            <h1 class="pc-rank pc-nick">${escapeHtml(d.nick)}</h1>
+            <h1 class="pc-rank pc-nick">${nickHTML(d.nick, d.eq_nick)}</h1>
+            ${titleHTML(d.eq_title)}
             <div class="pc-cur-rank as-static"><span class="pcr-ic">${rankBadge(rk, 34)}</span><span class="pcr-txt"><small>${T("Звание")} · ${T(TIER_NAMES[rk.tier])}</small><b>${rk.icon} ${rk.name}</b></span></div>
             <div class="pc-lvl"><b>LVL ${lvl}</b><span>${Number(d.xp)} XP</span></div>
             <div class="pc-next">${nx ? `<span>${T("Далее")}: ${nx.icon} ${nx.name} · LVL ${nx.min}</span>` : ""}</div>
-            <p class="pp-meta">${d.place ? `🏆 ${T("Место в рейтинге")}: <b>${Number(d.place)}</b> · ` : ""}${T("В CyberPath с")} ${joined.toLocaleDateString(I18N && I18N.current() === "en" ? "en-GB" : "ru-RU")}</p>
+            <p class="pp-meta">👁 ${Number(d.views || 0)} · 🪙 ${Number(d.coins_earned || 0)} ${T("заработано")} · ${d.place ? `🏆 ${T("Место в рейтинге")}: <b>${Number(d.place)}</b> · ` : ""}${T("В CyberPath с")} ${joined.toLocaleDateString(I18N && I18N.current() === "en" ? "en-GB" : "ru-RU")}</p>
           </div>
           <div class="pc-stats">
             ${tile(Number(d.solved), T("заданий"))}${tile(done.length + `<small>/${COURSES.length}</small>`, T("курсов пройдено"))}
@@ -3370,7 +3454,9 @@ const App = (() => {
         <div class="pp-actions">
           <button class="btn btn-ghost btn-sm" onclick="App.copyProfileLink('${escapeAttr(d.nick)}')">🔗 ${T("Скопировать ссылку")}</button>
           ${d.me ? `<button class="btn btn-ghost btn-sm" onclick="App.openAccount()">⚙️ ${T("Настройки приватности")}</button>` : ""}
+          ${!d.me && Cloud.state.status === "in" && Cloud.state.nick ? `<button class="btn btn-ghost btn-sm" onclick="App.compareWith('${escapeAttr(d.nick)}')">⚖️ ${T("Сравнить со мной")}</button>` : ""}
         </div>
+        <div id="pp-compare"></div>
         <h2 class="rooms-title">${T("Активность")}</h2>
         <div class="card pp-heat"><div class="pp-grid">${cells.join("")}</div><small>${T("последние 17 недель")}</small></div>
         <h2 class="rooms-title">${T("Курсы")}</h2>
@@ -3383,10 +3469,102 @@ const App = (() => {
       </section>`;
     updateTitle();
   }
+  // Сравнение двух профилей по серверной статистике
+  async function compareWith(nick) {
+    const box = document.getElementById("pp-compare"); if (!box) return;
+    box.innerHTML = `<div class="card"><div class="acc-wait">${T("Загрузка…")}</div></div>`;
+    let a, b;
+    try { [a, b] = await Promise.all([Cloud.publicProfile(Cloud.state.nick), Cloud.publicProfile(nick)]); }
+    catch (e) { box.innerHTML = ""; toast(cloudErr(e)); return; }
+    if (!a || !a.found || !b || !b.found || b.private) { box.innerHTML = ""; return; }
+    const rows = [
+      ["XP", a.xp, b.xp], [T("заданий"), a.solved, b.solved], [T("курсов пройдено"), (a.courses || []).length, (b.courses || []).length],
+      [T("экзаменов сдано"), a.exams, b.exams], [T("боссов побеждено"), a.bosses, b.bosses], [T("флагов найдено"), a.flags, b.flags],
+      [T("дней подряд"), a.streak, b.streak], [T("Монет заработано"), a.coins_earned, b.coins_earned],
+    ];
+    const cell = (v, o) => `<td class="${Number(v) > Number(o) ? "win" : ""}">${Number(v)}</td>`;
+    box.innerHTML = `<div class="card cmp-card"><h3>⚖️ ${T("Сравнение")}</h3>
+      <table class="cmp-table"><thead><tr><th></th><th>${nickHTML(a.nick, a.eq_nick)} <small>(${T("вы")})</small></th><th>${nickHTML(b.nick, b.eq_nick)}</th></tr></thead>
+      <tbody>${rows.map(([l, x, y]) => `<tr><th>${l}</th>${cell(x, y)}${cell(y, x)}</tr>`).join("")}</tbody></table></div>`;
+  }
   function copyProfileLink(nick) {
     const url = location.origin + location.pathname + "#/u/" + encodeURIComponent(nick);
     const done = () => toast(T("Ссылка скопирована"));
     try { navigator.clipboard.writeText(url).then(done, () => prompt(T("Ссылка на профиль"), url)); } catch (e) { prompt(T("Ссылка на профиль"), url); }
+  }
+
+  /* ---------- Магазин ---------- */
+  let shopTab = "frame", shopBusy = false;
+  async function renderShop() {
+    const head = `${crumbs([["home", T("Главная")], [null, T("Магазин")]])}
+      <div class="page-title"><h1>🪙 ${T("Магазин")}</h1><p>${T("Тратьте монеты на оформление профиля. Монеты начисляет сервер за подтверждённый прогресс — их нельзя купить или накрутить.")}</p></div>`;
+    if (!window.Cloud || !Cloud.enabled) { root().innerHTML = `<section class="section">${head}${emptyState("🪙", T("Магазин скоро откроется"), "")}</section>`; return; }
+    if (Cloud.state.status !== "in") {
+      root().innerHTML = `<section class="section">${head}${emptyState("🔐", T("Войдите, чтобы копить монеты"), T("Монеты и покупки хранятся в аккаунте. Прогресс, сделанный до входа, тоже будет засчитан."), `<button class="btn btn-primary btn-sm" onclick="App.openAccount()">${T("Войти")}</button>`)}${coinRules()}</section>`;
+      return;
+    }
+    if (!Cloud.state.shop) {
+      root().innerHTML = `<section class="section">${head}<div class="card"><div class="acc-wait">${T("Загрузка…")}</div></div></section>`;
+      try { await Cloud.shopState(); } catch (e) { root().querySelector(".card").outerHTML = emptyState("📡", T("Не удалось загрузить магазин"), cloudErr(e)); return; }
+      if (current.view !== "shop") return;
+    }
+    const sh = Cloud.state.shop, owned = new Set(sh.owned || []), eq = sh.equipped || {}, reqOk = sh.req_ok || {};
+    const en = window.I18N && I18N.current() === "en";
+    const items = (window.SHOP_ITEMS || []).filter((i) => i.kind === shopTab);
+    const myAv = avatarHTML(64);
+    const preview = (it) => {
+      if (it.kind === "frame") return `<div class="sp-av">${framed(myAv, it.id)}</div>`;
+      if (it.kind === "nick") return `<div class="sp-nick">${nickHTML(displayName(), it.id)}</div>`;
+      if (it.kind === "title") return `<div class="sp-title">${titleHTML(it.id)}</div>`;
+      if (it.kind === "bg") return `<div class="sp-bg player-card tier-silver bgx cx-${it.id}"></div>`;
+      return `<div class="sp-bg player-card th-midnight" data-fx="${it.id}"></div>`;
+    };
+    const card = (it) => {
+      const has = owned.has(it.id), on = eq[it.kind] === it.id;
+      const req = it.req ? SHOP_REQS[it.req] : null;
+      let btn;
+      if (has) btn = on ? `<button class="btn btn-ghost btn-sm" onclick="App.shopEquip('${it.kind}',null)">${T("Снять")}</button>`
+                        : `<button class="btn btn-primary btn-sm" onclick="App.shopEquip('${it.kind}','${it.id}')">${T("Надеть")}</button>`;
+      else if (it.price == null) btn = reqOk[it.req] ? `<button class="btn btn-primary btn-sm" onclick="App.shopBuy('${it.id}')">🎁 ${T("Забрать")}</button>`
+                                                      : `<button class="btn btn-ghost btn-sm" disabled>🔒 ${T("Не выполнено")}</button>`;
+      else btn = `<button class="btn ${sh.balance >= it.price ? "btn-primary" : "btn-ghost"} btn-sm" ${sh.balance >= it.price ? "" : "disabled"} onclick="App.shopBuy('${it.id}')">🪙 ${it.price}</button>`;
+      return `<div class="shop-item${on ? " on" : ""}${has ? " owned" : ""}">
+        ${preview(it)}
+        <div class="si-info"><b>${escapeHtml(en ? it.en : it.ru)}</b>
+          <small>${has ? (on ? "✓ " + T("Надето") : T("Куплено")) : req ? `🏆 ${escapeHtml(en ? req.en : req.ru)}` : "🪙 " + T("за монеты")}</small></div>
+        ${btn}</div>`;
+    };
+    root().innerHTML = `<section class="section shop">
+      ${head}
+      <div class="shop-wallet card">
+        <div class="sw-bal">🪙 <b>${Number(sh.balance)}</b> <span>${T("монет")}</span></div>
+        <div class="sw-meta">${T("Заработано")}: ${Number(sh.earned)} · ${T("Потрачено")}: ${Number(sh.spent)} · ${T("Предметов")}: ${owned.size}/${(window.SHOP_ITEMS || []).length}</div>
+        <a class="btn btn-ghost btn-sm" href="#/profile">${T("Посмотреть профиль")}</a>
+      </div>
+      <div class="shop-tabs seg">${SHOP_KINDS.map((k) => `<button class="seg-btn ${k.kind === shopTab ? "on" : ""}" onclick="App.shopSetTab('${k.kind}')">${k.icon} ${escapeHtml(en ? k.en : k.ru)}</button>`).join("")}</div>
+      <div class="shop-grid">${items.map(card).join("")}</div>
+      ${coinRules()}
+    </section>`;
+  }
+  function coinRules() {
+    const en = window.I18N && I18N.current() === "en";
+    return `<div class="card coin-rules"><h3>${T("Как заработать монеты")}</h3>
+      <ul>${(window.COIN_RULES || []).map((r) => `<li><span>${escapeHtml(en ? r.en : r.ru)}</span><b>🪙 ${r.coins}</b></li>`).join("")}</ul>
+      <p class="muted">${T("Часть предметов нельзя купить — они выдаются за достижения. Монеты считаются с учётом всего прогресса, отправленного на сервер.")}</p></div>`;
+  }
+  function shopSetTab(k) { shopTab = k; renderShop(); }
+  const SHOP_ERR = { not_enough_coins: "Не хватает монет", already_owned: "Уже куплено", req_not_met: "Условие ещё не выполнено", not_owned: "Сначала купите предмет", no_item: "Предмет недоступен" };
+  async function shopBuy(id) {
+    if (shopBusy) return; shopBusy = true;
+    try { await Cloud.shopBuy(id); const it = shopItem(id); toast(`🎉 ${T("Получено")}: ${escapeHtml(itemName(it))}`); Sfx.achievement && Sfx.achievement(); }
+    catch (e) { toast(T(SHOP_ERR[e.message] || "Не удалось связаться с сервером. Проверьте интернет и попробуйте ещё раз.")); }
+    shopBusy = false; if (current.view === "shop") renderShop();
+  }
+  async function shopEquip(kind, id) {
+    if (shopBusy) return; shopBusy = true;
+    try { await Cloud.shopEquip(kind, id); toast(id ? "✓ " + T("Надето") : T("Снято")); }
+    catch (e) { toast(T(SHOP_ERR[e.message] || "Не удалось связаться с сервером. Проверьте интернет и попробуйте ещё раз.")); }
+    shopBusy = false; if (current.view === "shop") renderShop();
   }
 
   let lbLoading = false;
@@ -3412,13 +3590,14 @@ const App = (() => {
     const podium = res.rows.slice(0, 3).map((r, i) => {
       const lvl = Math.floor(Number(r.xp) / 100) + 1, rk = rankForLevel(lvl), dc = cardDeco(r.card_theme, r.accent);
       const anon = !r.nick;
-      const name = anon ? `🕶️ ${T("Аноним")}` : escapeHtml(String(r.nick));
+      const name = anon ? `🕶️ ${T("Аноним")}` : nickHTML(String(r.nick), r.eq_nick);
       const who = !anon && r.is_public ? `<a class="lb-link" href="#/u/${encodeURIComponent(r.nick)}">${name}</a>` : `<span>${name}</span>`;
       return `<div class="pod pod-${i + 1}${r.is_me ? " me" : ""}">
-        <div class="pod-card player-card tier-${rk.tier}${dc.cls}"${dc.style}>
+        <div class="pod-card player-card tier-${rk.tier}${dc.cls}${cardCx(r.eq_bg, null)}${dc.style}>
           <span class="pod-medal">${["🥇", "🥈", "🥉"][i]}</span>
-          ${avatarHTML(i === 0 ? 84 : 66, serverAvatar(r))}
+          ${framed(avatarHTML(i === 0 ? 84 : 66, serverAvatar(r)), r.eq_frame)}
           <div class="pod-name">${who}${r.is_me ? ` <em class="pod-you">${T("вы")}</em>` : ""}</div>
+          ${titleHTML(r.eq_title)}
           <div class="pod-rank">${rankBadge(rk, 20)} ${rk.name} · LVL ${lvl}</div>
           <div class="pod-xp">${Number(r.xp)} XP</div>
         </div>
@@ -3429,11 +3608,11 @@ const App = (() => {
     const rows = res.rows.slice(3).map((r) => {
       const lvl = Math.floor(Number(r.xp) / 100) + 1, rk = rankForLevel(lvl);
       const anon = !r.nick;
-      const name = anon ? `🕶️ ${T("Анонимный участник")}` : escapeHtml(String(r.nick));
+      const name = anon ? `🕶️ ${T("Анонимный участник")}` : nickHTML(String(r.nick), r.eq_nick);
       const who = !anon && r.is_public ? `<a class="lb-link" href="#/u/${encodeURIComponent(r.nick)}">${name}</a>` : `<span>${name}</span>`;
       return `<tr class="${r.is_me ? "me" : ""}${anon ? " anon" : ""}">
         <td class="lb-place">${medal(Number(r.place))}</td>
-        <td class="lb-nick"><div class="lb-who">${avatarHTML(34, serverAvatar(r))}<div class="lb-name">${who}${r.is_me ? ` <em>${T("вы")}</em>` : ""}
+        <td class="lb-nick"><div class="lb-who">${framed(avatarHTML(34, serverAvatar(r)), r.eq_frame)}<div class="lb-name">${who}${r.is_me ? ` <em>${T("вы")}</em>` : ""}
           <small class="lb-rank">${rankBadge(rk, 18)} ${rk.name} · LVL ${lvl}</small></div></div></td>
         <td class="lb-xp">${Number(r.xp)} XP</td><td class="lb-solved">${Number(r.solved)}</td></tr>`;
     }).join("");
@@ -3753,6 +3932,24 @@ const App = (() => {
   ];
   const ACCENTS = { tier: null, orange: ["#ffb182", "#db5300"], blue: ["#93c5fd", "#1d4ed8"], green: ["#86efac", "#15803d"],
     purple: ["#d8b4fe", "#7e22ce"], pink: ["#f9a8d4", "#be185d"], red: ["#fca5a5", "#b91c1c"], teal: ["#5eead4", "#0f766e"], gold: ["#fde68a", "#b45309"] };
+  /* ---------- Косметика из магазина ---------- */
+  const shopItem = (id) => (window.SHOP_ITEMS || []).find((i) => i.id === id) || null;
+  const itemName = (it) => (it ? (window.I18N && I18N.current() === "en" ? it.en : it.ru) : "");
+  // Надетое у текущего пользователя (с сервера)
+  function myEquip() { return (window.Cloud && Cloud.state.status === "in" && Cloud.state.shop && Cloud.state.shop.equipped) || {}; }
+  // Рамка вокруг аватара
+  function framed(av, frame) { return frame && shopItem(frame) ? `<span class="avf cx-${frame}">${av}</span>` : av; }
+  // Ник со стилем (data-text нужен эффекту «глитч»)
+  function nickHTML(name, style) {
+    const n = escapeHtml(name);
+    return style && shopItem(style) ? `<span class="nk cx-${style}" data-text="${n}">${n}</span>` : n;
+  }
+  function titleHTML(tt) { const it = shopItem(tt); return it ? `<span class="ptitle">🏷️ ${escapeHtml(itemName(it))}</span>` : ""; }
+  // Живой фон и эффект на карточке
+  function cardCx(bg, fx) {
+    return `${bg && shopItem(bg) ? ` bgx cx-${bg}` : ""}"${fx && shopItem(fx) ? ` data-fx="${fx}"` : ""}`;
+  }
+
   // Класс и стиль карточки по теме и акценту
   function cardDeco(theme, accent) {
     const th = CARD_THEMES[theme] || CARD_THEMES[0], ac = ACCENTS[accent];
@@ -3906,15 +4103,17 @@ const App = (() => {
     const rankPct = next ? Math.round(((s.level - prevMin) + s.xpInLevel / 100) / (nextMin - prevMin) * 100) : 100;
     const rIdx = RANKS.indexOf(r);
     return `
-      <div class="player-card tier-${r.tier}${cardDeco(Progress.profile().theme, Progress.profile().accent).cls}"${cardDeco(Progress.profile().theme, Progress.profile().accent).style}>
+      <div class="player-card tier-${r.tier}${cardDeco(Progress.profile().theme, Progress.profile().accent).cls}${cardCx(myEquip().bg, myEquip().effect)}${cardDeco(Progress.profile().theme, Progress.profile().accent).style}>
         <div class="pc-glow"></div>
         <div class="pc-left">
-          <button class="pc-avatar" onclick="App.openProfileEditor()" title="${T("Редактировать профиль")}">${avatarHTML(104)}<span class="pc-edit">✎</span>
+          <button class="pc-avatar" onclick="App.openProfileEditor()" title="${T("Редактировать профиль")}">${framed(avatarHTML(104), myEquip().frame)}<span class="pc-edit">✎</span>
             <span class="pc-mini-badge" onclick="event.stopPropagation();App.openRanks()" title="${T("Лестница званий")}">${rankBadge(r, 44)}</span></button>
           <span class="pc-tier">${T(TIER_NAMES[r.tier])} · ${rIdx + 1}/${RANKS.length}</span>
         </div>
         <div class="pc-main">
-          <h2 class="pc-rank pc-nick">${escapeHtml(displayName())}</h2>
+          <h2 class="pc-rank pc-nick">${nickHTML(displayName(), myEquip().nick)}</h2>
+          ${titleHTML(myEquip().title)}
+          ${window.Cloud && Cloud.state.status === "in" && Cloud.state.shop ? `<a class="pc-coins" href="#/shop" title="${T("Магазин")}">🪙 ${Number(Cloud.state.shop.balance)} <small>${T("монет")}</small></a>` : ""}
           <button class="pc-cur-rank" onclick="App.openRanks()" title="${T("Лестница званий")}">
             <span class="pcr-ic">${r.icon}</span><span class="pcr-txt"><small>${T("Ваше звание")} · ${T(TIER_NAMES[r.tier])}</small><b>${r.name}</b></span></button>
           ${Progress.profile().bio ? `<p class="pc-bio">${escapeHtml(Progress.profile().bio)}</p>` : ""}
@@ -4538,6 +4737,7 @@ const App = (() => {
     });
     initA11y();
     initUpdateCheck();
+    if (window.Fx) new MutationObserver(() => Fx.mountAll()).observe(document.body, { childList: true, subtree: true });
     // EN-контент курсов подгрузился лениво — перерисовать текущий экран
     window.addEventListener("i18n:content", () => render());
     // Облако: смена статуса входа и подтянутый из облака прогресс
@@ -4547,6 +4747,7 @@ const App = (() => {
         if (cs.status === "needNick") openNickModal();
         if (document.getElementById("account-modal")) renderAccountModal();
         if (current.view === "leaderboard" && !lbLoading) renderLeaderboard(current.period);
+        if (current.view === "shop" && !shopBusy) renderShop();
         if (current.view === "profile") { const z = document.getElementById("acc-card"); if (z) z.outerHTML = accountCard(); }
       });
       window.addEventListener("cloud:merged", () => { render(); toast(T("Прогресс синхронизирован с облаком")); });
@@ -4729,7 +4930,7 @@ const App = (() => {
     catalogSearch, catalogLevel, catalogSort, downloadCertificate, downloadMasterCertificate,
     submitChoice, submitMatch, orderPick, orderReset, submitDaily,
     submitMission, toggleShell, openShortcuts, closeShortcuts,
-    glossarySearch, glossaryClear, placeAnswer, placeFinish, placeSkip, reportTask, avatarSpec, copyProfileLink, accSetting, openAccount, closeAccount, accSetTab, accOAuth, accLink, accSubmit, accSignOut, accDelete, nickSubmit, nickCancel, placeRetry, startPlacement, catalogReset, submitExam, retryExam, openPalette, palettePick, installApp,
+    glossarySearch, glossaryClear, placeAnswer, placeFinish, placeSkip, reportTask, compareWith, shopSetTab, shopBuy, shopEquip, avatarSpec, copyProfileLink, accSetting, openAccount, closeAccount, accSetTab, accOAuth, accLink, accSubmit, accSignOut, accDelete, nickSubmit, nickCancel, placeRetry, startPlacement, catalogReset, submitExam, retryExam, openPalette, palettePick, installApp,
     reviewChoose, reviewCheck, reviewNext, reviewStart, setXpMode, shareCard, saveDraft, toggleLang,
     openRanks, closeRanks, achSetFilter, tilt, openProfileEditor, closeProfileEditor, profTab, profAvatar, profUpload,
     profDraftSet, profToggleShowcase, saveProfile, chalStart, chalAnswer, chalSkip, chalRestart, notesFilter, noteComment, noteDelete, exportNotes,

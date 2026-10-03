@@ -1,10 +1,12 @@
 /* CyberPath Service Worker — офлайн-режим (network-first для своих файлов) */
-const CACHE = "cyberpath-v47";
+const CACHE = "cyberpath-v48";
 const CORE = [
   "./",
   "./index.html",
   "./js/config.js",
   "./js/cloud.js",
+  "./js/shop.js",
+  "./js/fx.js",
   "./css/styles.css",
   "./js/icons.js",
   "./js/data.js",

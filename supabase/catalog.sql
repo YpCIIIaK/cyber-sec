@@ -384,3 +384,43 @@ insert into public.bonus_catalog (key, xp, course_id) values
   ('daily', 20, null),
   ('weekly', 40, null)
 on conflict (key) do update set xp = excluded.xp, course_id = excluded.course_id;
+
+-- Магазин кастомизации (из js/shop.js).
+insert into public.shop_items (id, kind, price, req) values
+  ('fr_pixel', 'frame', 40, null),
+  ('fr_circuit', 'frame', 60, null),
+  ('fr_neon', 'frame', 70, null),
+  ('fr_glitch', 'frame', 90, null),
+  ('fr_vine', 'frame', 120, null),
+  ('fr_crystal', 'frame', null, 'exams_5'),
+  ('fr_fire', 'frame', null, 'streak_30'),
+  ('fr_legend', 'frame', null, 'courses_all'),
+  ('nk_sunset', 'nick', 50, null),
+  ('nk_ocean', 'nick', 50, null),
+  ('nk_terminal', 'nick', 70, null),
+  ('nk_rainbow', 'nick', 110, null),
+  ('nk_glitch', 'nick', 130, null),
+  ('nk_gold', 'nick', 150, null),
+  ('nk_ice', 'nick', null, 'tasks_100'),
+  ('tt_whitehat', 'title', 30, null),
+  ('tt_night', 'title', 30, null),
+  ('tt_blue', 'title', 40, null),
+  ('tt_red', 'title', 40, null),
+  ('tt_packet', 'title', 60, null),
+  ('tt_root', 'title', 80, null),
+  ('tt_starter', 'title', null, 'first_course'),
+  ('tt_hunter', 'title', null, 'flags_all'),
+  ('tt_slayer', 'title', null, 'bosses_5'),
+  ('tt_steady', 'title', null, 'streak_7'),
+  ('bg_circuits', 'bg', 100, null),
+  ('bg_terminal', 'bg', 120, null),
+  ('bg_starfield', 'bg', 140, null),
+  ('bg_radar', 'bg', 160, null),
+  ('bg_legend', 'bg', null, 'courses_all'),
+  ('fx_sparks', 'effect', 90, null),
+  ('fx_snow', 'effect', 90, null),
+  ('fx_stars', 'effect', 120, null),
+  ('fx_embers', 'effect', 150, null),
+  ('fx_matrix', 'effect', 180, null),
+  ('fx_flags', 'effect', null, 'flags_all')
+on conflict (id) do update set kind = excluded.kind, price = excluded.price, req = excluded.req;

@@ -2286,3 +2286,107 @@ body:not(.ready) .footer { display: none; }
 :is(.th-midnight, .th-matrix, .th-blueprint, .th-neon, .th-aurora, .th-carbon) .pc-tier { color: #fff; background: color-mix(in srgb, var(--tier-b) 55%, transparent); }
 :is(.th-midnight, .th-matrix, .th-blueprint, .th-neon, .th-aurora, .th-carbon) .pc-lvl b { color: var(--tier-a); }
 .pod-1 .pod-step { height: 78px; } .pod-2 .pod-step { height: 58px; } .pod-3 .pod-step { height: 44px; }
+
+/* ======================= Магазин: косметика ======================= */
+/* Рамки аватара: обёртка .avf вокруг .avatar, кольцо рисует ::before */
+.avf { position: relative; display: inline-grid; place-items: center; border-radius: 50%; isolation: isolate; }
+.avf::before { content: ""; position: absolute; inset: -6px; border-radius: 50%; z-index: -1; }
+.avf::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; pointer-events: none; }
+.cx-fr_pixel::before { inset: -5px; border-radius: 8px; background: repeating-conic-gradient(#22c55e 0 25%, #15803d 0 50%) 0 0 / 8px 8px; }
+.cx-fr_pixel > .avatar { border-radius: 6px; }
+.cx-fr_circuit::before { background: radial-gradient(circle, transparent 58%, #0f766e 59% 62%, transparent 63%), repeating-conic-gradient(from 0deg, #2dd4bf 0 6deg, transparent 6deg 30deg); }
+.cx-fr_neon::before { background: conic-gradient(#f0abfc, #22d3ee, #f0abfc); filter: blur(1px); box-shadow: 0 0 14px #e879f9, 0 0 24px #22d3ee; animation: fxPulse 2.4s ease-in-out infinite; }
+.cx-fr_glitch::before { background: conic-gradient(#ef4444, #3b82f6, #ef4444); animation: fxGlitch 2.2s steps(1) infinite; }
+.cx-fr_vine::before { inset: -7px; background: conic-gradient(from 20deg, #fde68a, #b45309, #fbbf24, #78350f, #fde68a); box-shadow: 0 0 10px rgba(251,191,36,.6); }
+.cx-fr_vine::after { content: "🍃"; inset: auto; right: -8px; bottom: -6px; font-size: 18px; }
+.cx-fr_crystal::before { background: conic-gradient(#e0f2fe, #7dd3fc, #f5f3ff, #a5b4fc, #e0f2fe); box-shadow: 0 0 12px rgba(125,211,252,.8); }
+.cx-fr_crystal::after { background: linear-gradient(120deg, transparent 35%, rgba(255,255,255,.75) 50%, transparent 65%) 0 0 / 250% 100%; animation: fxShine 3s linear infinite; mix-blend-mode: screen; }
+.cx-fr_fire::before { inset: -8px; background: conic-gradient(#fde047, #f97316, #dc2626, #f97316, #fde047); filter: blur(2px); animation: fxSpin 3s linear infinite; }
+.cx-fr_legend::before { inset: -8px; background: conic-gradient(#fde68a, #f472b6, #a78bfa, #60a5fa, #34d399, #fde68a); animation: fxSpin 4s linear infinite; box-shadow: 0 0 18px rgba(253,230,138,.7); }
+@keyframes fxSpin { to { transform: rotate(360deg); } }
+@keyframes fxPulse { 50% { opacity: .65; } }
+@keyframes fxGlitch { 0%, 100% { transform: none; } 10% { transform: translate(2px, -1px); } 12% { transform: translate(-2px, 1px); } 60% { transform: translate(-1px, 0); } 62% { transform: none; } }
+@keyframes fxShine { to { background-position: -250% 0; } }
+
+/* Стиль ника */
+.nk { display: inline-block; }
+.cx-nk_sunset { background: linear-gradient(90deg, #f97316, #ec4899); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.cx-nk_ocean { background: linear-gradient(90deg, #0ea5e9, #14b8a6); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.cx-nk_terminal { font-family: var(--mono, monospace); color: #22c55e; text-shadow: 0 0 8px rgba(34,197,94,.45); }
+.cx-nk_terminal::after { content: "_"; animation: fxBlink 1s steps(1) infinite; }
+.cx-nk_rainbow { background: linear-gradient(90deg, #ef4444, #f59e0b, #22c55e, #3b82f6, #a855f7, #ef4444) 0 0 / 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: fxSlide 4s linear infinite; }
+.cx-nk_glitch { position: relative; }
+.cx-nk_glitch::before, .cx-nk_glitch::after { content: attr(data-text); position: absolute; inset: 0; pointer-events: none; }
+.cx-nk_glitch::before { color: #ef4444; transform: translate(2px, 0); clip-path: inset(0 0 55% 0); animation: fxGlitch 2.5s steps(1) infinite; opacity: .8; }
+.cx-nk_glitch::after { color: #3b82f6; transform: translate(-2px, 0); clip-path: inset(50% 0 0 0); animation: fxGlitch 3s steps(1) infinite reverse; opacity: .8; }
+.cx-nk_gold { background: linear-gradient(100deg, #b45309 20%, #fde68a 40%, #b45309 60%) 0 0 / 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: fxShine 3s linear infinite; }
+.cx-nk_ice { background: linear-gradient(90deg, #bae6fd, #e0f2fe, #7dd3fc); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: 0 0 12px rgba(125,211,252,.35); }
+@keyframes fxBlink { 50% { opacity: 0; } }
+@keyframes fxSlide { to { background-position: 200% 0; } }
+
+/* Титул */
+.ptitle { display: inline-block; font-size: .78rem; font-weight: 700; color: var(--ink-2); background: color-mix(in srgb, var(--tier-a, var(--o-300)) 25%, transparent); border: 1px solid color-mix(in srgb, var(--tier-b, var(--o-500)) 35%, transparent); padding: 2px 10px; border-radius: 999px; margin: 2px 0 6px; }
+.lb-name .ptitle { display: none; }
+
+/* Живые фоны карточки (тёмные) */
+.player-card.bgx { --ink: #f4ede4; --ink-2: #d9d1c6; --muted: #aaa196; --surface: rgba(255,255,255,.06); --line: rgba(255,255,255,.16); --bg-3: rgba(255,255,255,.12); color: var(--ink); border-color: rgba(255,255,255,.18); }
+.player-card.cx-bg_circuits { background: #06231f; }
+.player-card.cx-bg_circuits::after { opacity: .9; mask-image: none; background-image:
+  linear-gradient(90deg, transparent 48%, rgba(45,212,191,.25) 48% 52%, transparent 52%), linear-gradient(transparent 48%, rgba(45,212,191,.25) 48% 52%, transparent 52%),
+  radial-gradient(circle, rgba(45,212,191,.6) 2px, transparent 2.5px); background-size: 46px 46px, 46px 46px, 23px 23px; animation: fxCircuits 12s linear infinite; }
+@keyframes fxCircuits { to { background-position: 46px 0, 0 46px, 23px 23px; } }
+.player-card.cx-bg_terminal { background: #050a06; }
+.player-card.cx-bg_terminal::after { opacity: 1; mask-image: linear-gradient(180deg, transparent, #000 30%, #000 70%, transparent);
+  background-image: repeating-linear-gradient(180deg, rgba(74,222,128,.13) 0 2px, transparent 2px 9px), linear-gradient(90deg, rgba(74,222,128,.18) 0 18%, transparent 18% 22%, rgba(74,222,128,.12) 22% 55%, transparent 55%);
+  background-size: 100% 9px, 260px 9px; animation: fxScroll 6s linear infinite; }
+@keyframes fxScroll { to { background-position: 0 -180px, 0 -180px; } }
+.player-card.cx-bg_starfield { background: radial-gradient(ellipse at bottom, #1b2735, #090a0f); }
+.player-card.cx-bg_starfield::after { opacity: 1; mask-image: none; background-image: radial-gradient(1px 1px at 20px 30px, #fff, transparent), radial-gradient(1px 1px at 120px 80px, #fff, transparent),
+  radial-gradient(1.5px 1.5px at 200px 150px, #fff, transparent), radial-gradient(1px 1px at 300px 40px, #cbd5e1, transparent), radial-gradient(1.5px 1.5px at 380px 120px, #fff, transparent);
+  background-size: 420px 200px; animation: fxDrift 40s linear infinite; }
+@keyframes fxDrift { to { background-position: -420px 0; } }
+.player-card.cx-bg_radar { background: radial-gradient(circle at 85% 50%, #052e16 0, #021208 70%); }
+.player-card.cx-bg_radar::after { opacity: 1; mask-image: none; background:
+  radial-gradient(circle at 85% 50%, transparent 0 18%, rgba(34,197,94,.25) 18.3% 18.8%, transparent 19% 38%, rgba(34,197,94,.2) 38.3% 38.8%, transparent 39%),
+  conic-gradient(from var(--ang, 0deg) at 85% 50%, rgba(34,197,94,.45), transparent 18%); animation: spinAng 4s linear infinite; }
+.player-card.cx-bg_legend { background: linear-gradient(120deg, #3b0764, #7c2d12, #713f12, #3b0764); background-size: 300% 300%; animation: auroraMove 10s ease-in-out infinite; border: 2px solid #fbbf24; }
+.player-card.cx-bg_legend::after { opacity: .8; mask-image: none; background-image: radial-gradient(circle, rgba(253,230,138,.55) 1px, transparent 1.6px); background-size: 22px 22px; animation: fxDrift 30s linear infinite; }
+:is(.bgx) .pc-tier { color: #fff; background: color-mix(in srgb, var(--tier-b) 55%, transparent); }
+:is(.bgx) .pc-lvl b { color: var(--tier-a); }
+
+/* Слой эффектов */
+.fx-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; border-radius: inherit; }
+.player-card > :not(.fx-layer):not(.pc-glow) { position: relative; z-index: 1; }
+
+/* Монеты на карточке */
+.pc-coins { display: inline-flex; align-items: baseline; gap: 4px; margin: 2px 0 8px; font-weight: 800; color: var(--ink); text-decoration: none; background: color-mix(in srgb, #fbbf24 22%, transparent); border: 1px solid color-mix(in srgb, #f59e0b 45%, transparent); border-radius: 999px; padding: 2px 12px; }
+.pc-coins small { font-weight: 600; color: var(--ink-2); }
+
+/* Страница магазина */
+.shop-wallet { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; margin-bottom: 16px; background: linear-gradient(120deg, color-mix(in srgb, #fbbf24 18%, var(--surface)), var(--surface)); }
+.sw-bal { font-size: 1.6rem; } .sw-bal b { font-size: 2rem; } .sw-bal span { color: var(--ink-2); font-size: 1rem; }
+.sw-meta { color: var(--muted); font-size: .9rem; flex: 1; }
+.shop-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.shop-tabs .seg-btn { border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; }
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.shop-item { display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.shop-item.on { border-color: var(--o-500); box-shadow: 0 0 0 2px color-mix(in srgb, var(--o-500) 30%, transparent); }
+.shop-item .btn { justify-content: center; }
+.si-info b { display: block; } .si-info small { color: var(--muted); font-size: .8rem; }
+.shop-item.owned .si-info small { color: var(--ok); font-weight: 700; }
+.sp-av, .sp-nick, .sp-title { height: 96px; display: grid; place-items: center; border-radius: 10px; background: var(--bg-2); }
+.sp-nick { font-size: 1.25rem; font-weight: 800; font-family: var(--disp); padding: 0 8px; text-align: center; overflow: hidden; }
+.sp-bg.player-card { height: 96px; padding: 0; margin: 0; border-radius: 10px; display: block; }
+.coin-rules h3 { margin-bottom: 10px; }
+.coin-rules ul { list-style: none; padding: 0; margin: 0 0 10px; display: grid; gap: 6px; }
+.coin-rules li { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px dashed var(--line); padding-bottom: 6px; }
+.coin-rules .muted { color: var(--muted); font-size: .85rem; }
+@media (prefers-reduced-motion: reduce) { .avf::before, .avf::after, .nk, .nk::before, .nk::after, .player-card.bgx, .player-card.bgx::after { animation: none !important; } }
+/* Сравнение профилей */
+.cmp-card { margin-top: 14px; }
+.cmp-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.cmp-table th, .cmp-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: center; }
+.cmp-table tbody th { text-align: left; color: var(--ink-2); font-weight: 600; }
+.cmp-table td { font-weight: 800; }
+.cmp-table td.win { color: var(--ok); }
+.cmp-table td.win::after { content: " ▲"; font-size: .7rem; }

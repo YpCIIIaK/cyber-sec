@@ -30,6 +30,18 @@ function build() {
   for (const m of ctx.__M) add("mission:" + m.id, m.points | 0, null);
   for (const [, key, xp] of tk.matchAll(/solved\("([a-z_]+)", (\d+)\)/g)) if (!bon.some((b) => b.includes(`'tool:${key}'`))) add("tool:" + key, +xp, null);
   for (const [, t] of flagsBlock[1].matchAll(/^\s*([a-z]+):/gm)) add("flag:" + t, flagXP, null);
+  // Магазин: предметы из js/shop.js
+  const sctx = { window: {}, console }; vm.createContext(sctx);
+  vm.runInContext(fs.readFileSync(path.join(root, "js/shop.js"), "utf8") + ";this.__S = SHOP_ITEMS; this.__R = SHOP_REQS;", sctx);
+  const shop = [], seen = new Set();
+  for (const it of sctx.__S) {
+    if (!/^[a-z0-9_]{2,40}$/.test(it.id) || seen.has(it.id)) throw new Error("Плохой/повторный id предмета: " + it.id);
+    if (!["frame", "nick", "title", "bg", "effect"].includes(it.kind)) throw new Error("Плохой kind: " + it.id);
+    if (it.req && !sctx.__R[it.req]) throw new Error("Неизвестное условие " + it.req + " у " + it.id);
+    if (it.price == null && !it.req) throw new Error("Нет ни цены, ни условия: " + it.id);
+    seen.add(it.id);
+    shop.push(`  ('${it.id}', '${it.kind}', ${it.price == null ? "null" : it.price | 0}, ${it.req ? `'${it.req}'` : "null"})`);
+  }
   add("daily", ctx.__D | 0, null);
   add("weekly", weeklyXP, null);
 
@@ -45,6 +57,11 @@ function build() {
     "insert into public.bonus_catalog (key, xp, course_id) values",
     bon.join(",\n"),
     "on conflict (key) do update set xp = excluded.xp, course_id = excluded.course_id;",
+    "",
+    "-- Магазин кастомизации (из js/shop.js).",
+    "insert into public.shop_items (id, kind, price, req) values",
+    shop.join(",\n"),
+    "on conflict (id) do update set kind = excluded.kind, price = excluded.price, req = excluded.req;",
     "",
   ].join("\n");
 }
