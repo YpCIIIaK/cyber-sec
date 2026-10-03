@@ -52,6 +52,24 @@ const CONTENT_EN_WHY = {
 
   na_segment: `<p><span class="yes">Correct:</span> segmentation splits the network into isolated zones (VLANs, subnets, DMZ) with filtering between them, so compromising one zone does not hand over the whole network. Defragmentation, load balancing and caching are unrelated.</p>`,
 
+  nmo_cert: `<p><span class="yes">Correct:</span> a domain is read from the right: <code>login.acme-corp.com.secure-login.ru</code> belongs to the <code>secure-login.ru</code> zone. The CN matching only means the <i>beginning</i> of the string matched, not the domain — the browser compares the CN/SAN against the full name, but a human trusts the warning bar at their peril.</p>
+    <ul><li><span class="no">"Everything is fine"</span> — you are actually on someone else's domain.</li>
+    <li><span class="no">The certificate is merely expired</span> — the domain is the issue here; validity is fine.</li>
+    <li><span class="no">An untrusted CA</span> — it was issued by Let's Encrypt, a trusted CA.</li></ul>
+    <p>Practice: look at the whole domain, not just the padlock. In phishing investigations, hunting for such "suffix" look-alike domains pays off.</p>`,
+
+  nmo_ipv6: `<p><span class="yes">Correct:</span> the IPv6 address space is so large that sweeping is pointless, and an address may be global — so rules like "block the internal subnet" stop working. Meanwhile ICMPv6 (Neighbor Discovery) is mandatory: without it the network itself breaks.</p>
+    <ul><li><span class="no">"IPv6 has no firewalls"</span> — filtering is still there; the rules and the scale changed.</li>
+    <li><span class="no">"No routing needed"</span> — routing decides whether addresses see each other at all.</li>
+    <li><span class="no">"No encryption"</span> — TLS works over IPv6 just as over IPv4.</li></ul>
+    <p>Hence the practice: inventory IPv6 addresses, filter by rules, and remember that some checks run over IPv6 even when your monitoring only watches IPv4.</p>`,
+
+  nmo_dns: `<p><span class="yes">Correct:</span> DNS queries are usually permitted and barely filtered, so a fragment of data can be encoded into the query name. The channel works even with the web closed and rarely raises suspicion.</p>
+    <ul><li><span class="no">"DNS only works inside the network"</span> — resolvers go out, and names are visible to the provider.</li>
+    <li><span class="no">"Replies never reach the logs"</span> — queries are logged, and that is exactly how the channel is caught.</li>
+    <li><span class="no">"Through DNS you can modify files"</span> — that is a separate vulnerability, not DNS mechanics.</li></ul>
+    <p>Detection: abnormally long subdomains, high-entropy names, requests to rare TLDs, a sudden jump in DNS volume from one host.</p>`,
+
   nm_flag: `<p><span class="yes">Correct:</span> port <b>1337</b> is the only non-standard port in the <code>nmap 10.10.10.5</code> output next to the usual 135, 139, 445 and 3389.</p>
     <p>An unusual port is not a finding by itself — it is a reason to ask who opened it and why (<code>-sV</code>, <code>curl</code>, <code>nc</code>).</p>`,
 
@@ -69,6 +87,18 @@ const CONTENT_EN_WHY = {
   meth_order: `<p><span class="yes">Correct order:</span> reconnaissance → scanning → exploitation → post-exploitation → reporting. Each phase feeds the next, and the report is what turns findings into manageable risk for the client.</p>`,
 
   pte_exec: `<p><span class="yes">Correct:</span> the Executive Summary is the management-facing part: what happened, what the business risk is, what to do. Technical detail goes into a separate appendix for engineers.</p>`,
+
+  pte_retest: `<p><span class="yes">Correct:</span> a retest re-checks the closed findings after the fixes. The goal is not "to check again" but to confirm: the issue is fixed, the fix did not break neighbouring functionality, and the finding did not come back (for example, because of a sloppy filter).</p>
+    <ul><li><span class="no">Refactoring</span> — changing code without changing behavior.</li>
+    <li><span class="no">Performance regression</span> — about speed, not security.</li>
+    <li><span class="no">A pentest from scratch</span> — that is a new project: new timeline, new budget, a re-agreed scope.</li></ul>
+    <p>Practice: record a status per item (fixed / partially fixed / not fixed / not reproducible) with a link to the proof. That is exactly what makes the report valuable a second time.</p>`,
+
+  pte_scopechg: `<p><span class="yes">Correct:</span> scope is an agreement, not a chat detail. Until the new target appears in an updated RoE (Rules of Engagement) and a signed contract, working on it formally steps outside the agreed perimeter — which becomes a legal and reputational risk if anything goes wrong.</p>
+    <ul><li><span class="no">"The client allowed it"</span> — a verbal "yes" that is never recorded protects nobody.</li>
+    <li><span class="no">Mention it in the report as a typo</span> — a report does not undo a RoE violation.</li>
+    <li><span class="no">"Scan TCP only so nothing breaks"</span> — limiting the protocol does not make a target permitted.</li></ul>
+    <p>Correct order: request the change in writing → update the RoE and the contract annex → only then touch the new target.</p>`,
 
   rp_active: `<p><span class="yes">Correct:</span> port scanning is active reconnaissance — you send packets to someone else's system. WHOIS, search engines and social networks only touch public sources. Active scanning needs written permission and must be inside the agreed Scope.</p>`,
 
@@ -92,6 +122,30 @@ const CONTENT_EN_WHY = {
 
   /* ---------- Forensics and phishing ---------- */
   fom_why: `<p><span class="yes">Correct:</span> fileless malware and decrypted keys exist only in RAM. A disk image shows traces of activity but not the code in memory or the keys held in kernel memory — and with full-disk encryption the key itself lives in memory too.</p>`,
+
+  fom_hidden: `<p><span class="yes">Correct:</span> the classic hiding technique is <b>DKOM</b> (Direct Kernel Object Manipulation): the malware substitutes or unlinks its <code>EPROCESS</code> structure from the kernel list. <code>pslist</code> walks that list and sees nothing, while <code>psscan</code> scans the object pool and finds the process by the mere existence of its structure.</p>
+    <ul><li><span class="no">"pslist shows only user processes"</span> — it shows all of them, just through a forged list.</li>
+    <li><span class="no">"psscan shows files on disk"</span> — still processes, simply found by another route.</li>
+    <li><span class="no">"They are the same thing"</span> — the difference is exactly what produces a result on an infected host.</li></ul>
+    <p>Rule that follows: one data source is not proof. Always compare <code>pslist</code> with <code>psscan</code> and check PID/PPID for inconsistencies.</p>`,
+
+  fom_pt: `<p><span class="yes">Correct:</span> <b>pass-the-hash</b>: the attacker only needs the NTLM hash and submits it as the password during authentication. Knowing the original password is unnecessary, and because hashing is one-way the plaintext cannot realistically be recovered (except for weak passwords).</p>
+    <ul><li><span class="no">"A hash cannot be used"</span> — quite the opposite: it is a classic way into Windows environments.</li>
+    <li><span class="no">"The hash lives only in the registry"</span> — it is in SAM/ntds.dit, and in a memory dump it sits in the clear.</li>
+    <li><span class="no">"A hash is always MD5"</span> — NTLM is MD4 of the password; MD5 serves other purposes.</li></ul>
+    <p>Mitigation: LSA protection (Credential Guard), disabling NTLM wherever possible, long unique passwords, and privileged accounts kept out of daily use.</p>`,
+
+  fom_acq: `<p><span class="yes">Correct:</span> the order follows evidence <b>volatility</b>: take first whatever disappears at the first action.</p>
+    <ol><li><b>Memory dump</b> — processes, connections, keys and decrypted data vanish on shutdown.</li>
+    <li><b>Logs and artifacts</b> — they can be overwritten at boot or by running services.</li>
+    <li><b>Disk image</b> — stable, but it takes time and space.</li>
+    <li><b>Shut down and package</b> — last, once the fragile evidence is captured.</li></ol>
+    <p>A typical mistake is powering the host down "cleanly" first: RAM is already gone and the most valuable class of evidence is lost forever.</p>`,
+
+  mwb_ioa: `<p><span class="yes">Correct:</span> indicators split into <b>static</b> (hashes, file names, domains) and <b>behavioral</b> (technique visible in logs). Static ones change on the first rebuild or infrastructure swap; the behavioral one does not.</p>
+    <ul><li><span class="no">File SHA-256 / MD5</span> — a rebuild gives a new hash, and a packer changes it on every build.</li>
+    <li><span class="no">The C2 IP address</span> — it changes with the infrastructure (and never survives a move to the cloud anyway).</li></ul>
+    <p>In ATT&CK this maps to persistence technique <b>T1547.001</b> (Run keys) combined with <b>T1059.001</b> (PowerShell). Behavioral indicators are the backbone of durable detections in EDR/SIEM.</p>`,
 
   fo_image: `<p><span class="yes">Correct:</span> the analyst works on a <b>bit-for-bit image</b> and leaves the original untouched: it is documented, hash-verified and may serve as evidence. Even recovery and analysis run on a copy or its forked image.</p>`,
 

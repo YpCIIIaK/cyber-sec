@@ -826,6 +826,91 @@ const I18N = (() => {
     "с уровня": "from level", "сейчас": "now", "уровень": "level", "максимум!": "max reached!",
     "до": "to", "Ваш уровень": "Your level",
     "Введите флаг": "Enter the flag", "Неверно, попробуйте ещё раз.": "Wrong, try again.",
+
+    /* ---------- Лаборатория: разбор дампа памяти ---------- */
+    "Вам передали дамп оперативной памяти скомпрометированной рабочей станции. Запустите плагины, найдите скрытый процесс, инъекцию, украденные хеши и канал C2, затем ответьте на вопросы.":
+      "You were handed a memory dump of a compromised workstation. Run the plugins, find the hidden process, the injection, the stolen hashes and the C2 channel, then answer the questions.",
+    "Выберите плагин выше — появится его вывод.": "Pick a plugin above — its output will appear here.",
+    "Выводы по дампу": "Findings from the dump",
+    "Сформировать заключение": "Write the conclusion",
+    "Процесс, которого нет в pslist, но нашёл psscan": "A process absent from pslist but found by psscan",
+    "Имя с # и без родителя — признак скрытого процесса или инъекции.": "A name with # and no parent is a sign of a hidden process or an injection.",
+    "PID, где malfind показывает анонимную RWX-память без образа": "The PID where malfind shows anonymous RWX memory with no image",
+    "Строка с пометкой «образ не отображается» и анонимной памятью.": "The line marked “image not shown” with anonymous memory.",
+    "Учётная запись, чей пароль уже известен как хеш": "The account whose password is already known as a hash",
+    "NTLM-хеш можно использовать напрямую — pass-the-hash.": "An NTLM hash can be used directly — pass-the-hash.",
+    "PID, который ходит во внешний адрес": "The PID that talks to an external address",
+    "В netstat ищите внешний адрес и PID процесса рядом с ним.": "In netstat, look for the external address and the PID next to it.",
+    "Какой вывод НЕЛЬЗЯ делать из этих данных?": "Which conclusion must NOT be drawn from this data?",
+    "Вывод должен следовать из данных, а не из догадок о пользователе.": "A conclusion must follow from the data, not from guesses about the user.",
+    "Достаточно ли только pslist, чтобы считать хост чистым?": "Is pslist alone enough to call the host clean?",
+    "Инструменты опираются на списки ядра, которые можно подделать (DKOM).": "These tools rely on kernel lists that can be forged (DKOM).",
+    "Заключение верное: скрытый процесс WINWORD.EXE#5120 (виден только через psscan), инъекция кода в notepad.exe (PID 4412, анонимная RWX-память), хеш svc_backup готов к pass-the-hash и внешний канал C2 с PID 5120. Практический вывод: изолировать хост, сохранить дамп, переустановить систему и сменить пароль svc_backup.":
+      "Correct: the hidden process WINWORD.EXE#5120 (visible only via psscan), code injection into notepad.exe (PID 4412, anonymous RWX memory), the svc_backup hash ready for pass-the-hash, and an external C2 channel from PID 5120. Practical conclusion: isolate the host, keep the dump, reinstall the system and rotate the svc_backup password.",
+    "Перепроверьте выводы плагинов: pslist против psscan (скрытое), malfind (анонимная память без образа), hashdump (хеш вместо пароля), netstat (внешний адрес и PID).":
+      "Re-check the plugin outputs: pslist versus psscan (hidden), malfind (anonymous memory with no image), hashdump (hash instead of a password), netstat (external address and PID).",
+
+    /* ---------- Лаборатория: проверка сертификата ---------- */
+    "Пользователь сообщил о странном предупреждении в браузере. Проверьте сертификаты: отметьте подозрительные и укажите, что именно не так.":
+      "A user reported a strange warning in the browser. Check the certificates: mark the suspicious ones and state what is wrong.",
+    "Что не так в выбранных сертификатах": "What is wrong with the selected certificates",
+    "Причина для сертификата:": "Reason for the certificate:",
+    "Показать сертификаты": "Show the certificates",
+    "Сертификат выдан доверенным центром, имя совпадает с доменом, срок действия в порядке — такой и должен быть.":
+      "The certificate is issued by a trusted CA, the name matches the domain and the validity period is fine — exactly as it should be.",
+    "Имя в CN совпадает, но вы предъявляете сертификат для другого домена: login.acme-corp.com.secure-login.ru — это secure-login.ru, а не acme-corp.com. Классический приём с «похожим» CN.":
+      "The CN matches, but you are being shown a certificate for a different domain: login.acme-corp.com.secure-login.ru is secure-login.ru, not acme-corp.com. A classic look-alike CN trick.",
+    "Сертификат истёк больше года назад и подписан слабым алгоритмом SHA-1. Истёкший сертификат браузеры помечают, но в корпоративных сетях это перехватывают посредники (SSL inspection).":
+      "The certificate expired over a year ago and is signed with the weak SHA-1 algorithm. Browsers flag an expired certificate, but on corporate networks interceptors (SSL inspection) rely on it.",
+    "Верно: домен-близнец (CN совпадает, а фактический домен другой) и истёкший сертификат на SHA-1. Теперь объясните причину для одного из них.":
+      "Correct: the look-alike domain (the CN matches while the real domain differs) and the expired SHA-1 certificate. Now state the reason for one of them.",
+    "Проверьте три вещи: имя в сертификате против реального домена, срок действия и алгоритм подписи.":
+      "Check three things: the name in the certificate against the real domain, the validity period and the signature algorithm.",
+    /* ---------- Лаборатория: отчёт пентеста ---------- */
+    "Черновик отчёта готов. Отметьте строки, которые идут в executive summary, и задайте приоритет главной находке.":
+      "The report draft is ready. Mark the lines that belong in the executive summary and set the priority for the main finding.",
+    "Строка отчёта": "Report line", "Роль в отчёте": "Role in the report",
+    "Критический — исправлять немедленно": "Critical — fix immediately",
+    "Высокий — в плане ближайшего спринта": "High — next sprint's plan",
+    "Низкий — в бэклог hardening": "Low — hardening backlog",
+    "Не находка, метод — в приложение": "Not a finding, methodology goes to the appendix",
+    "критично": "critical", "высокий / средний": "high / medium", "не находка": "not a finding",
+    "Верно. В executive summary идут три находки, описание метода (Nmap) переносится в приложение. Приоритеты: SQL-инъекция — критично и немедленно; IDOR — высокий (утечка данных); отсутствие заголовков — средний, это усиление защиты. Полноценный отчёт содержит также объём работ, риск для бизнеса, сроки и подтверждение исправления при ретесте.":
+      "Correct. Three findings go into the executive summary, while the methodology (Nmap) moves to the appendix. Priorities: the SQL injection is critical and immediate; the IDOR is high (data leak); the missing headers are medium — defense in depth. A complete report also covers the scope of work, the business risk, the timeline and confirmation of the fix at retest.",
+    "Разделите находки и метод: методика («сканировал Nmap») — приложение, в executive summary идут дыры с понятным риском. И выберите приоритет для SQL-инъекции.":
+      "Separate findings from methodology: the method (“ran Nmap”) belongs in the appendix, while the executive summary lists the flaws with an understandable risk. Also pick the priority for the SQL injection.",
+    "Критично: анонимный доступ к базе, чтение и изменение данных, вынос через UNION. В отчёте — первым пунктом, с готовым планом исправления.":
+      "Critical: anonymous database access, reading and modifying data, exfiltration via UNION. First item in the report, with a ready remediation plan.",
+    "Высокий риск: утечка персональных данных, но без возможности исполнения кода на сервере. Лечится проверкой владельца на сервере.":
+      "High risk: a personal-data leak, but with no code execution on the server. Fixed by checking ownership on the server.",
+    "Средний: усиливает другие уязвимости, сам по себе эксплуатации не даёт. Роль в отчёте — «усиление защиты».":
+      "Medium: it amplifies other vulnerabilities but is not exploitable on its own. Its role in the report is “defense in depth”.",
+    "Это описание метода, а не находка. В executive summary метод не выносят — там факты, риск и меры.":
+      "This is a description of the method, not a finding. Methodology does not go into the executive summary — facts, risk and measures do.",
+
+    /* ---------- Лаборатория: набор индикаторов ---------- */
+    "По завершении анализа нужен набор индикаторов и действий. Отметьте корректные пункты отчётности — остальные в неё не входят.":
+      "After the analysis you need a set of indicators and actions. Mark the correct reporting items — the rest do not belong there.",
+    "Утвердить набор индикаторов": "Approve the indicator set",
+    "Блокировать IP C2 91.219.236.14 в брандмауэре и внести в список IOC": "Block the C2 IP 91.219.236.14 at the firewall and add it to the IOC list",
+    "Исключить хеш svhost32.exe (SHA-256) из исполнения и проверки в антивирусе": "Exclude the svhost32.exe hash (SHA-256) from execution and from antivirus scanning",
+    "Добавить детект на автозапуск powershell -enc в ключе Run": "Add a detection for powershell -enc autostart in a Run key",
+    "Убить процесс svhost32.exe на всех хостах и закрыть тикет": "Kill the svhost32.exe process on every host and close the ticket",
+    "Объявить пользователя виновным и отключить его от домена": "Declare the user guilty and disable his domain access",
+    "Конкретный индикатор: применяется немедленно, но сначала проверьте, что это не легитимный сервис.":
+      "A concrete indicator: apply immediately, but first check that it is not a legitimate service.",
+    "Хеш не переносится на пересборку, но полезен как стоп-лист на время расследования.":
+      "A hash does not survive a rebuild, but it is useful as a stop-list during the investigation.",
+    "Поведенческий индикатор (IOA) переживает смену хеша и домена — самый ценный класс.":
+      "A behavioral indicator (IOA) survives a hash and domain change — the most valuable class.",
+    "Убийство процесса без анализа уничтожает улики: сначала изоляция и дамп, потом чистка.":
+      "Killing a process without analysis destroys evidence: isolate and dump first, clean afterwards.",
+    "Ошибка процесса не равна действие человека — это вывод для кадров, а не для ИБ-отчёта.":
+      "A process error is not a human action — that is a conclusion for HR, not for a security report.",
+    "Верно: IP — для блокировки, хеш — для стоп-листа, автозапуск с -enc — как поведенческий детект (в ATT&CK это T1547.001 плюс T1059.001). Массовое убийство процессов и вина пользователя — не часть ИБ-отчёта: улики сначала, выводы потом.":
+      "Correct: the IP is for blocking, the hash for the stop-list, and the -enc autostart as a behavioral detection (in ATT&CK that is T1547.001 plus T1059.001). Mass-killing processes and blaming the user are not part of a security report: evidence first, conclusions later.",
+    "Индикатор — это то, что можно проверить и применить: адрес, хеш, поведение в логах. Убийство процесса без сбора улик и выводы о вине человека в отчёт по ИБ не входят.":
+      "An indicator is something you can verify and apply: an address, a hash, behavior in the logs. Killing a process without collecting evidence and conclusions about a person's guilt do not belong in a security report.",
   };
 
   function t(ru) {

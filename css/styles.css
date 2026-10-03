@@ -650,6 +650,25 @@ main { min-height: 72vh; }
 .net-row input { margin-top: 3px; }
 .net-hint { font-size: .85rem; color: var(--muted); margin-top: 6px; }
 
+/* ---------- Лаборатория: разбор дампа памяти ---------- */
+.mem-cmds { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+.mem-answers { display: flex; flex-direction: column; gap: 11px; margin: 4px 0 14px; }
+.mem-row { display: flex; flex-direction: column; gap: 7px; }
+.mem-q { font-size: .88rem; font-weight: 600; line-height: 1.4; }
+.mem-opts { display: flex; flex-wrap: wrap; gap: 7px; }
+.mem-opts .bh-take { font-family: var(--mono); font-size: .8rem; padding: 6px 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--bg-soft); color: var(--ink-2); cursor: pointer; }
+.mem-opts .bh-take:hover { border-color: var(--o-300); }
+.mem-opts .bh-take.on { border-color: var(--o-400); background: var(--o-50); color: var(--ink-1); font-weight: 700; }
+
+/* ---------- Лаборатория: проверка сертификата ---------- */
+.cert-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 6px; }
+.cert-raw { margin-bottom: 11px; }
+.cert-raw b { display: block; font-family: var(--mono); font-size: .8rem; margin-bottom: 5px; color: var(--ink-2); }
+.lab-tip { margin-top: 12px; font-size: .86rem; }
+.lab-tip summary { cursor: pointer; color: var(--o-600); font-weight: 600; }
+.cis-row { cursor: pointer; }
+.cis-row.sel { background: var(--o-50); }
+
 .hunt-box { margin-bottom: 12px; }
 .hunt-hyp, .ev-answer { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
 .hunt-hyp .fld-in { flex: 1 1 320px; min-width: 240px; }

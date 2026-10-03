@@ -166,6 +166,43 @@ CONTENT_EN.networking = {
       na_segment: ["Splitting the network", "What is splitting a network into isolated zones (so one breach doesn't open all) called?", null, { options: ["Segmentation", "Defragmentation", "Load balancing", "Caching"] }],
     },
   },
+  net_modern: {
+    t: "Modern networks: certificates, IPv6, DNS",
+    intro: `
+<h3>TLS: the three checks a browser makes</h3>
+<p>An HTTPS connection is encrypted, but the user must still be sure it is the right site. The browser validates the certificate along three axes:</p>
+<ul>
+<li><b>Name</b> — does the CN/SAN match the domain in the address bar.</li>
+<li><b>Validity</b> — not expired (and not revoked).</li>
+<li><b>Chain of trust</b> — signed by a trusted Certificate Authority (CA).</li>
+</ul>
+<div class="callout danger">🎣 The classic trick is a <b>look-alike domain</b>: the certificate says <code>CN=login.acme-corp.com</code>, while the address bar shows <code>login.acme-corp.com.secure-login.ru</code>. The eye sees no difference, but the domain in the bar belongs to the attacker.</div>
+
+<h3>IPv6: why old filters stop working</h3>
+<ul>
+<li>An address is 128 bits — the space is so large that "sweeping" is pointless.</li>
+<li>An attacker can get an address from their own network inside yours, so "internal subnet" filters break down.</li>
+<li><b>ICMPv6</b> (Neighbor Discovery, ping) is mandatory — you cannot simply switch it off without breaking the network.</li>
+<li>Translation: <b>NAT66</b> (much like IPv4) and <b>NPTv6</b> — plain address substitution inside the network.</li>
+</ul>
+<div class="callout warn">⚠️ Disabling IPv6 "for security" is debatable: some checks run over IPv6, and blind disabling creates an invisible gap. Filtering by rules and reading IPv6 logs is the better path.</div>
+
+<h3>DNS as an attack target</h3>
+<ul>
+<li><b>Cache poisoning</b> — a forged answer sends the user to a phishing site with no address change.</li>
+<li><b>DNS amplification</b> — a tiny spoofed query triggers a huge reply and knocks the resolver over.</li>
+<li><b>Exfiltration over DNS</b> — data is encoded into the query name; the channel works even when "the web is blocked".</li>
+</ul>
+<div class="callout">🛡️ Defense: DNSSEC (signature verification of records), DoT/DoH (encrypted queries), egress DNS filtering at the perimeter, and watching for abnormally long names.</div>
+`,
+    tasks: {
+      nmo_read: ["Study TLS, IPv6 and DNS", "Read about certificate validation, IPv6 specifics and DNS attacks."],
+      nmo_cert: ["Look-alike domain", "What is wrong if the certificate CN is login.acme-corp.com but the opened address is login.acme-corp.com.secure-login.ru?", null, { options: ["The user is on a phishing domain: the real domain in the bar is secure-login.ru, while the certificate was issued for someone else's name", "Everything is fine, the CN matches the visible part of the name", "The certificate is merely expired", "The certificate was issued by an untrusted CA"] }],
+      nmo_ipv6: ["Why IPv6 changes filtering", "What changes fundamentally when you move to IPv6 from a defense standpoint?", null, { options: ["The address space is huge and can be global, so sweeping and \"internal subnet\" filters stop working; ICMPv6 is mandatory for the network to work", "IPv6 has no firewalls", "IPv6 needs no routing", "IPv6 does not support encryption"] }],
+      nmo_dns: ["A channel over DNS", "Why does malware use DNS queries to move data out?", null, { options: ["DNS queries are rarely blocked, so it is a convenient exfiltration channel even when the web is closed", "DNS only works inside the network", "DNS replies never reach the logs", "Through DNS you can modify files on disk"] }],
+      nmo_cert_lab: ["Lab: certificate check", "Find the suspicious certificates and state the reason."],
+    },
+  },
 };
 
 CONTENT_EN.osint = {

@@ -87,6 +87,11 @@ insert into public.task_catalog (task_id, course_id, points) values
   ('na_dns', 'networking', 15),
   ('na_https', 'networking', 15),
   ('na_segment', 'networking', 15),
+  ('nmo_read', 'networking', 5),
+  ('nmo_cert', 'networking', 20),
+  ('nmo_ipv6', 'networking', 20),
+  ('nmo_dns', 'networking', 20),
+  ('nmo_cert_lab', 'networking', 30),
   ('ow_read', 'web', 5),
   ('ow_idor', 'web', 15),
   ('ow_org', 'web', 10),
@@ -141,6 +146,9 @@ insert into public.task_catalog (task_id, course_id, points) values
   ('pte_cvss', 'pentest', 15),
   ('pte_cve', 'pentest', 15),
   ('pte_exec', 'pentest', 15),
+  ('pte_retest', 'pentest', 20),
+  ('pte_scopechg', 'pentest', 25),
+  ('pte_retport', 'pentest', 30),
   ('enc_read', 'crypto', 5),
   ('enc_b64', 'crypto', 25),
   ('enc_reversible', 'crypto', 10),
@@ -257,6 +265,10 @@ insert into public.task_catalog (task_id, course_id, points) values
   ('fom_pslist', 'forensics', 15),
   ('fom_malfind', 'forensics', 15),
   ('fom_why', 'forensics', 15),
+  ('fom_acq', 'forensics', 20),
+  ('fom_hidden', 'forensics', 20),
+  ('fom_pt', 'forensics', 20),
+  ('fom_mem_lab', 'forensics', 35),
   ('pha_read', 'phishing', 5),
   ('pha_spear', 'phishing', 15),
   ('pha_whaling', 'phishing', 15),
@@ -357,7 +369,9 @@ insert into public.task_catalog (task_id, course_id, points) values
   ('mwb_persist_win', 'malware', 15),
   ('mwb_net_lab', 'malware', 30),
   ('mwb_flag', 'malware', 25),
-  ('mwb_lab', 'malware', 25)
+  ('mwb_lab', 'malware', 25),
+  ('mwb_ioa', 'malware', 20),
+  ('mwb_ioc_lab', 'malware', 25)
 on conflict (task_id) do update set course_id = excluded.course_id, points = excluded.points;
 
 -- Разовые бонусы: экзамены, боссы, миссии, инструменты Blue Team, флаги, ежедневный и недельный.

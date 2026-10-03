@@ -112,6 +112,10 @@ CONTENT_EN.forensics = {
       fom_pslist: ["Process list", "Which Volatility plugin shows the process list? (one word)", ["ps + list"], { answers: ["pslist"] }],
       fom_malfind: ["Finding injections", "Which Volatility plugin looks for signs of code injection into processes? (one word)", ["mal + find"], { answers: ["malfind"] }],
       fom_why: ["Why RAM at all", "Why can't disk analysis replace memory analysis?", null, { options: ["Fileless malware and keys exist only in RAM", "The disk is too big", "RAM reads faster", "The disk is always encrypted"] }],
+      fom_acq: ["Acquisition order", "Arrange the evidence-acquisition steps for a compromised host — from the most fragile to the most durable.", ["Memory evaporates on shutdown; the disk survives everything."]],
+      fom_hidden: ["A hidden process", "Why does malware hide its process from pslist, and which tool exposes it?", null, { options: ["It fakes the kernel list (DKOM), while psscan walks kernel structures and scans memory", "pslist shows only user processes, psscan shows system ones", "psscan shows files on disk, pslist shows processes", "No difference — two names for the same plugin"] }],
+      fom_pt: ["A hash in the dump", "Why is the svc_backup hash from hashdump more dangerous than a stolen password string?", null, { options: ["The hash can be used directly (pass-the-hash) without ever knowing the original password", "A hash cannot be used at all", "The hash lives only in the registry", "The hash is always MD5 and therefore useless"] }],
+      fom_mem_lab: ["Lab: memory dump analysis", "Analyze the dump: hidden process, injection, hashes and the C2 channel — then write your conclusion."],
     },
   },
 };
