@@ -1977,3 +1977,4 @@ body:not(.ready) .footer { display: none; }
 .place-dismiss { position: absolute; top: -2px; right: 0; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: .95rem; padding: 4px 8px; border-radius: 6px; }
 .place-dismiss:hover { color: var(--ink); background: var(--bg-3); }
 .place-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 18px; color: var(--muted); font-size: .85rem; }
+.ranks-note { margin-top: 14px; font-size: .82rem; color: var(--muted); line-height: 1.5; text-align: center; }

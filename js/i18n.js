@@ -540,6 +540,7 @@ const I18N = (() => {
     "— учись этично, применяй ответственно.": "— learn ethically, apply responsibly.",
     "Все материалы носят образовательный характер. Тестируйте только свои системы или площадки с разрешением. Прогресс хранится локально в вашем браузере.": "All materials are for education. Test only your own systems or platforms you have permission for. Progress is stored locally in your browser.",
     "Язык / Language": "Language / Язык",
+    "Звания — игровые: они отражают прогресс на платформе, а не профессиональную квалификацию. Настоящий опыт приходит с практикой, проектами и работой.": "Ranks are just for fun: they reflect your progress on the platform, not professional qualifications. Real expertise comes from practice, projects and work.",
     "Пропустить тест": "Skip the test",
     "Его всегда можно пройти позже в профиле.": "You can always take it later from your profile.",
     "Пройти тест уровня заново": "Retake the level test",
@@ -732,12 +733,22 @@ const I18N = (() => {
   };
 
   const RANKS_EN = {
-    "Новичок": "Novice", "Ученик": "Apprentice", "Скрипт-кидди": "Script Kiddie",
-    "Юный аналитик": "Junior Analyst", "Аналитик SOC": "SOC Analyst",
-    "Инженер по ИБ": "Security Engineer", "Специалист": "Specialist",
-    "Пентестер": "Penetration Tester", "Threat Hunter": "Threat Hunter",
-    "Эксперт": "Expert", "Мастер": "Master", "Хакер": "Hacker", "Элита": "Elite",
-    "Магистр": "Magus", "Грандмастер": "Grandmaster", "Легенда CyberPath": "CyberPath Legend",
+    "Новичок": "Novice",
+    "Ученик": "Apprentice",
+    "Искатель": "Seeker",
+    "Следопыт": "Pathfinder",
+    "Странник": "Wanderer",
+    "Ветеран": "Veteran",
+    "Знаток": "Adept",
+    "Стратег": "Strategist",
+    "Эксперт": "Expert",
+    "Мастер": "Master",
+    "Элита": "Elite",
+    "Чемпион": "Champion",
+    "Магистр": "Magus",
+    "Грандмастер": "Grandmaster",
+    "Мифический": "Mythic",
+    "Легенда CyberPath": "CyberPath Legend",
   };
 
   // Глоссарий: параллельный массив в том же порядке (term, cat, def)

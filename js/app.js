@@ -4136,6 +4136,7 @@ const App = (() => {
         </div>
         <div class="ranks-sub">${T("Ваш уровень")}: <b>LVL ${lvl}</b> · ${rankForLevel(lvl).icon} ${curName}${next ? ` — ${T("до")} ${next.icon} ${next.name}: ${T("уровень")} ${next.min}` : ` — ${T("максимум!")}`}</div>
         <div class="ranks-list">${rows}</div>
+        <p class="ranks-note">${T("Звания — игровые: они отражают прогресс на платформе, а не профессиональную квалификацию. Настоящий опыт приходит с практикой, проектами и работой.")}</p>
       </div>`;
     document.body.appendChild(ov);
     ov.addEventListener("click", (e) => { if (e.target === ov) closeRanks(); });
