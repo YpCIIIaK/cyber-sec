@@ -2136,7 +2136,7 @@ body:not(.ready) .footer { display: none; }
 .lb-table tr:last-child td { border-bottom: 0; }
 .lb-table tr.me td { background: color-mix(in srgb, var(--o-500) 10%, transparent); font-weight: 700; }
 .lb-place { width: 48px; font-weight: 700; }
-.lb-nick { word-break: break-all; }
+
 .lb-nick em { font-style: normal; font-size: .72rem; background: var(--o-fill); color: #fff; border-radius: 6px; padding: 1px 6px; margin-left: 4px; }
 .lb-xp { font-weight: 700; white-space: nowrap; }
 .lb-solved { color: var(--muted); text-align: right; }
@@ -2161,3 +2161,48 @@ body:not(.ready) .footer { display: none; }
 .update-bar { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 160; display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--sh-lg); font-size: .92rem; max-width: calc(100vw - 32px); }
 .update-x { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 4px 6px; }
 .task-report svg { width: 15px; height: 15px; display: block; }
+
+/* Рейтинг: аватар, звание */
+.lb-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.lb-who .avatar { flex: 0 0 auto; }
+.lb-name { display: flex; flex-direction: column; min-width: 0; }
+.lb-link { color: var(--ink); font-weight: 700; text-decoration: none; }
+.lb-link:hover { color: var(--o-ink); text-decoration: underline; }
+.lb-rank { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: .76rem; font-weight: 500; }
+.lb-rank .rbadge { display: inline-block; }
+.lb-table tr.anon .lb-name > span { color: var(--muted); font-style: italic; }
+/* Публичный профиль */
+.pc-cur-rank.as-static { cursor: default; }
+.pp-meta { color: var(--muted); font-size: .88rem; margin-top: 10px; }
+.pp-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 6px; }
+.pp-heat { padding: 18px; overflow-x: auto; }
+.pp-grid { display: grid; grid-template-rows: repeat(7, 12px); grid-auto-flow: column; grid-auto-columns: 12px; gap: 3px; margin-bottom: 8px; }
+.pp-cell { border-radius: 3px; background: var(--bg-3); }
+.pp-cell.l1 { background: color-mix(in srgb, var(--o-500) 30%, var(--bg-3)); }
+.pp-cell.l2 { background: color-mix(in srgb, var(--o-500) 55%, var(--bg-3)); }
+.pp-cell.l3 { background: color-mix(in srgb, var(--o-500) 80%, var(--bg-3)); }
+.pp-cell.l4 { background: var(--o-600); }
+.pp-heat small { color: var(--muted); }
+.pp-courses { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.pp-course { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-left: 4px solid var(--c); border-radius: 12px; background: var(--surface); }
+.pp-course .cont-ic { width: 42px; height: 42px; }
+.pp-course b { display: block; font-size: .92rem; } .pp-course small { color: var(--muted); }
+.pp-course.done small { color: var(--ok); font-weight: 700; }
+.pp-note { color: var(--muted); font-size: .8rem; margin-top: 16px; }
+/* Настройки приватности */
+.acc-toggle { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
+.acc-toggle input { margin-top: 4px; accent-color: var(--o-500); width: 16px; height: 16px; flex: 0 0 auto; }
+.acc-toggle span { display: flex; flex-direction: column; } .acc-toggle small { color: var(--muted); font-size: .8rem; }
+.acc-toggle:has(input:disabled) { opacity: .55; cursor: not-allowed; }
+.acc-plink { font-size: .88rem; color: var(--o-ink); font-weight: 600; }
+/* Что откроется дальше */
+.unlock-card { display: grid; gap: 12px; border-style: dashed; }
+.ul-head { display: flex; gap: 12px; align-items: flex-start; }
+.ul-ic { font-size: 1.6rem; }
+.ul-head p { color: var(--ink-2); font-size: .88rem; margin-top: 2px; }
+.ul-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.ul-item { background: var(--bg-3); border-radius: 999px; padding: 4px 12px; font-size: .85rem; font-weight: 600; color: var(--ink-2); }
+.ul-bar { height: 6px; background: var(--bg-3); border-radius: 6px; overflow: hidden; }
+.ul-bar span { display: block; height: 100%; background: var(--o-500); }
+.ul-sub { color: var(--muted); }
+.lb-nick { word-break: normal; overflow-wrap: anywhere; }

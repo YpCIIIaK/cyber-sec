@@ -78,6 +78,16 @@ turnstileSiteKey: "",                    // если включили CAPTCHA
 
 ## 6. Модерация
 
+Ники проверяются автоматически (функция `cp_text_bad`): нормализация подмен (`0→o`, `3→e`, `@→a`, разделители, повторы букв),
+запрещённые корни из таблицы `banned_words` и ссылки. Пополнить список без переделки сайта:
+
+```sql
+insert into public.banned_words values ('slovo', 'sub');    -- запрещено где угодно в нике
+insert into public.banned_words values ('slovo', 'exact');  -- только целым словом между _
+select nick from public.profiles where public.cp_text_bad(nick) is not null;  -- найти уже занятые «плохие» ники
+```
+
+
 В SQL Editor (готовые запросы — в конце `schema.sql`):
 
 ```sql

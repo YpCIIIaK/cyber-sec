@@ -753,6 +753,7 @@ const App = (() => {
     if (view === "boss") return `#/course/${params.courseId}/boss`;
     if (view === "weekly") return "#/weekly";
     if (view === "start") return "#/start";
+    if (view === "user") return "#/u/" + encodeURIComponent(params.nick || "");
     if (view === "leaderboard") return params.period === "week" ? "#/leaderboard/week" : "#/leaderboard";
     if (view === "legal") return `#/legal/${params.page || "about"}`;
     if (view === "tools") return params.tool ? `#/tools/${params.tool}` : "#/tools";
@@ -773,6 +774,7 @@ const App = (() => {
     if (parts[0] === "weekly") return { view: "weekly" };
     if (parts[0] === "tools") return { view: "tools", tool: parts[1] || null };
     if (parts[0] === "start") return { view: "start" };
+    if (parts[0] === "u" && parts[1]) return { view: "user", nick: decodeURIComponent(parts[1]) };
     if (parts[0] === "leaderboard") return { view: "leaderboard", period: parts[1] === "week" ? "week" : "all" };
     if (parts[0] === "legal") return { view: "legal", page: parts[1] || "about" };
     if (parts[0] === "course" && parts[1]) {
@@ -793,7 +795,7 @@ const App = (() => {
     const s = Progress.overallStats();
     const nav = document.getElementById("nav-stats");
     if (nav) {
-      const due = Progress.srsDueCount();
+      const due = featureOn("review") ? Progress.srsDueCount() : 0;
       const dark = currentTheme() === "dark";
       const en = window.I18N && I18N.current() === "en";
       const wasOpen = !!document.querySelector(".user-menu.open");
@@ -816,9 +818,9 @@ const App = (() => {
             </div>
             <div class="um-list">
               ${item(Icon.ui("progress"), T("Профиль"), "App.go('profile')")}
-              ${item(Icon.ui("quest"), T("Повторение"), "App.go('review')", due ? `<em class="um-badge">${due}</em>` : "")}
+              ${featureOn("review") ? item(Icon.ui("quest"), T("Повторение"), "App.go('review')", due ? `<em class="um-badge">${due}</em>` : "") : ""}
               ${item(Icon.ui("book"), T("Словарь"), "App.go('glossary')")}
-              ${item(Icon.ui("flag"), T("CTF — флаги"), "App.go('ctf')")}
+              ${featureOn("ctf") ? item(Icon.ui("flag"), T("CTF — флаги"), "App.go('ctf')") : ""}
               ${item(Icon.ui("list"), T("Заметки"), "App.go('notes')", `<em class="um-count">${Progress.notes().length}</em>`)}
               ${item(Icon.ui("shield"), T("Звания"), "App.openRanks()")}
               ${item(Icon.ui("bolt"), T("Рейтинг"), "App.go('leaderboard')")}
@@ -883,7 +885,9 @@ const App = (() => {
   /* ---------- Виды ---------- */
   function render() {
     renderNav();
+    checkUnlocks();
     const c = current;
+    if (VIEW_FEATURE[c.view] && !featureOn(VIEW_FEATURE[c.view])) { renderLocked(VIEW_FEATURE[c.view]); highlightNav(); updateTitle(); return; }
     switch (c.view) {
       case "home": renderHome(); break;
       case "courses": renderCourses(); break;
@@ -904,6 +908,7 @@ const App = (() => {
       case "notfound": renderNotFound(); break;
       case "start": renderPlacement(); break;
       case "leaderboard": renderLeaderboard(c.period); break;
+      case "user": renderPublicProfile(c.nick); break;
       default: renderHome();
     }
     highlightNav();
@@ -912,7 +917,70 @@ const App = (() => {
     if (v) { v.classList.remove("view-enter"); void v.offsetWidth; v.classList.add("view-enter"); }
     observeReveal();
   }
+  /* ---------- Постепенное открытие функций ----------
+     Новичку сначала доступны курсы, путь, словарь и рейтинг. Дополнительные режимы
+     открываются по мере прохождения курсов (тест уровня «Средний»/«Сложный» сдвигает порог). */
+  const FEATURES = [
+    { id: "daily",   need: 1, ic: "📅", ru: "Задание дня" },
+    { id: "review",  need: 1, ic: "🔁", ru: "Повторение" },
+    { id: "boss",    need: 1, ic: "⚔️", ru: "Боссфайты" },
+    { id: "sandbox", need: 1, ic: "💻", ru: "Песочница" },
+    { id: "ctf",     need: 2, ic: "🚩", ru: "CTF — флаги" },
+    { id: "weekly",  need: 2, ic: "🗓️", ru: "CTF недели" },
+    { id: "tools",   need: 2, ic: "🛡️", ru: "Инструменты Blue Team" },
+  ];
+  const VIEW_FEATURE = { review: "review", ctf: "ctf", weekly: "weekly", boss: "boss", sandbox: "sandbox", tools: "tools" };
+  function unlockLevel() {
+    const bump = { "Средний": 1, "Сложный": 2 }[Progress.placement()] || 0;
+    return Progress.overallStats().coursesDone + bump;
+  }
+  function featureOn(id) { const f = FEATURES.find((x) => x.id === id); return !f || unlockLevel() >= f.need; }
+  function nextUnlock() {
+    const lv = unlockLevel(), locked = FEATURES.filter((f) => f.need > lv);
+    if (!locked.length) return null;
+    const need = Math.min(...locked.map((f) => f.need));
+    return { need, left: need - lv, list: locked.filter((f) => f.need === need) };
+  }
+  // Карточка «что откроется дальше» на главной
+  function unlockTeaser() {
+    const nx = nextUnlock();
+    if (!nx) return "";
+    const best = COURSES.map((c) => Progress.courseProgress(c).pct).filter((p) => p < 100).sort((a, b) => b - a)[0] || 0;
+    return `
+      <section class="section unlock-section">
+        <div class="unlock-card card">
+          <div class="ul-head"><span class="ul-ic">🔓</span><div>
+            <b>${nx.left === 1 ? T("Пройдите ещё один курс — откроются новые режимы") : T("Продолжайте учиться — откроются новые режимы")}</b>
+            <p>${T("Дополнительные функции появляются по мере прогресса, чтобы сначала было проще разобраться в основах.")}</p></div></div>
+          <div class="ul-list">${nx.list.map((f) => `<span class="ul-item">${f.ic} ${T(f.ru)}</span>`).join("")}</div>
+          <div class="ul-bar"><span style="width:${best}%"></span></div>
+          <small class="ul-sub">${T("Ближайший курс пройден на")} ${best}% · ${T("нужно курсов")}: ${nx.need}</small>
+        </div>
+      </section>`;
+  }
+  function renderLocked(fid) {
+    const f = FEATURES.find((x) => x.id === fid);
+    const have = unlockLevel();
+    root().innerHTML = `<section class="section">${crumbs([["home", T("Главная")], [null, T(f.ru)]])}
+      ${emptyState("🔒", `${f.ic} ${T(f.ru)}`, `${T("Откроется после прохождения курсов")}: ${have}/${f.need}. ${T("Начните с основ — дополнительные режимы будут открываться по мере прогресса.")}`,
+        `<button class="btn btn-primary btn-sm" onclick="App.go('courses')">${T("К курсам")}</button>`)}</section>`;
+  }
+  // После прохождения курса — сообщить, что открылось
+  let lastUnlock = null;
+  function checkUnlocks() {
+    const lv = unlockLevel();
+    if (lastUnlock !== null && lv > lastUnlock) {
+      const opened = FEATURES.filter((f) => f.need > lastUnlock && f.need <= lv);
+      if (opened.length) toast(`🔓 ${T("Открыто")}: ${opened.map((f) => f.ic + " " + T(f.ru)).join(", ")}`);
+    }
+    lastUnlock = lv;
+  }
+
   function highlightNav() {
+    document.querySelectorAll(".main-nav a[data-view]").forEach((a) => {
+      const fid = VIEW_FEATURE[a.dataset.view];
+      a.hidden = !!fid && !featureOn(fid);
+    });
     document.querySelectorAll(".main-nav a").forEach((a) => {
       a.classList.toggle("active", a.dataset.view === current.view);
     });
@@ -935,7 +1003,9 @@ const App = (() => {
                 }
                 return `<button class="btn btn-primary btn-lg" onclick="App.go('courses')">${T("Начать обучение")} ${Icon.ui("arrow")}</button>`;
               })()}
-              <button class="btn btn-ghost btn-lg" onclick="App.go('sandbox')">${Icon.ui("terminal")} ${T("Открыть песочницу")}</button>
+              ${featureOn("sandbox")
+                ? `<button class="btn btn-ghost btn-lg" onclick="App.go('sandbox')">${Icon.ui("terminal")} ${T("Открыть песочницу")}</button>`
+                : `<button class="btn btn-ghost btn-lg" onclick="App.go('start')">🧭 ${T("Определить мой уровень")}</button>`}
             </div>
           </div>
           <div class="hero-card">
@@ -954,9 +1024,10 @@ const App = (() => {
 
       ${continueBlock()}
       ${streakStrip()}
-      ${dailyCard()}
-      ${weeklyCard()}
-      ${reviewCardHome()}
+      ${unlockTeaser()}
+      ${featureOn("daily") ? dailyCard() : ""}
+      ${featureOn("weekly") ? weeklyCard() : ""}
+      ${featureOn("review") ? reviewCardHome() : ""}
 
       <section class="features">
         ${[
@@ -1244,7 +1315,7 @@ const App = (() => {
             </div>
           </div>
         </div>
-        ${p.pct === 100 ? certificateCard(course) + nextCourseCard(course) : p.pct >= 50 ? bossBanner(course) : ""}
+        ${p.pct === 100 ? certificateCard(course) + nextCourseCard(course) : p.pct >= 50 && featureOn("boss") ? bossBanner(course) : ""}
         <h2 class="rooms-title">${T("Комнаты курса")}</h2>
         <div class="room-list">
           ${course.rooms.map((room, i) => roomRow(course, room, i)).join("")}
@@ -2678,9 +2749,10 @@ const App = (() => {
       { label: "Главная", sub: "Домашняя страница", go: () => go("home") },
       { label: "Каталог курсов", sub: "Все курсы", go: () => go("courses") },
       { label: "Путь обучения", sub: "Дорожная карта", go: () => go("roadmap") },
-      { label: "Песочница", sub: "Терминал и квесты", go: () => go("sandbox") },
-      { label: T("CTF — охота за флагами"), sub: T("Все флаги платформы"), go: () => go("ctf") },
-      { label: "Повторение", sub: "Карточки на повторение", go: () => go("review") },
+      ...(featureOn("sandbox") ? [{ label: "Песочница", sub: "Терминал и квесты", go: () => go("sandbox") }] : []),
+      ...(featureOn("ctf") ? [{ label: T("CTF — охота за флагами"), sub: T("Все флаги платформы"), go: () => go("ctf") }] : []),
+      ...(featureOn("review") ? [{ label: "Повторение", sub: "Карточки на повторение", go: () => go("review") }] : []),
+      { label: T("Рейтинг"), sub: T("Таблица лидеров"), go: () => go("leaderboard") },
       { label: "Словарь терминов", sub: "Глоссарий", go: () => go("glossary") },
       { label: "Профиль", sub: "Прогресс и достижения", go: () => go("profile") },
     ];
@@ -2688,8 +2760,8 @@ const App = (() => {
       items.push({ label: c.title, sub: "Курс · " + c.level, go: () => go("course", { courseId: c.id }) });
       c.rooms.forEach((r) => items.push({ label: r.title, sub: "Комната · " + c.title, go: () => go("room", { courseId: c.id, roomId: r.id }) }));
     });
-    items.push({ label: T("Инструменты"), sub: T("Симуляторы Blue Team"), go: () => go("tools") });
-    if (window.Toolkit && Toolkit.list) {
+    if (featureOn("tools")) items.push({ label: T("Инструменты"), sub: T("Симуляторы Blue Team"), go: () => go("tools") });
+    if (window.Toolkit && Toolkit.list && featureOn("tools")) {
       const en = window.I18N && I18N.current() === "en";
       Toolkit.list.forEach((tk) => items.push({ label: en ? tk.en : tk.ru, sub: T("Инструмент") + " · Blue Team", go: () => go("tools", { tool: tk.id }) }));
     }
@@ -2945,7 +3017,7 @@ const App = (() => {
 <p>Прогресс, XP, заметки, профиль и настройки хранятся <b>только в localStorage вашего браузера</b> на этом устройстве. На сервер они не отправляются — у проекта нет бэкенда.</p>
 <h3>Аккаунт (по желанию)</h3>
 <p>Аккаунт нужен только для рейтинга и синхронизации. Если вы входите, на сервере (Supabase) хранятся:</p>
-<ul><li><b>ник</b> — виден всем в рейтинге;</li><li><b>решённые задания</b> с датой и числом подсказок — для подсчёта очков;</li><li><b>копия прогресса</b> — видна только вам, для переноса между устройствами.</li></ul>
+<ul><li><b>ник и аватар из набора</b> — видны в рейтинге; по умолчанию открыт и <b>публичный профиль</b> со статистикой прохождения (задания, курсы, экзамены, активность). Его можно скрыть, а в рейтинге включить режим «Анонимный участник» — в меню «Аккаунт»;</li><li><b>решённые задания</b> с датой и числом подсказок — для подсчёта очков;</li><li><b>копия прогресса</b> — видна только вам, для переноса между устройствами.</li></ul>
 <p>При входе через GitHub или Google сервис авторизации получает от них идентификатор и email аккаунта — они нужны только для входа и нигде не показываются. При входе по нику email не используется.</p>
 <p>Аккаунт можно удалить в любой момент: <b>меню профиля → Аккаунт → Удалить аккаунт</b>. Удаляется всё: ник, решения и облачная копия.</p>
 <h3>Чего нет</h3>
@@ -2960,7 +3032,7 @@ const App = (() => {
 <p>Your progress, XP, notes, profile and settings are stored <b>only in your browser's localStorage</b> on this device. Nothing is sent to a server — the project has no backend.</p>
 <h3>Account (optional)</h3>
 <p>An account is only needed for the leaderboard and syncing. If you sign in, the server (Supabase) stores:</p>
-<ul><li>your <b>nickname</b> — visible to everyone on the leaderboard;</li><li><b>solved tasks</b> with date and hint count — to calculate points;</li><li>a <b>copy of your progress</b> — visible only to you, for syncing between devices.</li></ul>
+<ul><li>your <b>nickname and preset avatar</b> — visible on the leaderboard; a <b>public profile</b> with your learning stats (tasks, courses, exams, activity) is on by default. You can hide it and appear as an “Anonymous participant” on the leaderboard — in the Account menu;</li><li><b>solved tasks</b> with date and hint count — to calculate points;</li><li>a <b>copy of your progress</b> — visible only to you, for syncing between devices.</li></ul>
 <p>When signing in with GitHub or Google, the auth service receives the account ID and email from them — used only for signing in and never shown. Nickname sign-in uses no email.</p>
 <p>You can delete your account at any time: <b>profile menu → Account → Delete account</b>. Everything is removed: nickname, solves and the cloud copy.</p>
 <h3>What we don't do</h3>
@@ -3089,6 +3161,8 @@ const App = (() => {
     if (/invalid login|invalid_login|invalid credentials/i.test(m)) return T("Неверный ник или пароль.");
     if (/nick_taken|database error saving new user|already registered/i.test(m)) return T("Этот ник уже занят.");
     if (/nick_reserved/.test(m)) return T("Этот ник зарезервирован.");
+    if (/nick_banned/.test(m)) return T("Такой ник недопустим: он содержит запрещённые слова или ссылку. Выберите другой.");
+    if (/nick_invalid/.test(m)) return T("Ник: 3–20 символов — латиница, цифры и _.");
     if (/invalid_nick/.test(m)) return T("Ник: 3–20 символов — латиница, цифры и _.");
     if (/weak_password|password should/i.test(m)) return T("Пароль — минимум 8 символов.");
     if (/captcha/i.test(m)) return T("Подтвердите, что вы не робот.");
@@ -3129,6 +3203,12 @@ const App = (() => {
       body = `
         <div class="acc-me"><span class="acc-nick">${escapeHtml(cs.nick || "")}</span>
           <span class="acc-sync">${cs.syncing ? T("Синхронизация…") : cs.pending ? `${T("В очереди на отправку")}: ${cs.pending}` : "✓ " + T("Прогресс синхронизирован")}</span></div>
+        ${cs.settings ? `<div class="acc-sub">${T("Приватность")}</div>
+        <label class="acc-toggle"><input type="checkbox" ${cs.settings.is_public ? "checked" : ""} ${cs.settings.anonymous ? "disabled" : ""} onchange="App.accSetting('is_public', this.checked)">
+          <span><b>${T("Публичный профиль")}</b><small>${T("Страницу с вашей статистикой может открыть любой по ссылке.")}</small></span></label>
+        <label class="acc-toggle"><input type="checkbox" ${cs.settings.anonymous ? "checked" : ""} onchange="App.accSetting('anonymous', this.checked)">
+          <span><b>${T("Анонимно в рейтинге")}</b><small>${T("Вместо ника — «Анонимный участник», профиль скрыт. Очки продолжают считаться.")}</small></span></label>
+        ${cs.settings.is_public && !cs.settings.anonymous ? `<a class="acc-plink" href="#/u/${encodeURIComponent(cs.nick || "")}" onclick="App.closeAccount()">👤 ${T("Открыть мой публичный профиль")}</a>` : ""}` : ""}
         <div class="acc-ids">${T("Способы входа")}: ${ids.map((p) => `<span class="acc-id">${p === "email" ? T("ник + пароль") : p === "github" ? "GitHub" : p === "google" ? "Google" : escapeHtml(p)}</span>`).join("")}</div>
         ${pw && !hasRecovery ? `<div class="acc-warn">⚠️ ${T("Восстановить пароль невозможно, пока к аккаунту не привязан GitHub или Google. Привяжите один из них — тогда сможете войти, даже если забудете пароль.")}</div>` : ""}
         ${!(ids.includes("github") && ids.includes("google")) ? `<div class="acc-sub">${T("Привязать вход")}</div>
@@ -3163,6 +3243,10 @@ const App = (() => {
       <div class="acc-head"><h2>${cs.status === "in" ? T("Аккаунт") : T("Вход в CyberPath")}</h2><button class="acc-x" onclick="App.closeAccount()" aria-label="${T("Закрыть")}">✕</button></div>
       <div class="acc-body">${cs.error === "oauth" ? `<div class="acc-err">${T("Вход отменён или не удался.")}</div>` : ""}${body}</div></div>`;
     if (Cloud.captchaEnabled()) { accToken = ""; Cloud.renderCaptcha(document.getElementById("acc-captcha"), (t) => { accToken = t; }); }
+  }
+  async function accSetting(key, val) {
+    try { await Cloud.setSettings({ [key]: !!val }); toast(T("Настройки сохранены")); }
+    catch (e) { toast(cloudErr(e)); renderAccountModal(); }
   }
   function accSetTab(t) { accTab = t === "register" ? "register" : "login"; renderAccountModal(); }
   function accShowErr(msg) { const e = document.getElementById("acc-err"); if (e) e.textContent = msg; }
@@ -3229,6 +3313,81 @@ const App = (() => {
       <button class="btn btn-ghost btn-sm" onclick="App.openAccount()">${cs.status === "in" ? T("Управление") : T("Войти")}</button></div>`;
   }
 
+  // Аватар из серверных полей (только пресеты)
+  function serverAvatar(r) {
+    return { avatar: { kind: "preset", value: AVATAR_PRESETS[r.av] || AVATAR_PRESETS[0] }, bg: Number(r.av_bg) || 0, ring: r.av_ring || "tier" };
+  }
+  // Локальный аватар → серверный формат (загруженные картинки на сервер не уходят)
+  function avatarSpec() {
+    const pr = Progress.profile();
+    const i = pr.avatar && pr.avatar.kind !== "upload" ? AVATAR_PRESETS.indexOf(pr.avatar.value) : -1;
+    return { av: i >= 0 ? i : 0, av_bg: (Number(pr.bg) || 0) % AVATAR_BGS.length, av_ring: RING_COLORS.hasOwnProperty(pr.ring) ? pr.ring : "tier" };
+  }
+
+  async function renderPublicProfile(nick) {
+    const head = crumbs([["home", T("Главная")], ["leaderboard", T("Рейтинг")], [null, escapeHtml(nick || "")]]);
+    if (!window.Cloud || !Cloud.enabled) { root().innerHTML = `<section class="section">${head}${emptyState("👤", T("Профили пока недоступны"), "")}</section>`; return; }
+    root().innerHTML = `<section class="section">${head}<div class="card"><div class="acc-wait">${T("Загрузка…")}</div></div></section>`;
+    let d;
+    try { d = await Cloud.publicProfile(nick); }
+    catch (e) { if (current.view === "user") root().querySelector(".card").outerHTML = emptyState("📡", T("Не удалось загрузить профиль"), cloudErr(e)); return; }
+    if (current.view !== "user" || current.nick !== nick) return;
+    if (!d || !d.found) { root().innerHTML = `<section class="section">${head}${emptyState("🔍", T("Профиль не найден"), T("Проверьте ник в ссылке."), `<a class="btn btn-ghost btn-sm" href="#/leaderboard">${T("К рейтингу")}</a>`)}</section>`; updateTitle(); return; }
+    if (d.private) { root().innerHTML = `<section class="section">${head}${emptyState("🔒", escapeHtml(d.nick), T("Участник скрыл свой профиль."), `<a class="btn btn-ghost btn-sm" href="#/leaderboard">${T("К рейтингу")}</a>`)}</section>`; updateTitle(); return; }
+    const lvl = Math.floor(Number(d.xp) / 100) + 1, rk = rankForLevel(lvl), nx = nextRank(lvl);
+    const joined = new Date(d.joined);
+    const done = (d.courses || []).map((id) => COURSES.find((c) => c.id === id)).filter(Boolean);
+    const prog = d.course_progress || {};
+    const inProg = COURSES.filter((c) => (prog[c.id] || 0) > 0 && (prog[c.id] || 0) < 100);
+    // календарь активности: 17 недель
+    const act = d.activity || {}, today = new Date(), cells = [];
+    for (let i = 17 * 7 - 1; i >= 0; i--) {
+      const dt = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - i));
+      const k = dt.toISOString().slice(0, 10), n = act[k] || 0;
+      cells.push(`<i class="pp-cell l${n === 0 ? 0 : n < 3 ? 1 : n < 6 ? 2 : n < 10 ? 3 : 4}" title="${k}: ${n}"></i>`);
+    }
+    const tile = (v, label) => `<div class="ps"><b>${v}</b><span>${label}</span></div>`;
+    root().innerHTML = `
+      <section class="section pub-profile">
+        ${head}
+        <div class="player-card tier-${rk.tier}">
+          <div class="pc-glow"></div>
+          <div class="pc-left">${avatarHTML(104, serverAvatar(d))}<span class="pc-tier">${T(TIER_NAMES[rk.tier])}</span></div>
+          <div class="pc-main">
+            <h1 class="pc-rank pc-nick">${escapeHtml(d.nick)}</h1>
+            <div class="pc-cur-rank as-static"><span class="pcr-ic">${rankBadge(rk, 34)}</span><span class="pcr-txt"><small>${T("Звание")} · ${T(TIER_NAMES[rk.tier])}</small><b>${rk.icon} ${rk.name}</b></span></div>
+            <div class="pc-lvl"><b>LVL ${lvl}</b><span>${Number(d.xp)} XP</span></div>
+            <div class="pc-next">${nx ? `<span>${T("Далее")}: ${nx.icon} ${nx.name} · LVL ${nx.min}</span>` : ""}</div>
+            <p class="pp-meta">${d.place ? `🏆 ${T("Место в рейтинге")}: <b>${Number(d.place)}</b> · ` : ""}${T("В CyberPath с")} ${joined.toLocaleDateString(I18N && I18N.current() === "en" ? "en-GB" : "ru-RU")}</p>
+          </div>
+          <div class="pc-stats">
+            ${tile(Number(d.solved), T("заданий"))}${tile(done.length + `<small>/${COURSES.length}</small>`, T("курсов пройдено"))}
+            ${tile(Number(d.streak) + "🔥", T("дней подряд"))}${tile(Number(d.exams), T("экзаменов сдано"))}
+            ${tile(Number(d.bosses), T("боссов побеждено"))}${tile(Number(d.flags), T("флагов найдено"))}
+          </div>
+        </div>
+        <div class="pp-actions">
+          <button class="btn btn-ghost btn-sm" onclick="App.copyProfileLink('${escapeAttr(d.nick)}')">🔗 ${T("Скопировать ссылку")}</button>
+          ${d.me ? `<button class="btn btn-ghost btn-sm" onclick="App.openAccount()">⚙️ ${T("Настройки приватности")}</button>` : ""}
+        </div>
+        <h2 class="rooms-title">${T("Активность")}</h2>
+        <div class="card pp-heat"><div class="pp-grid">${cells.join("")}</div><small>${T("последние 17 недель")}</small></div>
+        <h2 class="rooms-title">${T("Курсы")}</h2>
+        <div class="pp-courses">
+          ${done.map((c) => `<div class="pp-course done" style="--c:${c.color}"><span class="cont-ic">${Icon.course(c.id)}</span><span><b>${escapeHtml(c.title)}</b><small>✓ ${T("пройден")}</small></span></div>`).join("")}
+          ${inProg.map((c) => `<div class="pp-course" style="--c:${c.color}"><span class="cont-ic">${Icon.course(c.id)}</span><span><b>${escapeHtml(c.title)}</b><small>${prog[c.id]}%</small></span></div>`).join("")}
+          ${!done.length && !inProg.length ? `<p class="muted">${T("Пока нет пройденных курсов.")}</p>` : ""}
+        </div>
+        <p class="pp-note">${T("Показана только статистика, подтверждённая сервером.")}</p>
+      </section>`;
+    updateTitle();
+  }
+  function copyProfileLink(nick) {
+    const url = location.origin + location.pathname + "#/u/" + encodeURIComponent(nick);
+    const done = () => toast(T("Ссылка скопирована"));
+    try { navigator.clipboard.writeText(url).then(done, () => prompt(T("Ссылка на профиль"), url)); } catch (e) { prompt(T("Ссылка на профиль"), url); }
+  }
+
   let lbLoading = false;
   async function renderLeaderboard(period) {
     period = period === "week" ? "week" : "all";
@@ -3248,7 +3407,17 @@ const App = (() => {
     if (current.view !== "leaderboard" || current.period !== period) return;
     const cs = Cloud.state;
     const medal = (n) => (n === 1 ? "🥇" : n === 2 ? "🥈" : n === 3 ? "🥉" : n);
-    const rows = res.rows.map((r) => `<tr class="${r.is_me ? "me" : ""}"><td class="lb-place">${medal(Number(r.place))}</td><td class="lb-nick">${escapeHtml(String(r.nick))}${r.is_me ? ` <em>${T("вы")}</em>` : ""}</td><td class="lb-xp">${Number(r.xp)} XP</td><td class="lb-solved">${Number(r.solved)}</td></tr>`).join("");
+    const rows = res.rows.map((r) => {
+      const lvl = Math.floor(Number(r.xp) / 100) + 1, rk = rankForLevel(lvl);
+      const anon = !r.nick;
+      const name = anon ? `🕶️ ${T("Анонимный участник")}` : escapeHtml(String(r.nick));
+      const who = !anon && r.is_public ? `<a class="lb-link" href="#/u/${encodeURIComponent(r.nick)}">${name}</a>` : `<span>${name}</span>`;
+      return `<tr class="${r.is_me ? "me" : ""}${anon ? " anon" : ""}">
+        <td class="lb-place">${medal(Number(r.place))}</td>
+        <td class="lb-nick"><div class="lb-who">${avatarHTML(34, serverAvatar(r))}<div class="lb-name">${who}${r.is_me ? ` <em>${T("вы")}</em>` : ""}
+          <small class="lb-rank">${rankBadge(rk, 18)} ${rk.name} · LVL ${lvl}</small></div></div></td>
+        <td class="lb-xp">${Number(r.xp)} XP</td><td class="lb-solved">${Number(r.solved)}</td></tr>`;
+    }).join("");
     const me = res.me;
     const meLine = cs.status !== "in"
       ? `<div class="lb-me">${T("Войдите, чтобы попасть в рейтинг.")} <button class="btn btn-primary btn-sm" onclick="App.openAccount()">${T("Войти")}</button></div>`
@@ -3544,7 +3713,10 @@ const App = (() => {
     ["#f472b6", "#be185d"], ["#fbbf24", "#b45309"], ["#94a3b8", "#334155"], ["#2dd4bf", "#0f766e"],
   ];
   const RING_COLORS = { tier: null, orange: "#f2620a", blue: "#2563eb", green: "#16a34a", purple: "#7c3aed", pink: "#db2777", mono: "#6b7280" };
-  function displayName() { const n = Progress.profile().nick; return n || T("Оператор CyberPath"); }
+  function displayName() {
+    if (window.Cloud && Cloud.state.status === "in" && Cloud.state.nick) return Cloud.state.nick;
+    const n = Progress.profile().nick; return n || T("Оператор CyberPath");
+  }
   function avatarHTML(size, pr) {
     pr = pr || Progress.profile();
     const bg = AVATAR_BGS[pr.bg % AVATAR_BGS.length];
@@ -4497,7 +4669,7 @@ const App = (() => {
     catalogSearch, catalogLevel, catalogSort, downloadCertificate, downloadMasterCertificate,
     submitChoice, submitMatch, orderPick, orderReset, submitDaily,
     submitMission, toggleShell, openShortcuts, closeShortcuts,
-    glossarySearch, glossaryClear, placeAnswer, placeFinish, placeSkip, reportTask, openAccount, closeAccount, accSetTab, accOAuth, accLink, accSubmit, accSignOut, accDelete, nickSubmit, nickCancel, placeRetry, startPlacement, catalogReset, submitExam, retryExam, openPalette, palettePick, installApp,
+    glossarySearch, glossaryClear, placeAnswer, placeFinish, placeSkip, reportTask, avatarSpec, copyProfileLink, accSetting, openAccount, closeAccount, accSetTab, accOAuth, accLink, accSubmit, accSignOut, accDelete, nickSubmit, nickCancel, placeRetry, startPlacement, catalogReset, submitExam, retryExam, openPalette, palettePick, installApp,
     reviewChoose, reviewCheck, reviewNext, reviewStart, setXpMode, shareCard, saveDraft, toggleLang,
     openRanks, closeRanks, achSetFilter, tilt, openProfileEditor, closeProfileEditor, profTab, profAvatar, profUpload,
     profDraftSet, profToggleShowcase, saveProfile, chalStart, chalAnswer, chalSkip, chalRestart, notesFilter, noteComment, noteDelete, exportNotes,

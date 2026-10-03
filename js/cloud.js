@@ -12,7 +12,7 @@ const Cloud = (() => {
   const NICK_RE = /^[A-Za-z0-9_]{3,20}$/;
 
   let sb = null, libP = null, connectP = null;
-  const st = { status: enabled ? "out" : "off", user: null, nick: null, pending: 0, error: null, syncing: false };
+  const st = { status: enabled ? "out" : "off", user: null, nick: null, pending: 0, error: null, syncing: false, settings: null };
   const subs = new Set();
   let serverSolved = null;                 // Set id заданий, уже засчитанных базой
   let serverBonuses = null;                // Set ключей бонусов, уже засчитанных базой
@@ -71,7 +71,7 @@ const Cloud = (() => {
   }
 
   function reset() {
-    st.status = enabled ? "out" : "off"; st.user = null; st.nick = null; st.pending = 0;
+    st.status = enabled ? "out" : "off"; st.user = null; st.nick = null; st.pending = 0; st.settings = null;
     serverSolved = null; serverBonuses = null; waitingBonuses = new Set(); flag(false);
     clearTimeout(flushTimer); clearTimeout(pushTimer); clearTimeout(retryTimer);
     notify();
@@ -79,8 +79,9 @@ const Cloud = (() => {
 
   async function afterLogin(user) {
     st.user = user; st.error = null; flag(true);
-    const { data: prof } = await sb.from("profiles").select("nick").eq("id", user.id).maybeSingle();
+    const { data: prof } = await sb.from("profiles").select("nick,is_public,anonymous,av,av_bg,av_ring").eq("id", user.id).maybeSingle();
     st.nick = prof ? prof.nick : null;
+    st.settings = prof ? { is_public: prof.is_public, anonymous: prof.anonymous, av: prof.av, av_bg: prof.av_bg, av_ring: prof.av_ring } : null;
     st.status = st.nick ? "in" : "needNick";
     notify();
     if (st.nick) await initialSync();
@@ -124,6 +125,7 @@ const Cloud = (() => {
       const { data: bon } = await sb.from("bonuses").select("key");
       serverBonuses = new Set((bon || []).map((r) => r.key));
       await flush();
+      await syncAvatar();
     } catch (e) { st.error = "sync"; }
     st.syncing = false; notify();
   }
@@ -214,6 +216,7 @@ const Cloud = (() => {
   });
   window.addEventListener("cp:saved", () => {
     if (st.status !== "in") return;
+    clearTimeout(avatarTimer); avatarTimer = setTimeout(syncAvatar, 3000);
     clearTimeout(pushTimer); pushTimer = setTimeout(pushProgress, 10000);
     // бонусы (экзамен, босс, флаг…) приходят без cp:solved — проверяем очередь чуть позже
     clearTimeout(flushTimer); flushTimer = setTimeout(flush, 2000);
@@ -222,6 +225,41 @@ const Cloud = (() => {
     if (document.visibilityState === "hidden" && st.status === "in" && pushTimer) pushProgress();
   });
   window.addEventListener("online", () => { if (st.status === "in") { flush(); pushProgress(); } });
+
+  /* ---------- Настройки публичного профиля ---------- */
+  let avatarTimer = null;
+  async function setSettings(patch) {
+    if (st.status !== "in") throw new Error("auth");
+    const cur = Object.assign({}, st.settings || {}, patch || {});
+    const { data, error } = await sb.rpc("set_profile_settings", {
+      p_public: cur.is_public, p_anonymous: cur.anonymous, p_av: cur.av, p_av_bg: cur.av_bg, p_av_ring: cur.av_ring,
+    });
+    if (error) throw error;
+    if (data === false) { await new Promise((r) => setTimeout(r, 2100)); return setSettings(patch); }
+    st.settings = cur; notify();
+  }
+  // Аватар из локального профиля → на сервер (только пресеты: индекс эмодзи, фон, рамка)
+  async function syncAvatar() {
+    if (st.status !== "in" || !st.settings || !window.App || !App.avatarSpec) return;
+    const a = App.avatarSpec(), c = st.settings;
+    if (a.av === c.av && a.av_bg === c.av_bg && a.av_ring === c.av_ring) return;
+    await setSettings(a).catch(() => {});
+  }
+  async function publicProfile(nick) {
+    await connect().catch(() => {});
+    if (!sb) throw new Error("network");
+    const { data, error } = await sb.rpc("public_profile", { p_nick: nick });
+    if (error) throw error;
+    return data;
+  }
+  // ok | invalid | taken | reserved | banned
+  async function nickCheck(nick) {
+    if (!NICK_RE.test(nick)) return "invalid";
+    await connect().catch(() => {});
+    const { data, error } = await sb.rpc("nick_check", { p_nick: nick });
+    if (error) throw error;
+    return data;
+  }
 
   /* ---------- Вход / регистрация ---------- */
   function redirectTo() { return location.origin + location.pathname; }
@@ -240,8 +278,8 @@ const Cloud = (() => {
     if (!NICK_RE.test(nick)) throw new Error("invalid_nick");
     if (!password || password.length < 8) throw new Error("weak_password");
     await connect().catch(() => {});
-    const { data: free } = await sb.rpc("nick_available", { p_nick: nick });
-    if (!free) throw new Error("nick_taken");
+    const chk = await nickCheck(nick);
+    if (chk !== "ok") throw new Error("nick_" + chk);
     const { error } = await sb.auth.signUp({ email: pseudoEmail(nick), password, options: { data: { nick }, captchaToken: captchaToken || undefined } });
     if (error) throw error;
   }
@@ -326,6 +364,7 @@ const Cloud = (() => {
     enabled, state: st, onChange, init, connect,
     signInOAuth, signUpNick, signInNick, claimNick, nickAvailable, linkProvider, identities, isPasswordAccount,
     signOut, deleteAccount, leaderboard, flush, captchaEnabled, renderCaptcha, NICK_RE,
+    setSettings, publicProfile, nickCheck,
     _mergeState: mergeState,
   };
 })();

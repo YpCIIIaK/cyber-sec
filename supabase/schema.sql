@@ -76,6 +76,67 @@ insert into public.reserved_nicks (nick) values
   ('cyberpath'),('official'),('staff'),('owner'),('security'),('null'),('undefined'),('anonymous')
 on conflict do nothing;
 
+-- Настройки публичного профиля. Профиль публичный по умолчанию;
+-- anonymous — в рейтинге вместо ника «Анонимный участник».
+-- Аватар — только из готового набора (индексы пресета и фона, цвет рамки), без загрузки картинок.
+alter table public.profiles add column if not exists is_public   boolean  not null default true;
+alter table public.profiles add column if not exists anonymous   boolean  not null default false;
+alter table public.profiles add column if not exists av          smallint not null default 0 check (av between 0 and 19);
+alter table public.profiles add column if not exists av_bg       smallint not null default 0 check (av_bg between 0 and 7);
+alter table public.profiles add column if not exists av_ring     text     not null default 'tier'
+  check (av_ring in ('tier','orange','blue','green','purple','pink','mono'));
+alter table public.profiles add column if not exists settings_at timestamptz;
+
+-- Автомодерация: запрещённые корни (в нормализованном виде, латиницей).
+-- mode = 'sub' — запрещено где угодно в нике; 'exact' — только целым словом (между _ ),
+-- чтобы не ловить безобидные слова. Пополнять:  insert into public.banned_words values ('слово','sub');
+create table if not exists public.banned_words (
+  word text primary key check (word ~ '^[a-z]{2,30}$'),
+  mode text not null default 'sub' check (mode in ('sub', 'exact'))
+);
+insert into public.banned_words (word, mode) values
+  ('huy','sub'),('hui','sub'),('xuy','sub'),('xui','sub'),('huj','sub'),('pizd','sub'),('pisd','sub'),
+  ('ebal','sub'),('eban','sub'),('ebat','sub'),('yeba','sub'),('ebuch','sub'),('ebl','exact'),('ebla','sub'),
+  ('blyad','sub'),('blyat','sub'),('blya','exact'),('suka','exact'),('suki','exact'),('cyka','exact'),
+  ('mudak','sub'),('mudil','sub'),('pidor','sub'),('pidar','sub'),('pidr','sub'),('gandon','sub'),
+  ('shluh','sub'),('shlyuh','sub'),('zalup','sub'),('dolboeb','sub'),('dolbaeb','sub'),('debil','exact'),
+  ('chmo','exact'),('loh','exact'),('lox','exact'),('urod','exact'),('daun','exact'),('manda','exact'),
+  ('fuck','sub'),('fuk','exact'),('fck','exact'),('shit','sub'),('bitch','sub'),('cunt','sub'),('dick','exact'),
+  ('cock','exact'),('pussy','sub'),('whore','sub'),('slut','sub'),('nigg','sub'),('niga','exact'),('faggot','sub'),
+  ('fag','exact'),('retard','sub'),('rape','exact'),('rapist','sub'),('porn','sub'),('sex','exact'),('anal','exact'),
+  ('penis','sub'),('vagina','sub'),('hitler','sub'),('nazi','sub'),('heil','exact'),('isis','exact'),
+  ('pedo','sub'),('pedik','sub'),('zoofil','sub'),('kill','exact'),('suicide','sub'),('nude','sub'),
+  ('hoy','exact'),('phuck','sub'),('phuk','sub'),
+  -- выдача себя за администрацию
+  ('admin','exact'),('adm','exact'),('moder','exact'),('moderator','exact'),('support','exact'),('official','exact'),
+  ('staff','exact'),('owner','exact'),('root','exact'),('system','exact'),('cyberpath','sub')
+on conflict do nothing;
+delete from public.banned_words where word in ('kkk', 'xxx');
+
+-- Нормализация против обхода фильтра: регистр, цифры/символы-двойники, разделители, повторы.
+create or replace function public.cp_norm(t text) returns text
+language sql immutable as $$
+  select regexp_replace(
+           regexp_replace(translate(lower(coalesce(t, '')), '01345789@$!|', 'oieastbgasii'), '[^a-z]', '', 'g'),
+           '(.)\1+', '\1', 'g')
+$$;
+
+-- Проверка текста: null — всё в порядке, иначе причина ('link' | 'banned').
+create or replace function public.cp_text_bad(t text) returns text
+language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare n text := cp_norm(t); tok text;
+begin
+  if t ~* '(https?:|www\.|t\.me|discord|telegram|bit\.ly|\.(ru|com|net|org|io|me|gg|xyz|su|рф)(\M|$)|@[a-z0-9_]{3,})' then
+    return 'link';
+  end if;
+  if exists (select 1 from banned_words b where b.mode = 'sub' and position(cp_norm(b.word) in n) > 0) then return 'banned'; end if;
+  for tok in select cp_norm(x) from regexp_split_to_table(lower(coalesce(t, '')), '[_\s]+') x loop
+    if exists (select 1 from banned_words b where b.mode = 'exact' and cp_norm(b.word) = tok) then return 'banned'; end if;
+  end loop;
+  if exists (select 1 from banned_words b where b.mode = 'exact' and cp_norm(b.word) = n) then return 'banned'; end if;
+  return null;
+end $$;
+
 -- ---------- RLS: всё закрыто, читать можно только своё ----------
 alter table public.task_catalog   enable row level security;
 alter table public.profiles       enable row level security;
@@ -84,6 +145,7 @@ alter table public.progress       enable row level security;
 alter table public.reserved_nicks enable row level security;
 alter table public.bonus_catalog  enable row level security;
 alter table public.bonuses        enable row level security;
+alter table public.banned_words   enable row level security;
 
 drop policy if exists own_profile_read  on public.profiles;
 drop policy if exists own_solves_read   on public.solves;
@@ -124,6 +186,7 @@ begin
   if exists (select 1 from reserved_nicks r where r.nick = n::citext) then
     raise exception 'nick_reserved';
   end if;
+  if cp_text_bad(n) is not null then raise exception 'nick_banned'; end if;
   insert into profiles (id, nick) values (new.id, n);   -- unique → nick_taken
   return new;
 exception when unique_violation then
@@ -135,12 +198,21 @@ create trigger on_auth_user_created after insert on auth.users
   for each row execute function public.handle_new_user();
 
 -- ---------- RPC ----------
+-- Подробная проверка ника для подсказки в интерфейсе: ok | invalid | taken | reserved | banned
+create or replace function public.nick_check(p_nick text) returns text
+language sql stable security definer set search_path = public, pg_temp as $$
+  select case
+    when p_nick is null or p_nick !~ '^[A-Za-z0-9_]{3,20}$' then 'invalid'
+    when exists (select 1 from reserved_nicks where nick = p_nick::citext) then 'reserved'
+    when cp_text_bad(p_nick) is not null then 'banned'
+    when exists (select 1 from profiles where nick = p_nick::citext) then 'taken'
+    else 'ok' end
+$$;
+
 -- Свободен ли ник
 create or replace function public.nick_available(p_nick text) returns boolean
 language sql stable security definer set search_path = public, pg_temp as $$
-  select p_nick ~ '^[A-Za-z0-9_]{3,20}$'
-     and not exists (select 1 from profiles where nick = p_nick::citext)
-     and not exists (select 1 from reserved_nicks where nick = p_nick::citext)
+  select nick_check(p_nick) = 'ok'
 $$;
 
 -- Выбрать ник (для входа через GitHub/Google). Ник постоянный.
@@ -152,6 +224,7 @@ begin
   if exists (select 1 from profiles where id = uid) then raise exception 'nick_already_set'; end if;
   if p_nick is null or p_nick !~ '^[A-Za-z0-9_]{3,20}$' then raise exception 'invalid_nick'; end if;
   if exists (select 1 from reserved_nicks where nick = p_nick::citext) then raise exception 'nick_reserved'; end if;
+  if cp_text_bad(p_nick) is not null then raise exception 'nick_banned'; end if;
   insert into profiles (id, nick) values (uid, p_nick);
   return p_nick;
 exception when unique_violation then
@@ -306,9 +379,12 @@ begin
   return true;
 end $$;
 
--- Рейтинг: только ник, очки и число заданий. p_period: 'all' | 'week'
-create or replace function public.leaderboard(p_period text default 'all', p_limit int default 50)
-returns table (place bigint, nick text, xp bigint, solved bigint, is_me boolean)
+-- Рейтинг: ник (или «аноним»), аватар, очки и число заданий. p_period: 'all' | 'week'
+-- Тип результата менялся — пересоздаём функцию.
+drop function if exists public.leaderboard(text, int);
+create function public.leaderboard(p_period text default 'all', p_limit int default 50)
+returns table (place bigint, nick text, xp bigint, solved bigint, is_me boolean,
+               anonymous boolean, is_public boolean, av smallint, av_bg smallint, av_ring text)
 language sql stable security definer set search_path = public, pg_temp as $$
   with ev as (
     select user_id, xp, solved_at as at, 1 as task from solves
@@ -320,8 +396,15 @@ language sql stable security definer set search_path = public, pg_temp as $$
     select user_id, sum(xp)::bigint as xp, sum(task)::bigint as solved, max(at) as last_at
       from ev group by user_id
   )
-  select rank() over (order by s.xp desc) as place, p.nick::text, s.xp, s.solved,
-         coalesce(p.id = auth.uid(), false) as is_me
+  select rank() over (order by s.xp desc) as place,
+         case when p.anonymous and p.id is distinct from auth.uid() then null else p.nick::text end,
+         s.xp, s.solved,
+         coalesce(p.id = auth.uid(), false),
+         p.anonymous,
+         p.is_public and not p.anonymous,
+         case when p.anonymous and p.id is distinct from auth.uid() then 0::smallint else p.av end,
+         case when p.anonymous and p.id is distinct from auth.uid() then 6::smallint else p.av_bg end,
+         case when p.anonymous and p.id is distinct from auth.uid() then 'mono' else p.av_ring end
     from s join profiles p on p.id = s.user_id
    where not p.hidden
    order by s.xp desc, s.last_at asc
@@ -348,6 +431,83 @@ language sql stable security definer set search_path = public, pg_temp as $$
     from v where v.user_id = auth.uid()
 $$;
 
+-- Настройки профиля: публичность, анонимность в рейтинге, аватар из набора. Не чаще раза в 2 с.
+create or replace function public.set_profile_settings(p_public boolean, p_anonymous boolean,
+                                                       p_av int, p_av_bg int, p_av_ring text)
+returns boolean
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare uid uuid := auth.uid(); last timestamptz;
+begin
+  if uid is null then raise exception 'auth_required'; end if;
+  select settings_at into last from profiles where id = uid;
+  if not found then raise exception 'no_profile'; end if;
+  if last is not null and last > now() - interval '2 seconds' then return false; end if;
+  update profiles set
+    is_public   = coalesce(p_public, is_public),
+    anonymous   = coalesce(p_anonymous, anonymous),
+    av          = case when p_av between 0 and 19 then p_av else av end,
+    av_bg       = case when p_av_bg between 0 and 7 then p_av_bg else av_bg end,
+    av_ring     = case when p_av_ring in ('tier','orange','blue','green','purple','pink','mono') then p_av_ring else av_ring end,
+    settings_at = now()
+  where id = uid;
+  return true;
+end $$;
+
+-- Публичный профиль по нику. Только серверная статистика (её нельзя подделать в браузере).
+-- Приватный профиль видит только владелец; скрытый модерацией — не найден.
+create or replace function public.public_profile(p_nick text) returns jsonb
+language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare
+  p profiles%rowtype; me boolean; res jsonb; today date := (now() at time zone 'utc')::date;
+  t_xp bigint; t_n bigint; b_xp bigint; place bigint; c_today int;
+begin
+  if p_nick is null or p_nick !~ '^[A-Za-z0-9_]{3,20}$' then return jsonb_build_object('found', false); end if;
+  select * into p from profiles where nick = p_nick::citext and not hidden;
+  if not found then return jsonb_build_object('found', false); end if;
+  me := p.id = auth.uid();
+  -- анонимный участник: профиль тоже закрыт, иначе его можно вычислить по очкам из рейтинга
+  if (not p.is_public or p.anonymous) and not coalesce(me, false) then
+    return jsonb_build_object('found', true, 'private', true, 'nick', p.nick::text);
+  end if;
+  select coalesce(sum(xp), 0), count(*) into t_xp, t_n from solves where user_id = p.id;
+  select coalesce(sum(xp), 0) into b_xp from bonuses where user_id = p.id;
+  select count(*) into c_today from solves where user_id = p.id and solved_at >= today::timestamp at time zone 'utc';
+  if not p.anonymous then
+    select r.place into place from (
+      select user_id, rank() over (order by x desc) as place from (
+        select e.user_id, sum(e.xp) as x from (
+          select user_id, xp from solves union all select user_id, xp from bonuses) e
+        join profiles q on q.id = e.user_id where not q.hidden group by e.user_id) z) r
+     where r.user_id = p.id;
+  end if;
+  res := jsonb_build_object(
+    'found', true, 'private', false, 'me', coalesce(me, false),
+    'nick', p.nick::text, 'is_public', p.is_public, 'anonymous', p.anonymous,
+    'av', p.av, 'av_bg', p.av_bg, 'av_ring', p.av_ring,
+    'joined', p.created_at, 'xp', t_xp + b_xp, 'solved', t_n, 'place', place,
+    'streak', cp_streak_before(p.id) + case when c_today >= 3 then 1 else 0 end,
+    'courses', coalesce((
+      select jsonb_agg(c.course_id order by c.course_id) from (
+        select t.course_id from task_catalog t
+          left join solves s on s.task_id = t.task_id and s.user_id = p.id
+         group by t.course_id having count(*) = count(s.task_id)) c), '[]'::jsonb),
+    'course_progress', coalesce((
+      select jsonb_object_agg(course_id, pct) from (
+        select t.course_id, round(100.0 * count(s.task_id) / count(*))::int as pct from task_catalog t
+          left join solves s on s.task_id = t.task_id and s.user_id = p.id
+         group by t.course_id) c), '{}'::jsonb),
+    'exams',    (select count(*) from bonuses where user_id = p.id and key like 'exam:%'),
+    'bosses',   (select count(*) from bonuses where user_id = p.id and key like 'boss:%'),
+    'flags',    (select count(*) from bonuses where user_id = p.id and key like 'flag:%'),
+    'missions', (select count(*) from bonuses where user_id = p.id and key like 'mission:%'),
+    'activity', coalesce((
+      select jsonb_object_agg(d, n) from (
+        select ((solved_at at time zone 'utc')::date)::text as d, count(*) as n from solves
+         where user_id = p.id and solved_at > now() - interval '120 days' group by 1) a), '{}'::jsonb)
+  );
+  return res;
+end $$;
+
 -- Удаление своего аккаунта со всеми данными (каскадом)
 create or replace function public.delete_my_account() returns void
 language plpgsql security definer set search_path = public, auth, pg_temp as $$
@@ -360,6 +520,9 @@ end $$;
 -- ---------- Права на функции: только то, что нужно ----------
 revoke execute on all functions in schema public from public, anon, authenticated;
 grant execute on function public.nick_available(text)        to anon, authenticated;
+grant execute on function public.nick_check(text)            to anon, authenticated;
+grant execute on function public.public_profile(text)        to anon, authenticated;
+grant execute on function public.set_profile_settings(boolean, boolean, int, int, text) to authenticated;
 grant execute on function public.leaderboard(text, int)      to anon, authenticated;
 grant execute on function public.claim_nick(text)            to authenticated;
 grant execute on function public.submit_solves(jsonb)        to authenticated;
