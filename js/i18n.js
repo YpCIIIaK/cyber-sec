@@ -11,6 +11,14 @@ const I18N = (() => {
 
   /* -------- UI-словарь (ключ = русская строка) -------- */
   const UI = {
+    "Диплом мастера CyberPath": "CyberPath Master Diploma",
+    "Все курсы пройдены!": "All courses completed!",
+    "Вы освоили все": "You have mastered all",
+    "курсов направления. Скачайте именной диплом мастера.": "courses. Download your personal master diploma.",
+    "Скачать диплом": "Download diploma",
+    "Пройдите все курсы на 100%, чтобы получить именной диплом мастера.": "Complete every course to 100% to earn your personal master diploma.",
+    "Завершите все курсы, чтобы получить диплом": "Complete all courses to earn the diploma",
+    "Диплом мастера скачан": "Master diploma downloaded",
     "Инструмент": "Tool",
     "Симуляторы Blue Team": "Blue Team simulators",
     "Корпоративный сайт": "Corporate website",
