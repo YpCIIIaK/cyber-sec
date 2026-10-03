@@ -3203,7 +3203,7 @@ const App = (() => {
   async function renderLeaderboard(period) {
     period = period === "week" ? "week" : "all";
     const head = `${crumbs([["home", T("Главная")], [null, T("Рейтинг")]])}
-      <div class="page-title"><h1>${T("Рейтинг")}</h1><p>${T("Очки считаются на сервере по решённым заданиям курсов — с учётом подсказок и множителя серии.")}</p></div>
+      <div class="page-title"><h1>${T("Рейтинг")}</h1><p>${T("Очки считаются на сервере: задания курсов (с учётом подсказок и множителя серии), экзамены, боссфайты, миссии, инструменты, флаги, ежедневный вопрос и недельный ивент.")}</p></div>
       <div class="seg lb-tabs"><a class="seg-btn ${period === "all" ? "on" : ""}" href="#/leaderboard">${T("За всё время")}</a><a class="seg-btn ${period === "week" ? "on" : ""}" href="#/leaderboard/week">${T("За 7 дней")}</a></div>`;
     if (!window.Cloud || !Cloud.enabled) {
       root().innerHTML = `<section class="section">${head}${emptyState("🏆", T("Рейтинг скоро появится"), T("Аккаунты и общий рейтинг ещё не подключены. Ваш прогресс сохраняется на этом устройстве."))}</section>`;

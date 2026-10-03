@@ -47,6 +47,22 @@ create table if not exists public.solves (
 create index if not exists solves_user_time on public.solves (user_id, solved_at desc);
 create index if not exists solves_time on public.solves (solved_at desc);
 
+-- Разовые бонусы (экзамены, боссы, миссии, инструменты, флаги, ежедневный вопрос, недельный ивент).
+-- Стоимость задаёт база (bonus_catalog из catalog.sql), а не браузер.
+create table if not exists public.bonus_catalog (
+  key       text primary key,
+  xp        int  not null check (xp between 0 and 500),
+  course_id text
+);
+create table if not exists public.bonuses (
+  user_id   uuid not null references auth.users(id) on delete cascade,
+  key       text not null check (length(key) <= 64),
+  xp        int  not null check (xp between 0 and 500),
+  earned_at timestamptz not null default now(),
+  primary key (user_id, key)
+);
+create index if not exists bonuses_time on public.bonuses (earned_at desc);
+
 create table if not exists public.progress (
   user_id    uuid primary key references auth.users(id) on delete cascade,
   data       jsonb not null check (pg_column_size(data) < 262144),  -- < 256 КБ
@@ -66,18 +82,22 @@ alter table public.profiles       enable row level security;
 alter table public.solves         enable row level security;
 alter table public.progress       enable row level security;
 alter table public.reserved_nicks enable row level security;
+alter table public.bonus_catalog  enable row level security;
+alter table public.bonuses        enable row level security;
 
 drop policy if exists own_profile_read  on public.profiles;
 drop policy if exists own_solves_read   on public.solves;
 drop policy if exists own_progress_read on public.progress;
+drop policy if exists own_bonuses_read  on public.bonuses;
 create policy own_profile_read  on public.profiles for select to authenticated using (id = auth.uid());
 create policy own_solves_read   on public.solves   for select to authenticated using (user_id = auth.uid());
 create policy own_progress_read on public.progress for select to authenticated using (user_id = auth.uid());
+create policy own_bonuses_read  on public.bonuses  for select to authenticated using (user_id = auth.uid());
 
 -- Снимаем стандартные гранты Supabase и выдаём минимум
 revoke all on all tables    in schema public from anon, authenticated;
 revoke all on all sequences in schema public from anon, authenticated;
-grant select on public.profiles, public.solves, public.progress to authenticated;
+grant select on public.profiles, public.solves, public.progress, public.bonuses to authenticated;
 
 alter default privileges in schema public revoke all on tables    from anon, authenticated;
 alter default privileges in schema public revoke all on sequences from anon, authenticated;
@@ -169,7 +189,7 @@ language sql immutable as $$
 $$;
 
 -- Отправка решённых заданий. XP считает база по каталогу.
--- Лимиты: 12 в минуту, 120 в час, 300 в сутки; лишнее возвращается как deferred
+-- Лимиты: 30 в минуту, 300 в час, 400 в сутки; лишнее возвращается как deferred
 -- (клиент отправит позже). Вход: [{ "id": "task_id", "h": подсказок }], до 20 штук.
 create or replace function public.submit_solves(items jsonb) returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
@@ -192,7 +212,7 @@ begin
          count(*)
     into c_min, c_hour, c_day
     from solves where user_id = uid and solved_at > now() - interval '1 day';
-  budget := least(12 - c_min, 120 - c_hour, 300 - c_day);
+  budget := least(30 - c_min, 300 - c_hour, 400 - c_day);
   select count(*) into c_today from solves
    where user_id = uid and solved_at >= ((now() at time zone 'utc')::date)::timestamp at time zone 'utc';
   s_before := cp_streak_before(uid);
@@ -218,6 +238,58 @@ begin
   return jsonb_build_object('accepted', to_jsonb(acc), 'deferred', to_jsonb(def), 'rejected', to_jsonb(rej));
 end $$;
 
+-- Отправка разовых бонусов: ["exam:web", "boss:web", "mission:m_osint", "tool:pk_task",
+-- "flag:pcap", "daily:20364", "weekly:w2909"]. XP берётся из bonus_catalog.
+-- Проверки: экзамен — только если в базе решены все задания курса; босс — от 3 заданий курса;
+-- ежедневный — только за сегодня/вчера (UTC); недельный — только за текущую неделю.
+-- Лимиты: 10 в минуту, 40 в сутки. Ответ: accepted / deferred (лимит) / waiting (условие
+-- ещё не выполнено) / rejected (неизвестный ключ).
+create or replace function public.submit_bonuses(keys jsonb) returns jsonb
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  uid uuid := auth.uid();
+  c_min int; c_day int; budget int;
+  k text; bx int; bcourse text; n int;
+  d_today int := ((now() at time zone 'utc')::date - date '1970-01-01');
+  wk int;
+  acc text[] := '{}'; def text[] := '{}'; wait text[] := '{}'; rej text[] := '{}';
+begin
+  if uid is null then raise exception 'auth_required'; end if;
+  if not exists (select 1 from profiles where id = uid) then raise exception 'no_profile'; end if;
+  if keys is null or jsonb_typeof(keys) <> 'array' or jsonb_array_length(keys) > 20 then raise exception 'bad_input'; end if;
+  perform pg_advisory_xact_lock(hashtextextended(uid::text, 0));
+  wk := floor((d_today + 3) / 7.0)::int;
+  select count(*) filter (where earned_at > now() - interval '1 minute'), count(*)
+    into c_min, c_day from bonuses where user_id = uid and earned_at > now() - interval '1 day';
+  budget := least(10 - c_min, 40 - c_day);
+
+  for k in select value #>> '{}' from jsonb_array_elements(keys) loop
+    if k is null or length(k) > 64 then continue; end if;
+    if exists (select 1 from bonuses where user_id = uid and key = k) then acc := acc || k; continue; end if;
+    bx := null; bcourse := null;
+    if k ~ '^daily:[0-9]{1,6}$' then
+      if substring(k from 7)::int in (d_today, d_today - 1) then select xp into bx from bonus_catalog where key = 'daily'; end if;
+    elsif k ~ '^weekly:w[0-9]{1,6}$' then
+      if substring(k from 9)::int = wk then select xp into bx from bonus_catalog where key = 'weekly'; end if;
+    elsif k not in ('daily', 'weekly') then
+      select xp, course_id into bx, bcourse from bonus_catalog where key = k;
+    end if;
+    if bx is null then rej := rej || k; continue; end if;
+    if k like 'exam:%' then
+      select count(*) into n from task_catalog t
+       where t.course_id = bcourse and not exists (select 1 from solves s where s.user_id = uid and s.task_id = t.task_id);
+      if n > 0 then wait := wait || k; continue; end if;
+    elsif k like 'boss:%' then
+      select count(*) into n from solves s join task_catalog t using (task_id) where s.user_id = uid and t.course_id = bcourse;
+      if n < 3 then wait := wait || k; continue; end if;
+    end if;
+    if budget <= 0 then def := def || k; continue; end if;
+    insert into bonuses (user_id, key, xp) values (uid, k, bx) on conflict do nothing;
+    acc := acc || k; budget := budget - 1;
+  end loop;
+  return jsonb_build_object('accepted', to_jsonb(acc), 'deferred', to_jsonb(def), 'waiting', to_jsonb(wait), 'rejected', to_jsonb(rej));
+end $$;
+
 -- Резервная копия локального прогресса (для синхронизации между устройствами).
 -- На рейтинг НЕ влияет. Не чаще раза в 5 секунд.
 create or replace function public.save_progress(p_data jsonb) returns boolean
@@ -238,11 +310,15 @@ end $$;
 create or replace function public.leaderboard(p_period text default 'all', p_limit int default 50)
 returns table (place bigint, nick text, xp bigint, solved bigint, is_me boolean)
 language sql stable security definer set search_path = public, pg_temp as $$
-  with s as (
-    select user_id, sum(xp)::bigint as xp, count(*)::bigint as solved, max(solved_at) as last_at
-      from solves
+  with ev as (
+    select user_id, xp, solved_at as at, 1 as task from solves
      where p_period = 'all' or solved_at > now() - interval '7 days'
-     group by user_id
+    union all
+    select user_id, xp, earned_at, 0 from bonuses
+     where p_period = 'all' or earned_at > now() - interval '7 days'
+  ), s as (
+    select user_id, sum(xp)::bigint as xp, sum(task)::bigint as solved, max(at) as last_at
+      from ev group by user_id
   )
   select rank() over (order by s.xp desc) as place, p.nick::text, s.xp, s.solved,
          coalesce(p.id = auth.uid(), false) as is_me
@@ -256,11 +332,14 @@ $$;
 create or replace function public.my_place(p_period text default 'all')
 returns table (place bigint, xp bigint, solved bigint, total bigint)
 language sql stable security definer set search_path = public, pg_temp as $$
-  with s as (
-    select user_id, sum(xp)::bigint as xp, count(*)::bigint as solved
-      from solves
+  with ev as (
+    select user_id, xp, 1 as task from solves
      where p_period = 'all' or solved_at > now() - interval '7 days'
-     group by user_id
+    union all
+    select user_id, xp, 0 from bonuses
+     where p_period = 'all' or earned_at > now() - interval '7 days'
+  ), s as (
+    select user_id, sum(xp)::bigint as xp, sum(task)::bigint as solved from ev group by user_id
   ), v as (
     select s.*, rank() over (order by s.xp desc) as place
       from s join profiles p on p.id = s.user_id where not p.hidden
@@ -284,6 +363,7 @@ grant execute on function public.nick_available(text)        to anon, authentica
 grant execute on function public.leaderboard(text, int)      to anon, authenticated;
 grant execute on function public.claim_nick(text)            to authenticated;
 grant execute on function public.submit_solves(jsonb)        to authenticated;
+grant execute on function public.submit_bonuses(jsonb)       to authenticated;
 grant execute on function public.save_progress(jsonb)        to authenticated;
 grant execute on function public.my_place(text)              to authenticated;
 grant execute on function public.delete_my_account()         to authenticated;
@@ -292,7 +372,8 @@ grant execute on function public.delete_my_account()         to authenticated;
 -- Модерация (выполнять вручную в SQL Editor):
 --   скрыть из рейтинга:  update public.profiles set hidden = true  where nick = 'Nick';
 --   вернуть:             update public.profiles set hidden = false where nick = 'Nick';
---   обнулить очки:       delete from public.solves where user_id = (select id from public.profiles where nick = 'Nick');
+--   обнулить очки:       delete from public.solves  where user_id = (select id from public.profiles where nick = 'Nick');
+--                        delete from public.bonuses where user_id = (select id from public.profiles where nick = 'Nick');
 --   самые быстрые за час (кандидаты на проверку):
 --     select p.nick, count(*) from public.solves s join public.profiles p on p.id = s.user_id
 --      where s.solved_at > now() - interval '1 hour' group by p.nick order by 2 desc limit 20;

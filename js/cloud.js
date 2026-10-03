@@ -15,6 +15,8 @@ const Cloud = (() => {
   const st = { status: enabled ? "out" : "off", user: null, nick: null, pending: 0, error: null, syncing: false };
   const subs = new Set();
   let serverSolved = null;                 // Set id заданий, уже засчитанных базой
+  let serverBonuses = null;                // Set ключей бонусов, уже засчитанных базой
+  let waitingBonuses = new Set();          // условия ещё не выполнены (напр. экзамен до решения всех заданий)
   let flushTimer = null, pushTimer = null, retryTimer = null;
 
   function notify() { subs.forEach((f) => { try { f(st); } catch (e) {} }); }
@@ -70,7 +72,7 @@ const Cloud = (() => {
 
   function reset() {
     st.status = enabled ? "out" : "off"; st.user = null; st.nick = null; st.pending = 0;
-    serverSolved = null; flag(false);
+    serverSolved = null; serverBonuses = null; waitingBonuses = new Set(); flag(false);
     clearTimeout(flushTimer); clearTimeout(pushTimer); clearTimeout(retryTimer);
     notify();
   }
@@ -119,6 +121,8 @@ const Cloud = (() => {
       await pushProgress();
       const { data: solved } = await sb.from("solves").select("task_id");
       serverSolved = new Set((solved || []).map((r) => r.task_id));
+      const { data: bon } = await sb.from("bonuses").select("key");
+      serverBonuses = new Set((bon || []).map((r) => r.key));
       await flush();
     } catch (e) { st.error = "sync"; }
     st.syncing = false; notify();
@@ -135,22 +139,63 @@ const Cloud = (() => {
     return Object.keys(s.completed || {}).filter((id) => cat.has(id) && !serverSolved.has(id));
   }
 
-  // Отправка решённых заданий партиями; база сама считает XP и применяет лимиты
+  // Разовые бонусы из локального прогресса: ключи — как в bonus_catalog на сервере
+  function localBonuses() {
+    const s = Progress.getState(), out = [];
+    Object.entries(s.exams || {}).forEach(([cid, e]) => { if (e && e.passed) out.push("exam:" + cid); });
+    Object.entries(s.challenges || {}).forEach(([key, r]) => {
+      if (!r || !r.cleared) return;
+      if (key.startsWith("boss_")) out.push("boss:" + key.slice(5));
+      else if (/^w\d+$/.test(key)) out.push("weekly:" + key);
+    });
+    Object.keys(s.completed || {}).forEach((k) => { if (k.startsWith("mission_")) out.push("mission:" + k.slice(8)); });
+    Object.keys((s.stats && s.stats.bonus) || {}).forEach((k) => {
+      if (k.startsWith("flag_")) out.push("flag:" + k.slice(5));
+      else if (/_task$/.test(k)) out.push("tool:" + k);
+    });
+    if (s.dailyDate === new Date().toISOString().slice(0, 10)) out.push("daily:" + Math.floor(Date.parse(s.dailyDate) / 86400000));
+    return out;
+  }
+  function pendingBonuses() {
+    if (!serverBonuses) return [];
+    return localBonuses().filter((k) => !serverBonuses.has(k) && !waitingBonuses.has(k));
+  }
+  function updatePending() { st.pending = pendingSolves().length + pendingBonuses().length; notify(); }
+
+  // Отправка решённых заданий и бонусов партиями; база сама считает XP и применяет лимиты
+  let flushing = false;
   async function flush() {
-    if (st.status !== "in" || !serverSolved) return;
-    clearTimeout(retryTimer);
-    let queue = pendingSolves();
-    st.pending = queue.length; notify();
-    while (queue.length) {
-      const batch = queue.slice(0, 20).map((id) => ({ id, h: Progress.hintsFor(id) }));
-      const { data, error } = await sb.rpc("submit_solves", { items: batch });
-      if (error) { st.error = "sync"; break; }
-      (data.accepted || []).forEach((id) => serverSolved.add(id));
-      (data.rejected || []).forEach((id) => serverSolved.add(id)); // нет в каталоге — не повторяем
-      if ((data.deferred || []).length) { retryTimer = setTimeout(flush, 65000); break; } // лимит — позже
-      queue = pendingSolves();
-    }
-    st.pending = pendingSolves().length; notify();
+    if (st.status !== "in" || !serverSolved || flushing) return;
+    flushing = true; clearTimeout(retryTimer);
+    let limited = false;
+    try {
+      updatePending();
+      let queue = pendingSolves();
+      while (queue.length) {
+        const batch = queue.slice(0, 20).map((id) => ({ id, h: Progress.hintsFor(id) }));
+        const { data, error } = await sb.rpc("submit_solves", { items: batch });
+        if (error) { st.error = "sync"; break; }
+        (data.accepted || []).forEach((id) => serverSolved.add(id));
+        (data.rejected || []).forEach((id) => serverSolved.add(id)); // нет в каталоге — не повторяем
+        updatePending();
+        if ((data.deferred || []).length) { limited = true; break; }  // лимит — продолжим через минуту
+        queue = pendingSolves();
+      }
+      waitingBonuses = new Set();   // после новых заданий условия могли выполниться
+      let bq = pendingBonuses();
+      while (bq.length) {
+        const { data, error } = await sb.rpc("submit_bonuses", { keys: bq.slice(0, 20) });
+        if (error) { st.error = "sync"; break; }
+        (data.accepted || []).forEach((k) => serverBonuses.add(k));
+        (data.rejected || []).forEach((k) => serverBonuses.add(k));
+        (data.waiting || []).forEach((k) => waitingBonuses.add(k));
+        updatePending();
+        if ((data.deferred || []).length) { limited = true; break; }
+        bq = pendingBonuses();
+      }
+    } finally { flushing = false; }
+    if (limited) retryTimer = setTimeout(flush, 61000);
+    updatePending();
   }
 
   async function pushProgress() {
@@ -170,6 +215,8 @@ const Cloud = (() => {
   window.addEventListener("cp:saved", () => {
     if (st.status !== "in") return;
     clearTimeout(pushTimer); pushTimer = setTimeout(pushProgress, 10000);
+    // бонусы (экзамен, босс, флаг…) приходят без cp:solved — проверяем очередь чуть позже
+    clearTimeout(flushTimer); flushTimer = setTimeout(flush, 2000);
   });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden" && st.status === "in" && pushTimer) pushProgress();
