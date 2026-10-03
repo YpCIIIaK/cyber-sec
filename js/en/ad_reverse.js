@@ -81,6 +81,9 @@ CONTENT_EN.ad = {
       adr_spn: ["What Kerberoasting targets", "Which attribute on an account makes it a Kerberoasting target? (acronym, 3 letters)", ["Service Principal Name."], { answers: ["spn"] }],
       adr_flag: ["🚩 Flag in the sandbox", "Read the file Documents\\domain.txt in the sandbox and enter the flag."],
       adr_lab: ["Lab: Kerberoasting audit", "Find the service accounts vulnerable to Kerberoasting."],
+      adr_path: ["Path to Domain Admin", "An attacker controls an account in a group that is nested on the domain controller itself. What is the fastest route to Domain Admin?", ["The domain admin password was changed on that same DC — so a copy of the AD database is there."], { answers: ["Through the domain database backups (ntds.dit) on the controller"] }],
+      adr_ntds: ["The AD database file", "Which Active Directory database file yields hashes of every domain account when copied? (file name)", ["Lives in C:\\Windows\\NTDS on a domain controller."], { answers: ["ntds.dit", "ntds"] }],
+      adr_bh_lab: ["Lab: path to Domain Admin", "Assemble the shortest privilege chain in the graph and decide which action to take first."],
     },
   },
   ad_defense: {
@@ -203,6 +206,7 @@ CONTENT_EN.reverse = {
       res_b64: ["🚩 Decode the string", "A string Q1lCRVJ7cmV2X2VuZ19zdHJpbmdzfQ== was extracted from a binary — decode it (base64 -d in the sandbox) and enter the flag.", ["base64 -d Q1lCRVJ7cmV2X2VuZ19zdHJpbmdzfQ==", "Starts with CYBER{"]],
       res_rot: ["🚩 A shifted string", "The string PLORE{ebg13_qrpbqrq} is ROT13-encoded. Decode it (rot13 in the sandbox) and enter the result.", ["rot13 PLORE{ebg13_qrpbqrq}", "ROT13 is its own inverse."]],
       res_lab: ["Lab: extracting IOCs", "Mark the indicators of compromise in the strings output."],
+      res_pe_lab: ["Lab: static PE triage", "From headers, strings and imports: which file is packed, which technique is used and what comes next."],
     },
   },
   re_anti: {

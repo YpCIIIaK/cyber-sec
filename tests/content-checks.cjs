@@ -48,6 +48,10 @@ module.exports = function contentChecks(sandbox) {
     ok(String(t.prompt || "").trim().length > 0, `${id}: пустой prompt`);
     ok(Number.isFinite(t.points) && t.points > 0, `${id}: некорректный points (${t.points})`);
     ok(["info", "question", "choice", "flag", "lab", "match", "order"].includes(t.type), `${id}: неизвестный тип "${t.type}"`);
+    // Ловушка: options у question/flag — UI покажет поле ввода, а эталон будет
+    // целой фразой из варианта, и задание станет нерешаемым.
+    if (t.type === "question" || t.type === "flag") ok(!t.options, `${id}: у типа "${t.type}" есть options — проверка ответа сломается (нужен type "choice")`);
+    if (t.type === "info") ok(!t.options && !t.answers && !t.pairs && !t.items, `${id}: у info не должно быть полей проверки ответа`);
 
     /* 12. Чистота вариантов: UI вставляет options как innerHTML (теги сломают
           сравнение с эталоном), а answers — как текст поля ввода */

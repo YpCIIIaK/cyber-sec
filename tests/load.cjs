@@ -54,7 +54,7 @@ function loadAll(opts) {
   const sandbox = createSandbox();
   const enDir = path.join(root, "js", "en");
   const enFiles = fs.existsSync(enDir) ? fs.readdirSync(enDir).map((f) => "js/en/" + f) : [];
-  const files = ["js/data.js", "js/labs.js", "js/toolkit.js", "js/icons.js", "js/explanations.js", "js/i18n.js", ...enFiles];
+  const files = ["js/data.js", "js/labs.js", "js/labs_triage.js", "js/labs_ad.js", "js/labs_pe.js", "js/toolkit.js", "js/icons.js", "js/explanations.js", "js/i18n.js", ...enFiles];
   if (withTerminal) files.push("js/terminal.js");
   const combined =
     files.map(read).join("\n;\n") +

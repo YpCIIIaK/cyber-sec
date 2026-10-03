@@ -183,6 +183,10 @@
       wr_priv: ["My privileges", "Which flag of the whoami command shows the list of privileges? (with a slash)", ["whoami /...", "/priv"], { answers: ["/priv"] }],
       wr_schtasks: ["Scheduled tasks", "Which command shows scheduled tasks (a common persistence spot)? (one word)", ["sch + tasks"], { answers: ["schtasks"] }],
       wr_lab: ["Lab: Task Manager", "Find and end the malicious process in Task Manager."],
+      wr_tri: ["Process from Temp", "A process runs from C:\\Users\\…\\AppData\\Local\\Temp. What is wrong with it from a triage view? (one option)", null, { options: ["Nothing: updates work that way", "Suspicious: Temp is a temporary folder, autorun does not live there", "Fine if the binary is signed", "Fine if it belongs to the antivirus"] }],
+      wr_autorun: ["Autorun location", "Which registry branch adds autorun for the current user (HKCU)?", ["HKLM is machine-wide, HKCU is per user."], { answers: ["HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "hkey_current_user\\software\\microsoft\\windows\\currentversion\\run"] }],
+      wr_enc: ["Hidden command", "Why is «powershell -w hidden -enc SQBFAFgA» a suspicious sign in process lists and logs?", null, { options: ["It hides the window and passes the command in base64 — payloads are hidden this way", "It runs standard Windows updates", "It opens the built-in PowerShell help", "It enables BitLocker disk encryption"] }],
+      wr_triage_lab: ["Lab: triaging an infected host", "Run the triage scenario: gather context with commands, mark the findings and choose the first containment action."],
     },
   },
 };

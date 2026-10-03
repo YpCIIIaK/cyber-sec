@@ -10,6 +10,8 @@
     "validate": "node tests/validate.cjs",
     "autotest": "node tests/autotest.cjs",
     "check:why": "node tests/why-diff.cjs && node tests/missing-why.cjs",
+    "labs": "node tests/labs-smoke.cjs",
+    "coverage": "node tests/coverage.cjs",
     "dump": "node tests/dump.cjs",
     "inspect": "node tests/inspect.cjs",
     "sandbox": "node tests/sandbox-check.cjs",

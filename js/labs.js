@@ -792,6 +792,9 @@ const Labs = (() => {
     if (!def) { el.innerHTML = "<i>lab not found: " + esc(labId) + "</i>"; return; }
     try { def(el, onSolve); } catch (e) { el.innerHTML = "<i>lab error</i>"; }
   }
-  return { mount, has: (id) => !!DEFS[id] };
+  /* Регистрация лабораторий из внешних файлов (js/labs_*.js) —
+     чтобы не растить один гигантский labs.js */
+  function register(id, fn) { if (typeof fn === "function") DEFS[id] = fn; }
+  return { mount, has: (id) => !!DEFS[id], register };
 })();
 try { window.Labs = Labs; } catch (e) {}

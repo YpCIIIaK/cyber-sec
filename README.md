@@ -80,6 +80,8 @@ npm test          # validate + autotest (это и делает CI)
 npm run validate  # только целостность данных
 npm run autotest  # «решает» каждую задачу эталонным ответом
 npm run check:why # прогресс разборов ответов (RU vs EN)
+npm run labs      # smoke-тест лабораторий (монтирование + интерактив)
+npm run coverage  # таблица наполнения курсов: задания, лабы, XP, тонкие места
 npm run dump -- web   # выгрузить все задачи курса для вычитки
 ```
 
