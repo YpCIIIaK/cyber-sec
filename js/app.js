@@ -1184,7 +1184,8 @@ const App = (() => {
         <div class="cert-actions">
           <button class="btn btn-ghost btn-sm" onclick="App.go('exam',{courseId:'${course.id}'})">${Icon.ui("quest")} ${Progress.examPassed(course.id) ? T("Пересдать экзамен") : T("Сдать экзамен")}</button>
           <button class="btn btn-ghost btn-sm" onclick="App.go('boss',{courseId:'${course.id}'})">⚔️ ${T("Боссфайт")}</button>
-          <button class="btn btn-primary btn-sm" onclick="App.downloadCertificate('${course.id}')">${Icon.ui("progress")} ${T("Сертификат")}</button>
+          <button class="btn btn-primary btn-sm" onclick="App.downloadCertificate('${course.id}','pdf')">${Icon.ui("progress")} ${T("Сертификат")} PDF</button>
+          <button class="btn btn-ghost btn-sm" onclick="App.downloadCertificate('${course.id}','png')">PNG</button>
         </div>
       </div>`;
   }
@@ -1401,6 +1402,51 @@ const App = (() => {
   }
 
   // Скачать сертификат курса как PNG
+  // Canvas → одностраничный PDF (встраиваем JPEG, без внешних библиотек)
+  function canvasToPdfBlob(cv) {
+    const jpeg = cv.toDataURL("image/jpeg", 0.92).split(",")[1];
+    const bin = atob(jpeg); // бинарная строка JPEG (по байту на символ)
+    const pw = 842, ph = Math.round(pw * (cv.height / cv.width)); // A4-landscape по ширине
+    const parts = [];
+    const offsets = [];
+    let len = 0;
+    const push = (s) => { parts.push(s); len += s.length; };
+    const obj = (n, body) => { offsets[n] = len; push(n + " 0 obj\n" + body + "\nendobj\n"); };
+    push("%PDF-1.3\n%\xFF\xFF\xFF\xFF\n");
+    obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
+    obj(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+    obj(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + pw + " " + ph + "] /Resources << /XObject << /Im0 5 0 R >> >> /Contents 4 0 R >>");
+    const content = "q\n" + pw + " 0 0 " + ph + " 0 0 cm\n/Im0 Do\nQ\n";
+    obj(4, "<< /Length " + content.length + " >>\nstream\n" + content + "endstream");
+    // объект изображения с бинарным потоком
+    offsets[5] = len;
+    push("5 0 obj\n<< /Type /XObject /Subtype /Image /Width " + cv.width + " /Height " + cv.height +
+      " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " + bin.length + " >>\nstream\n");
+    push(bin);
+    push("\nendstream\nendobj\n");
+    const xrefStart = len;
+    let xref = "xref\n0 6\n0000000000 65535 f \n";
+    for (let i = 1; i <= 5; i++) xref += String(offsets[i]).padStart(10, "0") + " 00000 n \n";
+    push(xref);
+    push("trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n" + xrefStart + "\n%%EOF");
+    const bytes = new Uint8Array(len);
+    let p = 0;
+    for (const s of parts) { for (let i = 0; i < s.length; i++) bytes[p++] = s.charCodeAt(i) & 0xff; }
+    return new Blob([bytes], { type: "application/pdf" });
+  }
+  function saveCanvas(cv, baseName, fmt) {
+    const a = document.createElement("a");
+    if (fmt === "pdf") {
+      const blob = canvasToPdfBlob(cv);
+      a.href = URL.createObjectURL(blob); a.download = baseName + ".pdf";
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 200);
+    } else {
+      a.href = cv.toDataURL("image/png"); a.download = baseName + ".png";
+      document.body.appendChild(a); a.click(); a.remove();
+    }
+  }
+
   // Стабильный серийный номер сертификата из строки-семени (детерминированный)
   function certSerial(seed) {
     let h = 2166136261;
@@ -1409,7 +1455,7 @@ const App = (() => {
   }
 
   // Капстоун-сертификат: выдаётся при 100% по всем курсам
-  function downloadMasterCertificate() {
+  function downloadMasterCertificate(fmt) {
     const s = Progress.overallStats();
     if (s.coursesDone < s.coursesTotal) { toast(T("Завершите все курсы, чтобы получить диплом")); return; }
     const W = 1240, H = 877, scale = 2;
@@ -1486,14 +1532,11 @@ const App = (() => {
     g.font = "500 17px Inter, sans-serif";
     g.fillText(L("cyberpath · учись этично, применяй ответственно", "cyberpath · learn ethically, apply responsibly"), cx, 812);
 
-    const a = document.createElement("a");
-    a.href = cv.toDataURL("image/png");
-    a.download = "CyberPath-master-diploma.png";
-    document.body.appendChild(a); a.click(); a.remove();
+    saveCanvas(cv, "CyberPath-master-diploma", fmt);
     toast(T("Диплом мастера скачан"));
   }
 
-  function downloadCertificate(courseId) {
+  function downloadCertificate(courseId, fmt) {
     const course = COURSES.find((c) => c.id === courseId);
     if (!course) return;
     const W = 1200, H = 848, scale = 2;
@@ -1557,10 +1600,7 @@ const App = (() => {
     g.font = "500 17px Inter, sans-serif";
     g.fillText(L("cyberpath · учись этично, применяй ответственно", "cyberpath · learn ethically, apply responsibly"), cx, 784);
 
-    const a = document.createElement("a");
-    a.href = cv.toDataURL("image/png");
-    a.download = `CyberPath-${course.id}-certificate.png`;
-    document.body.appendChild(a); a.click(); a.remove();
+    saveCanvas(cv, "CyberPath-" + course.id + "-certificate", fmt);
     toast(T("Сертификат скачан"));
   }
   function wrapText(ctx, text, x, y, maxW, lh) {
@@ -3165,7 +3205,7 @@ const App = (() => {
             <h2>${T("Все курсы пройдены!")}</h2>
             <p>${T("Вы освоили все")} ${total} ${T("курсов направления. Скачайте именной диплом мастера.")}</p>
           </div>
-          <button class="btn btn-primary" onclick="App.downloadMasterCertificate()">${Icon.ui("progress")} ${T("Скачать диплом")}</button>
+          <div class="cap-dl"><button class="btn btn-primary" onclick="App.downloadMasterCertificate('pdf')">${Icon.ui("progress")} ${T("Скачать диплом")} PDF</button><button class="btn btn-ghost" onclick="App.downloadMasterCertificate('png')">PNG</button></div>
         </div>`;
     }
     return `

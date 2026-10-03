@@ -1886,3 +1886,7 @@ button.nav-xp:hover { border-color: var(--o-200); }
 .pm-chip.full { border-color: color-mix(in srgb, var(--ok) 35%, var(--line)); background: var(--ok-bg); }
 .pm-chip.full b { color: var(--ok); }
 @media (max-width: 640px) { .pm-sub { text-align: left; } .pm-seg { grid-template-columns: repeat(2, 1fr); } }
+
+/* группа кнопок скачивания диплома */
+.cap-dl { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 560px) { .cap-dl { width: 100%; } .cap-dl .btn { flex: 1; } }
