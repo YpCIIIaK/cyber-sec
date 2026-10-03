@@ -541,6 +541,7 @@ const I18N = (() => {
     "— учись этично, применяй ответственно.": "— learn ethically, apply responsibly.",
     "Все материалы носят образовательный характер. Тестируйте только свои системы или площадки с разрешением. Прогресс хранится локально в вашем браузере.": "All materials are for education. Test only your own systems or platforms you have permission for. Progress is stored locally in your browser.",
     "Язык / Language": "Language / Язык",
+    "Прогресс хранится в этом браузере. Чтобы перенести его на другое устройство, войдите в аккаунт — он синхронизируется автоматически.": "Progress is stored in this browser. To move it to another device, sign in — it syncs automatically.",
     "День засчитан в серию": "Day added to your streak",
     "множитель": "multiplier",
     "до конца дня": "until the end of the day",

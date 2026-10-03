@@ -3874,13 +3874,10 @@ const App = (() => {
         <div class="data-zone card">
           <div>
             <h3>${T("Перенос прогресса")}</h3>
-            <p>${T("Прогресс хранится локально в этом браузере. Скачайте файл, чтобы перенести его на другое устройство или сделать резервную копию.")}</p>
+            <p>${T("Прогресс хранится в этом браузере. Чтобы перенести его на другое устройство, войдите в аккаунт — он синхронизируется автоматически.")}</p>
           </div>
           ${accountCard()}
           <div class="data-actions">
-            <button class="btn btn-ghost" onclick="App.exportProgress()">${Icon.ui("progress")} ${T("Скачать прогресс")}</button>
-            <button class="btn btn-ghost" onclick="document.getElementById('import-file').click()">${Icon.ui("book")} ${T("Загрузить из файла")}</button>
-            <input id="import-file" type="file" accept="application/json,.json" hidden onchange="App.importProgress(this.files[0])">
             <button class="btn btn-ghost" onclick="App.startOnboard()">${Icon.ui("quest")} ${T("Пройти тур заново")}</button>
             <button class="btn btn-ghost" onclick="App.startPlacement()">🧭 ${Progress.placement() ? T("Пройти тест уровня заново") : T("Тест уровня")}</button>
             <button class="btn btn-ghost" onclick="App.toggleSound()">${Icon.ui(soundOn() ? "bolt" : "lock")} ${soundOn() ? T("Звук наград: вкл") : T("Звук наград: выкл")}</button>
@@ -4445,7 +4442,7 @@ const App = (() => {
   return {
     init, go, submit, markInfo, showHint, toast, toastAchievement, resetConfirm, toggleTheme,
     toggleUserMenu, closeUserMenu, startOnboard, nextOnboard, endOnboard, toggleSound,
-    catalogSearch, catalogLevel, catalogSort, downloadCertificate, downloadMasterCertificate, exportProgress, importProgress,
+    catalogSearch, catalogLevel, catalogSort, downloadCertificate, downloadMasterCertificate,
     submitChoice, submitMatch, orderPick, orderReset, submitDaily,
     submitMission, toggleShell, openShortcuts, closeShortcuts,
     glossarySearch, glossaryClear, placeAnswer, placeFinish, placeSkip, openAccount, closeAccount, accSetTab, accOAuth, accLink, accSubmit, accSignOut, accDelete, nickSubmit, nickCancel, placeRetry, startPlacement, catalogReset, submitExam, retryExam, openPalette, palettePick, installApp,
