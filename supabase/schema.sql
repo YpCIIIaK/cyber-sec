@@ -86,6 +86,27 @@ alter table public.profiles add column if not exists av_bg       smallint not nu
 alter table public.profiles add column if not exists av_ring     text     not null default 'tier'
   check (av_ring in ('tier','orange','blue','green','purple','pink','mono'));
 alter table public.profiles add column if not exists settings_at timestamptz;
+-- Оформление карточки профиля: тема фона (часть открывается с уровнем) и акцентный цвет
+alter table public.profiles add column if not exists card_theme  smallint not null default 0;
+alter table public.profiles add column if not exists accent      text     not null default 'tier';
+-- Диапазоны расширены (больше аватаров и фонов) — пересоздаём ограничения
+alter table public.profiles drop constraint if exists profiles_av_check;
+alter table public.profiles add  constraint profiles_av_check check (av between 0 and 39);
+alter table public.profiles drop constraint if exists profiles_av_bg_check;
+alter table public.profiles add  constraint profiles_av_bg_check check (av_bg between 0 and 15);
+alter table public.profiles drop constraint if exists profiles_card_theme_check;
+alter table public.profiles add  constraint profiles_card_theme_check check (card_theme between 0 and 15);
+alter table public.profiles drop constraint if exists profiles_accent_check;
+alter table public.profiles add  constraint profiles_accent_check
+  check (accent in ('tier','orange','blue','green','purple','pink','red','teal','gold'));
+
+-- С какого уровня доступна тема карточки (совпадает с CARD_THEMES в js/app.js)
+create or replace function public.cp_theme_min(p_theme int) returns int
+language sql immutable as $$
+  select case p_theme when 0 then 1 when 1 then 1 when 2 then 1 when 3 then 3 when 4 then 3
+                      when 5 then 5 when 6 then 8 when 7 then 10 when 8 then 12 when 9 then 15
+                      when 10 then 18 when 11 then 25 else 999 end
+$$;
 
 -- Автомодерация: запрещённые корни (в нормализованном виде, латиницей).
 -- mode = 'sub' — запрещено где угодно в нике; 'exact' — только целым словом (между _ ),
@@ -384,7 +405,8 @@ end $$;
 drop function if exists public.leaderboard(text, int);
 create function public.leaderboard(p_period text default 'all', p_limit int default 50)
 returns table (place bigint, nick text, xp bigint, solved bigint, is_me boolean,
-               anonymous boolean, is_public boolean, av smallint, av_bg smallint, av_ring text)
+               anonymous boolean, is_public boolean, av smallint, av_bg smallint, av_ring text,
+               card_theme smallint, accent text)
 language sql stable security definer set search_path = public, pg_temp as $$
   with ev as (
     select user_id, xp, solved_at as at, 1 as task from solves
@@ -404,7 +426,9 @@ language sql stable security definer set search_path = public, pg_temp as $$
          p.is_public and not p.anonymous,
          case when p.anonymous and p.id is distinct from auth.uid() then 0::smallint else p.av end,
          case when p.anonymous and p.id is distinct from auth.uid() then 6::smallint else p.av_bg end,
-         case when p.anonymous and p.id is distinct from auth.uid() then 'mono' else p.av_ring end
+         case when p.anonymous and p.id is distinct from auth.uid() then 'mono' else p.av_ring end,
+         case when p.anonymous and p.id is distinct from auth.uid() then 0::smallint else p.card_theme end,
+         case when p.anonymous and p.id is distinct from auth.uid() then 'tier' else p.accent end
     from s join profiles p on p.id = s.user_id
    where not p.hidden
    order by s.xp desc, s.last_at asc
@@ -431,23 +455,30 @@ language sql stable security definer set search_path = public, pg_temp as $$
     from v where v.user_id = auth.uid()
 $$;
 
--- Настройки профиля: публичность, анонимность в рейтинге, аватар из набора. Не чаще раза в 2 с.
+-- Настройки профиля: публичность, анонимность, аватар из набора, тема карточки и акцент.
+-- Тема проверяется по уровню, посчитанному сервером. Не чаще раза в 2 с.
+drop function if exists public.set_profile_settings(boolean, boolean, int, int, text);
 create or replace function public.set_profile_settings(p_public boolean, p_anonymous boolean,
-                                                       p_av int, p_av_bg int, p_av_ring text)
+                                                       p_av int, p_av_bg int, p_av_ring text,
+                                                       p_theme int default null, p_accent text default null)
 returns boolean
 language plpgsql security definer set search_path = public, pg_temp as $$
-declare uid uuid := auth.uid(); last timestamptz;
+declare uid uuid := auth.uid(); last timestamptz; lvl int;
 begin
   if uid is null then raise exception 'auth_required'; end if;
   select settings_at into last from profiles where id = uid;
   if not found then raise exception 'no_profile'; end if;
   if last is not null and last > now() - interval '2 seconds' then return false; end if;
+  select floor(coalesce(sum(xp), 0) / 100)::int + 1 into lvl from (
+    select xp from solves where user_id = uid union all select xp from bonuses where user_id = uid) x;
   update profiles set
     is_public   = coalesce(p_public, is_public),
     anonymous   = coalesce(p_anonymous, anonymous),
-    av          = case when p_av between 0 and 19 then p_av else av end,
-    av_bg       = case when p_av_bg between 0 and 7 then p_av_bg else av_bg end,
+    av          = case when p_av between 0 and 39 then p_av else av end,
+    av_bg       = case when p_av_bg between 0 and 15 then p_av_bg else av_bg end,
     av_ring     = case when p_av_ring in ('tier','orange','blue','green','purple','pink','mono') then p_av_ring else av_ring end,
+    card_theme  = case when p_theme between 0 and 15 and cp_theme_min(p_theme) <= lvl then p_theme else card_theme end,
+    accent      = case when p_accent in ('tier','orange','blue','green','purple','pink','red','teal','gold') then p_accent else accent end,
     settings_at = now()
   where id = uid;
   return true;
@@ -483,7 +514,7 @@ begin
   res := jsonb_build_object(
     'found', true, 'private', false, 'me', coalesce(me, false),
     'nick', p.nick::text, 'is_public', p.is_public, 'anonymous', p.anonymous,
-    'av', p.av, 'av_bg', p.av_bg, 'av_ring', p.av_ring,
+    'av', p.av, 'av_bg', p.av_bg, 'av_ring', p.av_ring, 'card_theme', p.card_theme, 'accent', p.accent,
     'joined', p.created_at, 'xp', t_xp + b_xp, 'solved', t_n, 'place', place,
     'streak', cp_streak_before(p.id) + case when c_today >= 3 then 1 else 0 end,
     'courses', coalesce((
@@ -522,7 +553,7 @@ revoke execute on all functions in schema public from public, anon, authenticate
 grant execute on function public.nick_available(text)        to anon, authenticated;
 grant execute on function public.nick_check(text)            to anon, authenticated;
 grant execute on function public.public_profile(text)        to anon, authenticated;
-grant execute on function public.set_profile_settings(boolean, boolean, int, int, text) to authenticated;
+grant execute on function public.set_profile_settings(boolean, boolean, int, int, text, int, text) to authenticated;
 grant execute on function public.leaderboard(text, int)      to anon, authenticated;
 grant execute on function public.claim_nick(text)            to authenticated;
 grant execute on function public.submit_solves(jsonb)        to authenticated;

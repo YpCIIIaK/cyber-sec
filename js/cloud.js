@@ -79,9 +79,9 @@ const Cloud = (() => {
 
   async function afterLogin(user) {
     st.user = user; st.error = null; flag(true);
-    const { data: prof } = await sb.from("profiles").select("nick,is_public,anonymous,av,av_bg,av_ring").eq("id", user.id).maybeSingle();
+    const { data: prof } = await sb.from("profiles").select("nick,is_public,anonymous,av,av_bg,av_ring,card_theme,accent").eq("id", user.id).maybeSingle();
     st.nick = prof ? prof.nick : null;
-    st.settings = prof ? { is_public: prof.is_public, anonymous: prof.anonymous, av: prof.av, av_bg: prof.av_bg, av_ring: prof.av_ring } : null;
+    st.settings = prof ? { is_public: prof.is_public, anonymous: prof.anonymous, av: prof.av, av_bg: prof.av_bg, av_ring: prof.av_ring, card_theme: prof.card_theme, accent: prof.accent } : null;
     st.status = st.nick ? "in" : "needNick";
     notify();
     if (st.nick) await initialSync();
@@ -233,6 +233,7 @@ const Cloud = (() => {
     const cur = Object.assign({}, st.settings || {}, patch || {});
     const { data, error } = await sb.rpc("set_profile_settings", {
       p_public: cur.is_public, p_anonymous: cur.anonymous, p_av: cur.av, p_av_bg: cur.av_bg, p_av_ring: cur.av_ring,
+      p_theme: cur.card_theme, p_accent: cur.accent,
     });
     if (error) throw error;
     if (data === false) { await new Promise((r) => setTimeout(r, 2100)); return setSettings(patch); }
@@ -242,7 +243,7 @@ const Cloud = (() => {
   async function syncAvatar() {
     if (st.status !== "in" || !st.settings || !window.App || !App.avatarSpec) return;
     const a = App.avatarSpec(), c = st.settings;
-    if (a.av === c.av && a.av_bg === c.av_bg && a.av_ring === c.av_ring) return;
+    if (a.av === c.av && a.av_bg === c.av_bg && a.av_ring === c.av_ring && a.card_theme === c.card_theme && a.accent === c.accent) return;
     await setSettings(a).catch(() => {});
   }
   async function publicProfile(nick) {

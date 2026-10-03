@@ -236,7 +236,7 @@ const Progress = (() => {
   }
 
   /* ---------- Профиль пользователя (ник, аватар, статус, витрина) ---------- */
-  const PROFILE_DEFAULT = { nick: "", avatar: { kind: "preset", value: "🦊" }, bg: 0, bio: "", ring: "tier", showcase: [] };
+  const PROFILE_DEFAULT = { nick: "", avatar: { kind: "preset", value: "🦊" }, bg: 0, bio: "", ring: "tier", showcase: [], theme: 0, accent: "tier" };
   function profile() { state.profile = Object.assign({}, PROFILE_DEFAULT, state.profile || {}); return state.profile; }
   function setProfile(patch) {
     const pr = profile();
@@ -3321,7 +3321,8 @@ const App = (() => {
   function avatarSpec() {
     const pr = Progress.profile();
     const i = pr.avatar && pr.avatar.kind !== "upload" ? AVATAR_PRESETS.indexOf(pr.avatar.value) : -1;
-    return { av: i >= 0 ? i : 0, av_bg: (Number(pr.bg) || 0) % AVATAR_BGS.length, av_ring: RING_COLORS.hasOwnProperty(pr.ring) ? pr.ring : "tier" };
+    return { av: i >= 0 ? i : 0, av_bg: (Number(pr.bg) || 0) % AVATAR_BGS.length, av_ring: RING_COLORS.hasOwnProperty(pr.ring) ? pr.ring : "tier",
+      card_theme: Math.max(0, Math.min(CARD_THEMES.length - 1, Number(pr.theme) || 0)), accent: ACCENTS.hasOwnProperty(pr.accent) ? pr.accent : "tier" };
   }
 
   async function renderPublicProfile(nick) {
@@ -3350,7 +3351,7 @@ const App = (() => {
     root().innerHTML = `
       <section class="section pub-profile">
         ${head}
-        <div class="player-card tier-${rk.tier}">
+        <div class="player-card tier-${rk.tier}${cardDeco(d.card_theme, d.accent).cls}"${cardDeco(d.card_theme, d.accent).style}>
           <div class="pc-glow"></div>
           <div class="pc-left">${avatarHTML(104, serverAvatar(d))}<span class="pc-tier">${T(TIER_NAMES[rk.tier])}</span></div>
           <div class="pc-main">
@@ -3407,7 +3408,25 @@ const App = (() => {
     if (current.view !== "leaderboard" || current.period !== period) return;
     const cs = Cloud.state;
     const medal = (n) => (n === 1 ? "🥇" : n === 2 ? "🥈" : n === 3 ? "🥉" : n);
-    const rows = res.rows.map((r) => {
+    // Подиум: тройка лидеров (порядок 2-1-3), карточки в оформлении каждого участника
+    const podium = res.rows.slice(0, 3).map((r, i) => {
+      const lvl = Math.floor(Number(r.xp) / 100) + 1, rk = rankForLevel(lvl), dc = cardDeco(r.card_theme, r.accent);
+      const anon = !r.nick;
+      const name = anon ? `🕶️ ${T("Аноним")}` : escapeHtml(String(r.nick));
+      const who = !anon && r.is_public ? `<a class="lb-link" href="#/u/${encodeURIComponent(r.nick)}">${name}</a>` : `<span>${name}</span>`;
+      return `<div class="pod pod-${i + 1}${r.is_me ? " me" : ""}">
+        <div class="pod-card player-card tier-${rk.tier}${dc.cls}"${dc.style}>
+          <span class="pod-medal">${["🥇", "🥈", "🥉"][i]}</span>
+          ${avatarHTML(i === 0 ? 84 : 66, serverAvatar(r))}
+          <div class="pod-name">${who}${r.is_me ? ` <em class="pod-you">${T("вы")}</em>` : ""}</div>
+          <div class="pod-rank">${rankBadge(rk, 20)} ${rk.name} · LVL ${lvl}</div>
+          <div class="pod-xp">${Number(r.xp)} XP</div>
+        </div>
+        <div class="pod-step"><span>${Number(r.place)}</span></div>
+      </div>`;
+    });
+    const podiumHtml = podium.length ? `<div class="podium">${[podium[1], podium[0], podium[2]].filter(Boolean).join("")}</div>` : "";
+    const rows = res.rows.slice(3).map((r) => {
       const lvl = Math.floor(Number(r.xp) / 100) + 1, rk = rankForLevel(lvl);
       const anon = !r.nick;
       const name = anon ? `🕶️ ${T("Анонимный участник")}` : escapeHtml(String(r.nick));
@@ -3423,8 +3442,10 @@ const App = (() => {
       ? `<div class="lb-me">${T("Войдите, чтобы попасть в рейтинг.")} <button class="btn btn-primary btn-sm" onclick="App.openAccount()">${T("Войти")}</button></div>`
       : me ? `<div class="lb-me">${T("Ваше место")}: <b>${Number(me.place)}</b> ${T("из")} ${Number(me.total)} · ${Number(me.xp)} XP${cs.pending ? ` · ${T("ещё в очереди")}: ${cs.pending}` : ""}</div>`
       : `<div class="lb-me">${T("Решите задание, чтобы появиться в рейтинге.")}${cs.pending ? ` ${T("В очереди на отправку")}: ${cs.pending}` : ""}</div>`;
-    root().querySelector(".lb-card").innerHTML = res.rows.length
-      ? `${meLine}<table class="lb-table"><thead><tr><th>#</th><th>${T("Ник")}</th><th>${T("Очки")}</th><th>${T("Заданий")}</th></tr></thead><tbody>${rows}</tbody></table>`
+    const card = root().querySelector(".lb-card");
+    if (podiumHtml) card.insertAdjacentHTML("beforebegin", podiumHtml);
+    card.innerHTML = res.rows.length
+      ? `${meLine}${rows ? `<table class="lb-table"><thead><tr><th>#</th><th>${T("Ник")}</th><th>${T("Очки")}</th><th>${T("Заданий")}</th></tr></thead><tbody>${rows}</tbody></table>` : ""}`
       : `${meLine}${emptyState("🏁", T("Пока никого нет"), T("Станьте первым в рейтинге!"))}`;
   }
 
@@ -3707,11 +3728,36 @@ const App = (() => {
   }
 
   /* ---------- Аватар и редактор профиля ---------- */
-  const AVATAR_PRESETS = ["🦊", "🐺", "🦉", "🐱", "🐼", "🐧", "🤖", "👾", "🧠", "🛡️", "🕵️", "🧑‍💻", "🐉", "🦅", "🐍", "⚡", "🔥", "🌌", "🎯", "🗝️"];
+  // Порядок важен: на сервере хранится индекс. Новые — только в конец (до 40).
+  const AVATAR_PRESETS = ["🦊", "🐺", "🦉", "🐱", "🐼", "🐧", "🤖", "👾", "🧠", "🛡️", "🕵️", "🧑‍💻", "🐉", "🦅", "🐍", "⚡", "🔥", "🌌", "🎯", "🗝️",
+    "🦁", "🐯", "🦈", "🐙", "🦄", "🦖", "🦂", "🕷️", "👻", "💀", "🥷", "🧙", "🧛", "👽", "🚀", "🛰️"];
   const AVATAR_BGS = [
     ["#ff8c47", "#db5300"], ["#60a5fa", "#1d4ed8"], ["#34d399", "#047857"], ["#c084fc", "#6d28d9"],
     ["#f472b6", "#be185d"], ["#fbbf24", "#b45309"], ["#94a3b8", "#334155"], ["#2dd4bf", "#0f766e"],
+    ["#f87171", "#991b1b"], ["#a3e635", "#3f6212"], ["#1f2937", "#030712"], ["#fde68a", "#f472b6"],
   ];
+  // Темы фона карточки профиля (индекс хранится на сервере; min — с какого уровня, как cp_theme_min в schema.sql)
+  const CARD_THEMES = [
+    { key: "tier",      ru: "По званию", min: 1 },
+    { key: "sunset",    ru: "Закат",     min: 1 },
+    { key: "ocean",     ru: "Океан",     min: 1 },
+    { key: "forest",    ru: "Лес",       min: 3 },
+    { key: "paper",     ru: "Бумага",    min: 3 },
+    { key: "midnight",  ru: "Полночь",   min: 5 },
+    { key: "matrix",    ru: "Матрица",   min: 8 },
+    { key: "blueprint", ru: "Чертёж",    min: 10 },
+    { key: "neon",      ru: "Неон",      min: 12 },
+    { key: "aurora",    ru: "Сияние",    min: 15 },
+    { key: "carbon",    ru: "Карбон",    min: 18 },
+    { key: "royal",     ru: "Королевская", min: 25 },
+  ];
+  const ACCENTS = { tier: null, orange: ["#ffb182", "#db5300"], blue: ["#93c5fd", "#1d4ed8"], green: ["#86efac", "#15803d"],
+    purple: ["#d8b4fe", "#7e22ce"], pink: ["#f9a8d4", "#be185d"], red: ["#fca5a5", "#b91c1c"], teal: ["#5eead4", "#0f766e"], gold: ["#fde68a", "#b45309"] };
+  // Класс и стиль карточки по теме и акценту
+  function cardDeco(theme, accent) {
+    const th = CARD_THEMES[theme] || CARD_THEMES[0], ac = ACCENTS[accent];
+    return { cls: th.key === "tier" ? "" : " th-" + th.key, style: ac ? ` style="--tier-a:${ac[0]};--tier-b:${ac[1]}"` : "" };
+  }
   const RING_COLORS = { tier: null, orange: "#f2620a", blue: "#2563eb", green: "#16a34a", purple: "#7c3aed", pink: "#db2777", mono: "#6b7280" };
   function displayName() {
     if (window.Cloud && Cloud.state.status === "in" && Cloud.state.nick) return Cloud.state.nick;
@@ -3755,6 +3801,16 @@ const App = (() => {
         </div>
         <div class="prof-f"><span>${T("Обводка")}</span>
           <div class="swatches">${Object.entries(RING_COLORS).map(([k, c]) => `<button class="sw ring-sw" data-ring="${k}" style="${c ? `background:${c}` : ""}" title="${k === "tier" ? T("По лиге звания") : k}" onclick="App.profDraftSet('ring','${k}')">${k === "tier" ? "🏅" : ""}</button>`).join("")}</div>
+        </div>
+        <div class="prof-f"><span>${T("Фон карточки")} <small>(${T("новые темы открываются с уровнем")})</small></span>
+          <div class="theme-grid">${CARD_THEMES.map((th, i) => {
+            const locked = Progress.level() < th.min;
+            return `<button class="theme-opt th-${th.key}" data-theme="${i}" ${locked ? "disabled" : ""} onclick="App.profDraftSet('theme', ${i})" title="${escapeAttr(T(th.ru))}${locked ? " · LVL " + th.min : ""}">
+              <span class="to-sw"></span><span class="to-name">${locked ? "🔒 LVL " + th.min : T(th.ru)}</span></button>`;
+          }).join("")}</div>
+        </div>
+        <div class="prof-f"><span>${T("Акцентный цвет карточки")}</span>
+          <div class="swatches">${Object.entries(ACCENTS).map(([k, c]) => `<button class="sw ac-sw" data-accent="${k}" style="${c ? `background:linear-gradient(135deg,${c[0]},${c[1]})` : ""}" title="${k === "tier" ? T("По лиге звания") : k}" onclick="App.profDraftSet('accent','${k}')">${k === "tier" ? "🏅" : ""}</button>`).join("")}</div>
         </div>
         <div class="prof-f"><span>${T("Витрина достижений")} <small>(${T("до 3")})</small></span>
           <div class="showcase-pick">${ACHIEVEMENTS.filter((a) => Progress.hasAchievement(a.id)).map((a) => `<button class="sc-opt" data-id="${a.id}" title="${escapeAttr(a.title)}" onclick="App.profToggleShowcase('${a.id}')">${a.icon}</button>`).join("") || `<span class="muted">${T("Получите первые достижения — их можно будет показать здесь.")}</span>`}</div>
@@ -3823,13 +3879,17 @@ const App = (() => {
   function profRefresh() {
     const pv = document.getElementById("prof-preview"); if (!pv) return;
     const s = Progress.overallStats();
-    pv.className = "prof-preview tier-" + s.rank.tier;
+    const dc = cardDeco(profDraft.theme, profDraft.accent);
+    pv.className = "prof-preview player-card tier-" + s.rank.tier + dc.cls;
+    const acc = ACCENTS[profDraft.accent]; pv.style.cssText = acc ? `--tier-a:${acc[0]};--tier-b:${acc[1]}` : "";
     pv.innerHTML = `${avatarHTML(72, profDraft)}<div><b>${escapeHtml(profDraft.nick || T("Оператор CyberPath"))}</b>
       <span>${s.rank.icon} ${s.rank.name} · LVL ${s.level}</span>${profDraft.bio ? `<em>${escapeHtml(profDraft.bio)}</em>` : ""}
       <span class="pv-sc">${(profDraft.showcase || []).map((id) => (ACHIEVEMENTS.find((a) => a.id === id) || {}).icon || "").join(" ")}</span></div>`;
     document.querySelectorAll(".sw[data-bg]").forEach((b) => b.classList.toggle("on", +b.dataset.bg === +profDraft.bg));
     document.querySelectorAll(".sw[data-ring]").forEach((b) => b.classList.toggle("on", b.dataset.ring === profDraft.ring));
     document.querySelectorAll(".sc-opt").forEach((b) => b.classList.toggle("on", (profDraft.showcase || []).includes(b.dataset.id)));
+    document.querySelectorAll(".theme-opt").forEach((b) => b.classList.toggle("on", +b.dataset.theme === +(profDraft.theme || 0)));
+    document.querySelectorAll(".sw[data-accent]").forEach((b) => b.classList.toggle("on", b.dataset.accent === (profDraft.accent || "tier")));
   }
   function saveProfile() {
     Progress.setProfile(profDraft);
@@ -3846,7 +3906,7 @@ const App = (() => {
     const rankPct = next ? Math.round(((s.level - prevMin) + s.xpInLevel / 100) / (nextMin - prevMin) * 100) : 100;
     const rIdx = RANKS.indexOf(r);
     return `
-      <div class="player-card tier-${r.tier}">
+      <div class="player-card tier-${r.tier}${cardDeco(Progress.profile().theme, Progress.profile().accent).cls}"${cardDeco(Progress.profile().theme, Progress.profile().accent).style}>
         <div class="pc-glow"></div>
         <div class="pc-left">
           <button class="pc-avatar" onclick="App.openProfileEditor()" title="${T("Редактировать профиль")}">${avatarHTML(104)}<span class="pc-edit">✎</span>
