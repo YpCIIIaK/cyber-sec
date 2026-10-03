@@ -3211,6 +3211,7 @@ const App = (() => {
             <button class="btn btn-ghost" onclick="App.exportProgress()">${Icon.ui("progress")} ${T("Скачать прогресс")}</button>
             <button class="btn btn-ghost" onclick="document.getElementById('import-file').click()">${Icon.ui("book")} ${T("Загрузить из файла")}</button>
             <input id="import-file" type="file" accept="application/json,.json" hidden onchange="App.importProgress(this.files[0])">
+            <button class="btn btn-ghost" onclick="App.startOnboard()">${Icon.ui("quest")} ${T("Пройти тур заново")}</button>
           </div>
         </div>
 
@@ -3563,7 +3564,49 @@ const App = (() => {
     });
     current = parseHash();
     render();
+    maybeOnboard();
   }
+
+  /* ---------- Онбординг при первом запуске ---------- */
+  const ONBOARD_KEY = "cyberpath_onboarded";
+  function onboardSteps() {
+    return [
+      { ic: "book", t: T("Добро пожаловать в CyberPath!"), d: T("Бесплатная платформа, где вы осваиваете кибербезопасность на практике: теория, задания, интерактивные лаборатории и флаги. Весь прогресс хранится локально в этом браузере.") },
+      { ic: "shield", t: T("Курсы и путь"), d: T("14 курсов от основ до продвинутого — по уровням сложности. «Путь» показывает карту с зависимостями: продвинутые курсы открываются по мере прохождения базовых.") },
+      { ic: "terminal", t: T("Песочница и инструменты"), d: T("Учебный терминал Windows для квестов и 8 Blue Team-симуляторов (разбор писем, трафика, логов). Безопасно и на вымышленных данных.") },
+      { ic: "flag", t: T("Флаги и достижения"), d: T("Находите скрытые флаги CYBER{…} в заданиях — все они собраны на странице CTF. Зарабатывайте XP, уровни, звания и достижения.") },
+      { ic: "progress", t: T("Профиль и сертификаты"), d: T("В профиле — ваша статистика, аналитика и сертификаты. Пройдите курс на 100% и скачайте именной сертификат, а все 14 — диплом мастера.") },
+    ];
+  }
+  let obStep = 0;
+  function maybeOnboard() {
+    let seen = null; try { seen = localStorage.getItem(ONBOARD_KEY); } catch (e) {}
+    if (seen) return;
+    obStep = 0; renderOnboard();
+  }
+  function startOnboard() { obStep = 0; renderOnboard(); }
+  function renderOnboard() {
+    const steps = onboardSteps(), s = steps[obStep], last = obStep === steps.length - 1;
+    let ov = document.getElementById("onboard");
+    if (!ov) { ov = document.createElement("div"); ov.id = "onboard"; ov.className = "modal-overlay onboard-overlay"; document.body.appendChild(ov); requestAnimationFrame(() => ov.classList.add("show")); }
+    ov.innerHTML = `
+      <div class="onboard" role="dialog" aria-modal="true" aria-label="${T("Добро пожаловать")}">
+        <div class="ob-ic">${Icon.ui(s.ic)}</div>
+        <h2>${escapeHtml(s.t)}</h2>
+        <p>${escapeHtml(s.d)}</p>
+        <div class="ob-dots">${steps.map((_, i) => `<span class="${i === obStep ? "on" : ""}"></span>`).join("")}</div>
+        <div class="ob-actions">
+          <button class="btn btn-ghost btn-sm" onclick="App.endOnboard()">${T("Пропустить")}</button>
+          <button class="btn btn-primary btn-sm" onclick="App.nextOnboard()">${last ? T("Начать обучение") : T("Далее")}</button>
+        </div>
+      </div>`;
+  }
+  function nextOnboard() { const steps = onboardSteps(); if (obStep < steps.length - 1) { obStep++; renderOnboard(); } else endOnboard(); }
+  function endOnboard() {
+    try { localStorage.setItem(ONBOARD_KEY, "1"); } catch (e) {}
+    const ov = document.getElementById("onboard"); if (ov) ov.remove();
+  }
+
   let deferredInstall = null;
   function installApp() {
     if (!deferredInstall) return;
@@ -3643,7 +3686,7 @@ const App = (() => {
 
   return {
     init, go, submit, markInfo, showHint, toast, toastAchievement, resetConfirm, toggleTheme,
-    toggleUserMenu, closeUserMenu,
+    toggleUserMenu, closeUserMenu, startOnboard, nextOnboard, endOnboard,
     catalogSearch, catalogLevel, catalogSort, downloadCertificate, downloadMasterCertificate, exportProgress, importProgress,
     submitChoice, submitMatch, orderPick, orderReset, submitDaily,
     submitMission, toggleShell, openShortcuts, closeShortcuts,

@@ -11,6 +11,21 @@ const I18N = (() => {
 
   /* -------- UI-словарь (ключ = русская строка) -------- */
   const UI = {
+    "Добро пожаловать": "Welcome",
+    "Добро пожаловать в CyberPath!": "Welcome to CyberPath!",
+    "Бесплатная платформа, где вы осваиваете кибербезопасность на практике: теория, задания, интерактивные лаборатории и флаги. Весь прогресс хранится локально в этом браузере.": "A free platform where you learn cybersecurity hands-on: theory, tasks, interactive labs and flags. All progress is stored locally in this browser.",
+    "Курсы и путь": "Courses and path",
+    "14 курсов от основ до продвинутого — по уровням сложности. «Путь» показывает карту с зависимостями: продвинутые курсы открываются по мере прохождения базовых.": "14 courses from basics to advanced, by difficulty. The «Path» shows a map with dependencies: advanced courses unlock as you complete the basics.",
+    "Песочница и инструменты": "Sandbox and tools",
+    "Учебный терминал Windows для квестов и 8 Blue Team-симуляторов (разбор писем, трафика, логов). Безопасно и на вымышленных данных.": "A training Windows terminal for quests and 8 Blue Team simulators (dissecting emails, traffic, logs). Safe, on fictional data.",
+    "Флаги и достижения": "Flags and achievements",
+    "Находите скрытые флаги CYBER{…} в заданиях — все они собраны на странице CTF. Зарабатывайте XP, уровни, звания и достижения.": "Find hidden CYBER{…} flags in tasks — they're all gathered on the CTF page. Earn XP, levels, ranks and achievements.",
+    "Профиль и сертификаты": "Profile and certificates",
+    "В профиле — ваша статистика, аналитика и сертификаты. Пройдите курс на 100% и скачайте именной сертификат, а все 14 — диплом мастера.": "Your profile has your stats, analytics and certificates. Complete a course to 100% to download a personal certificate, and all 14 for the master diploma.",
+    "Пропустить": "Skip",
+    "Начать обучение": "Start learning",
+    "Далее": "Next",
+    "Пройти тур заново": "Replay the tour",
     "Наверх": "Back to top",
     "Содержание": "Contents",
     "Все флаги платформы": "All platform flags",

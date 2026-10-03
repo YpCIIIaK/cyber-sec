@@ -1854,3 +1854,16 @@ button.nav-xp:hover { border-color: var(--o-200); }
 .to-top.show { opacity: 1; visibility: visible; transform: none; }
 .to-top:hover { background: var(--o-50); color: var(--o-600); border-color: var(--o-200); }
 @media (max-width: 960px) { .lesson-toc { position: static; max-height: none; } }
+
+/* ---------- Онбординг ---------- */
+.onboard-overlay { display: grid; place-items: center; }
+.onboard { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 30px 28px; width: min(440px, 92vw); text-align: center; box-shadow: 0 30px 70px -20px rgba(0,0,0,.45); animation: obIn .25s cubic-bezier(.2,.9,.3,1.2); }
+@keyframes obIn { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+.ob-ic { width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 17px; display: grid; place-items: center; color: #fff; background: linear-gradient(145deg, var(--o-400), var(--o-600)); box-shadow: var(--sh-o); }
+.ob-ic svg { width: 32px; height: 32px; }
+.onboard h2 { font-size: 1.3rem; margin-bottom: 8px; }
+.onboard p { color: var(--ink-2); font-size: .94rem; line-height: 1.55; }
+.ob-dots { display: flex; justify-content: center; gap: 7px; margin: 20px 0; }
+.ob-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--line); transition: background .2s, width .2s; }
+.ob-dots span.on { background: var(--o-500); width: 22px; border-radius: 4px; }
+.ob-actions { display: flex; justify-content: space-between; gap: 10px; }
