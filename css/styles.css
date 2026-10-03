@@ -1843,3 +1843,14 @@ button.nav-xp:hover { border-color: var(--o-200); }
 
 /* Иконка в заголовке страницы (напр. CTF) не должна раздуваться */
 .page-title h1 svg { width: .9em; height: .9em; vertical-align: -2px; }
+
+/* ---------- Оглавление урока + кнопка «наверх» ---------- */
+.lesson-toc { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 16px; position: sticky; top: 76px; z-index: 5; max-height: calc(100vh - 100px); overflow: auto; }
+.ltoc-title { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; margin-bottom: 8px; }
+.ltoc-link { display: block; padding: 5px 8px; border-radius: 7px; font-size: .86rem; color: var(--ink-2); border-left: 2px solid transparent; transition: background .12s, color .12s, border-color .12s; }
+.ltoc-link:hover { background: var(--o-50); color: var(--o-700); border-left-color: var(--o-300); }
+.ltoc-link.sub { padding-left: 20px; font-size: .8rem; color: var(--muted); }
+.to-top { position: fixed; right: 22px; bottom: 22px; z-index: 80; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 1.3rem; cursor: pointer; box-shadow: var(--sh); opacity: 0; visibility: hidden; transform: translateY(10px); transition: opacity .2s, transform .2s, visibility .2s; }
+.to-top.show { opacity: 1; visibility: visible; transform: none; }
+.to-top:hover { background: var(--o-50); color: var(--o-600); border-color: var(--o-200); }
+@media (max-width: 960px) { .lesson-toc { position: static; max-height: none; } }

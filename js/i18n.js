@@ -11,6 +11,8 @@ const I18N = (() => {
 
   /* -------- UI-словарь (ключ = русская строка) -------- */
   const UI = {
+    "Наверх": "Back to top",
+    "Содержание": "Contents",
     "Все флаги платформы": "All platform flags",
     "CTF — флаги": "CTF — flags",
     "CTF — охота за флагами": "CTF — flag hunt",

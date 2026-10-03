@@ -1244,6 +1244,7 @@ const App = (() => {
       </section>`;
     highlightNav();
     addCopyButtons();
+    buildLessonTOC();
     startRoomTimer(Progress.roomCompleted(room));
     if (hasSandbox) {
       const out = document.getElementById("term-out"), inp = document.getElementById("term-input");
@@ -1319,6 +1320,46 @@ const App = (() => {
           </div>
         </div>
       </div>`;
+  }
+
+  // Оглавление урока: строится из заголовков .lesson h3/h4
+  function buildLessonTOC() {
+    const lesson = document.querySelector(".lesson");
+    const col = document.querySelector(".lesson-col");
+    if (!lesson || !col) return;
+    const heads = [...lesson.querySelectorAll("h3, h4")];
+    if (heads.length < 3) return; // короткий урок — оглавление ни к чему
+    const slug = (s) => s.toLowerCase().replace(/[^a-zа-я0-9]+/gi, "-").replace(/^-|-$/g, "").slice(0, 40);
+    const items = heads.map((h, i) => {
+      const id = "ls-" + i + "-" + slug(h.textContent);
+      h.id = id;
+      return { id, text: h.textContent, sub: h.tagName === "H4" };
+    });
+    const nav = document.createElement("nav");
+    nav.className = "lesson-toc";
+    nav.innerHTML = `<div class="ltoc-title">${escapeHtml(T("Содержание"))}</div>` +
+      items.map((it) => `<a href="#${it.id}" class="ltoc-link ${it.sub ? "sub" : ""}" data-id="${it.id}">${escapeHtml(it.text)}</a>`).join("");
+    col.insertBefore(nav, col.firstChild);
+    nav.querySelectorAll(".ltoc-link").forEach((a) => a.addEventListener("click", (e) => {
+      e.preventDefault();
+      const el = document.getElementById(a.dataset.id);
+      if (el) { const y = el.getBoundingClientRect().top + window.scrollY - 80; window.scrollTo({ top: y, behavior: "smooth" }); }
+    }));
+    mountBackToTop();
+  }
+  function mountBackToTop() {
+    if (document.getElementById("to-top")) return;
+    const btn = document.createElement("button");
+    btn.id = "to-top"; btn.className = "to-top"; btn.type = "button";
+    btn.setAttribute("aria-label", T("Наверх"));
+    btn.innerHTML = "↑";
+    btn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+    document.body.appendChild(btn);
+    const onScroll = () => btn.classList.toggle("show", window.scrollY > 500);
+    window.addEventListener("scroll", onScroll, { passive: true }); onScroll();
+    // убрать при уходе со страницы комнаты
+    const cleanup = () => { if (current.view !== "room") { btn.remove(); window.removeEventListener("scroll", onScroll); window.removeEventListener("hashchange", cleanup); } };
+    window.addEventListener("hashchange", cleanup);
   }
 
   // Кнопка «копировать» на блоках кода в уроке
