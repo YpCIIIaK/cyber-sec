@@ -11,6 +11,8 @@ const I18N = (() => {
 
   /* -------- UI-словарь (ключ = русская строка) -------- */
   const UI = {
+    "Инструмент": "Tool",
+    "Симуляторы Blue Team": "Blue Team simulators",
     "Корпоративный сайт": "Corporate website",
     "Тестовый стенд": "Dev/test environment",
     "Платёжная система (PROD)": "Payment system (PROD)",

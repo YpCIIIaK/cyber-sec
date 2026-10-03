@@ -2295,6 +2295,11 @@ const App = (() => {
       items.push({ label: c.title, sub: "Курс · " + c.level, go: () => go("course", { courseId: c.id }) });
       c.rooms.forEach((r) => items.push({ label: r.title, sub: "Комната · " + c.title, go: () => go("room", { courseId: c.id, roomId: r.id }) }));
     });
+    items.push({ label: T("Инструменты"), sub: T("Симуляторы Blue Team"), go: () => go("tools") });
+    if (window.Toolkit && Toolkit.list) {
+      const en = window.I18N && I18N.current() === "en";
+      Toolkit.list.forEach((tk) => items.push({ label: en ? tk.en : tk.ru, sub: T("Инструмент") + " · Blue Team", go: () => go("tools", { tool: tk.id }) }));
+    }
     GLOSSARY.forEach((g) => items.push({ label: g.term, sub: "Термин · " + g.cat, go: () => { go("glossary"); glossaryState.q = g.term; setTimeout(() => { const i = document.getElementById("gloss-search"); if (i) i.value = g.term; renderGlossaryList(); }, 30); } }));
     return items;
   }
