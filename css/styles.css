@@ -2077,3 +2077,12 @@ body:not(.ready) .footer { display: none; }
 .ss-dots i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--o-400); }
 .ss-dots i.on { background: var(--o-500); border-color: var(--o-500); }
 .ss-next { font-size: .8rem; color: var(--muted); white-space: nowrap; }
+
+/* Сообщить об ошибке */
+.task-head { position: relative; }
+.task-report { margin-left: auto; align-self: flex-start; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: .95rem; padding: 2px 6px; border-radius: 6px; opacity: .55; transition: opacity .15s, background .15s; }
+.task-report:hover, .task-report:focus-visible { opacity: 1; background: var(--bg-3); color: var(--o-ink); }
+/* Новая версия */
+.update-bar { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 160; display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--sh-lg); font-size: .92rem; max-width: calc(100vw - 32px); }
+.update-x { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 4px 6px; }
+.task-report svg { width: 15px; height: 15px; display: block; }

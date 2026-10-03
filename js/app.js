@@ -1772,12 +1772,42 @@ const App = (() => {
             <span class="task-points">+${task.points} XP</span>
             ${task.sandbox ? `<span class="task-sandbox" title="${T("Решается в песочнице")}">${Icon.ui("terminal")} ${T("песочница")}</span>` : ""}
           </div>
+          <button class="task-report" onclick="App.reportTask('${course.id}','${task.id}')" title="${T("Сообщить об ошибке в задании")}" aria-label="${T("Сообщить об ошибке в задании")}">${Icon.ui("flag")}</button>
         </div>
         <p class="task-prompt">${task.prompt}</p>
         ${done
           ? `<div class="task-ok">${Icon.ui("check")} ${task.type === "info" ? T("Отмечено как прочитанное") : T("Верно! Решено") + " (+" + (Progress._state().earned[task.id] ?? task.points) + " XP)"}</div>` + whyBlock(task)
           : answerArea(course, task) + hintsArea(course, task)}
       </div>`;
+  }
+
+  /* «Сообщить об ошибке»: открывает GitHub Issue с уже заполненными курсом, заданием и ответом */
+  const REPO_URL = "https://github.com/YpCIIIaK/cyber-sec";
+  function reportTask(courseId, taskId) {
+    const course = COURSES.find((c) => c.id === courseId);
+    const room = course && course.rooms.find((r) => r.tasks.some((t) => t.id === taskId));
+    const task = room && room.tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    const box = document.getElementById("task-" + taskId);
+    const inp = box && box.querySelector("input[type=text], input:not([type]), textarea");
+    const answer = inp && inp.value ? inp.value.trim().slice(0, 200) : "";
+    const plain = (h) => String(h || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 300);
+    const lang = window.I18N ? I18N.current() : "ru";
+    const title = `[${lang.toUpperCase()}] ${course.id}/${taskId}: `;
+    const body = [
+      `**Курс / Course:** ${plain(course.title)} (\`${course.id}\`)`,
+      `**Комната / Room:** ${plain(room.title)} (\`${room.id}\`)`,
+      `**Задание / Task:** ${plain(task.title)} (\`${taskId}\`)`,
+      `**Вопрос / Prompt:** ${plain(task.prompt)}`,
+      `**Мой ответ / My answer:** ${answer ? "`" + answer.replace(/`/g, "'") + "`" : "—"}`,
+      `**Язык / Language:** ${lang}`,
+      "",
+      "**Что не так / What's wrong:**",
+      "<!-- Опишите проблему: ответ не принимается, ошибка в тексте, неточность в фактах… -->",
+      "",
+    ].join("\n");
+    const url = `${REPO_URL}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+    window.open(url, "_blank", "noopener");
   }
 
   /* Разбор после решения: почему ответ верный и почему другие варианты не подходят */
@@ -4275,6 +4305,7 @@ const App = (() => {
       toast("Приложение установлено 🎉");
     });
     initA11y();
+    initUpdateCheck();
     // EN-контент курсов подгрузился лениво — перерисовать текущий экран
     window.addEventListener("i18n:content", () => render());
     // Облако: смена статуса входа и подтянутый из облака прогресс
@@ -4293,6 +4324,27 @@ const App = (() => {
     render();
     document.body.classList.add("ready");
     maybeOnboard();
+  }
+
+  /* ---------- Новая версия сайта: Service Worker обновился → предложить перезагрузку ---------- */
+  function initUpdateCheck() {
+    if (!("serviceWorker" in navigator)) return;
+    const hadController = !!navigator.serviceWorker.controller;   // при первом визите баннер не нужен
+    navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadController) showUpdateBanner(); });
+    navigator.serviceWorker.ready.then((reg) => {
+      const check = () => reg.update().catch(() => {});
+      setInterval(check, 30 * 60 * 1000);
+      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
+    }).catch(() => {});
+  }
+  function showUpdateBanner() {
+    if (document.getElementById("update-bar")) return;
+    const bar = document.createElement("div");
+    bar.id = "update-bar"; bar.className = "update-bar"; bar.setAttribute("role", "status");
+    bar.innerHTML = `<span>✨ ${T("Доступна новая версия CyberPath")}</span>
+      <button class="btn btn-primary btn-sm" onclick="location.reload()">${T("Обновить")}</button>
+      <button class="update-x" onclick="this.parentElement.remove()" aria-label="${T("Закрыть")}">✕</button>`;
+    document.body.appendChild(bar);
   }
 
   /* ---------- Доступность: клавиатура для кликабельных div/span ---------- */
@@ -4445,7 +4497,7 @@ const App = (() => {
     catalogSearch, catalogLevel, catalogSort, downloadCertificate, downloadMasterCertificate,
     submitChoice, submitMatch, orderPick, orderReset, submitDaily,
     submitMission, toggleShell, openShortcuts, closeShortcuts,
-    glossarySearch, glossaryClear, placeAnswer, placeFinish, placeSkip, openAccount, closeAccount, accSetTab, accOAuth, accLink, accSubmit, accSignOut, accDelete, nickSubmit, nickCancel, placeRetry, startPlacement, catalogReset, submitExam, retryExam, openPalette, palettePick, installApp,
+    glossarySearch, glossaryClear, placeAnswer, placeFinish, placeSkip, reportTask, openAccount, closeAccount, accSetTab, accOAuth, accLink, accSubmit, accSignOut, accDelete, nickSubmit, nickCancel, placeRetry, startPlacement, catalogReset, submitExam, retryExam, openPalette, palettePick, installApp,
     reviewChoose, reviewCheck, reviewNext, reviewStart, setXpMode, shareCard, saveDraft, toggleLang,
     openRanks, closeRanks, achSetFilter, tilt, openProfileEditor, closeProfileEditor, profTab, profAvatar, profUpload,
     profDraftSet, profToggleShowcase, saveProfile, chalStart, chalAnswer, chalSkip, chalRestart, notesFilter, noteComment, noteDelete, exportNotes,
