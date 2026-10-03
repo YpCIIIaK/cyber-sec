@@ -694,6 +694,7 @@ const App = (() => {
     if (view === "ctf") return "#/ctf";
     if (view === "boss") return `#/course/${params.courseId}/boss`;
     if (view === "weekly") return "#/weekly";
+    if (view === "legal") return `#/legal/${params.page || "about"}`;
     if (view === "tools") return params.tool ? `#/tools/${params.tool}` : "#/tools";
     return "#/";
   }
@@ -711,6 +712,7 @@ const App = (() => {
     if (parts[0] === "ctf") return { view: "ctf" };
     if (parts[0] === "weekly") return { view: "weekly" };
     if (parts[0] === "tools") return { view: "tools", tool: parts[1] || null };
+    if (parts[0] === "legal") return { view: "legal", page: parts[1] || "about" };
     if (parts[0] === "course" && parts[1]) {
       if (parts[2] === "room" && parts[3])
         return { view: "room", courseId: parts[1], roomId: parts[3] };
@@ -834,6 +836,7 @@ const App = (() => {
       case "weekly": renderWeekly(); break;
       case "tools": renderTools(c.tool); break;
       case "exam": renderExam(c.courseId); break;
+      case "legal": renderLegal(c.page); break;
       default: renderHome();
     }
     highlightNav();
@@ -2742,6 +2745,115 @@ const App = (() => {
     const ordered = [...flags].sort((a, b) => groups.indexOf(a.kind) - groups.indexOf(b.kind));
     root().querySelectorAll(".ctf-card").forEach((btn, i) => { const f = ordered[i]; if (f && f.go) btn.addEventListener("click", f.go); });
     highlightNav();
+  }
+
+  /* ---------- О проекте / правовое ---------- */
+  const LEGAL = {
+    about: {
+      ru: { t: "О проекте", b: `
+<p><b>CyberPath</b> — бесплатная интерактивная платформа для изучения кибербезопасности с нуля: курсы, практические лабы, симулятор терминала, CTF-задачи и инструменты.</p>
+<h3>Принципы</h3>
+<ul><li><b>Бесплатно и без регистрации.</b> Всё работает прямо в браузере, в том числе офлайн.</li>
+<li><b>Практика важнее теории.</b> Каждая тема закрепляется заданиями и лабами в безопасной симуляции.</li>
+<li><b>Этика прежде всего.</b> Мы учим защищать системы и понимать атаки, а не вредить.</li>
+<li><b>Приватность по умолчанию.</b> Никаких аккаунтов, трекеров и аналитики.</li></ul>
+<h3>Нашли ошибку?</h3>
+<p>Контент развивается, и неточности возможны. Если ответ в задании не принимается или вы нашли фактическую ошибку — сообщите о ней через репозиторий проекта на GitHub.</p>
+<p class="muted">Материалы не являются официальной подготовкой к сертификациям и не заменяют профессиональное обучение.</p>` },
+      en: { t: "About", b: `
+<p><b>CyberPath</b> is a free interactive platform for learning cybersecurity from scratch: courses, hands-on labs, a terminal simulator, CTF challenges and tools.</p>
+<h3>Principles</h3>
+<ul><li><b>Free, no sign-up.</b> Everything runs right in your browser, even offline.</li>
+<li><b>Practice over theory.</b> Every topic is reinforced with tasks and labs in a safe simulation.</li>
+<li><b>Ethics first.</b> We teach how to defend systems and understand attacks — not how to cause harm.</li>
+<li><b>Private by default.</b> No accounts, trackers or analytics.</li></ul>
+<h3>Found a mistake?</h3>
+<p>The content keeps evolving and inaccuracies are possible. If an answer isn't accepted or you spot a factual error, please report it via the project's GitHub repository.</p>
+<p class="muted">The materials are not official certification prep and do not replace professional training.</p>` },
+    },
+    ethics: {
+      ru: { t: "Этичный хакинг", b: `
+<div class="legal-alert">⚠️ Все знания на платформе предназначены <b>только для образования и защиты</b>.</div>
+<h3>Правила</h3>
+<ul><li><b>Тестируйте только свои системы</b> — собственные стенды, виртуальные машины и домашние лаборатории.</li>
+<li><b>Или с явного письменного разрешения</b> владельца: пентест по договору, bug bounty в пределах scope.</li>
+<li><b>Используйте легальные площадки:</b> TryHackMe, Hack The Box, PortSwigger Web Security Academy, OverTheWire, CTF-соревнования.</li>
+<li><b>Не трогайте чужие данные.</b> Нашли уязвимость — сообщите владельцу ответственно (responsible disclosure), а не эксплуатируйте.</li></ul>
+<h3>Закон</h3>
+<p>Несанкционированный доступ к компьютерной информации, создание и распространение вредоносных программ уголовно наказуемы в большинстве стран (например, ст. 272–274 УК РФ, Computer Fraud and Abuse Act в США, Computer Misuse Act в Великобритании). Незнание закона не освобождает от ответственности.</p>
+<h3>Ответственность</h3>
+<p>Авторы CyberPath не несут ответственности за неправомерное использование материалов. Все лабы на платформе — симуляции и не взаимодействуют с реальными системами.</p>` },
+      en: { t: "Ethical hacking", b: `
+<div class="legal-alert">⚠️ All knowledge on this platform is intended <b>for education and defense only</b>.</div>
+<h3>Rules</h3>
+<ul><li><b>Test only your own systems</b> — your own labs, virtual machines and home setups.</li>
+<li><b>Or with explicit written permission</b> from the owner: contracted pentests, bug bounties within scope.</li>
+<li><b>Use legal platforms:</b> TryHackMe, Hack The Box, PortSwigger Web Security Academy, OverTheWire, CTF competitions.</li>
+<li><b>Leave others' data alone.</b> Found a vulnerability? Report it responsibly to the owner instead of exploiting it.</li></ul>
+<h3>The law</h3>
+<p>Unauthorized access to computer systems and creating or spreading malware are criminal offenses in most countries (e.g. the Computer Fraud and Abuse Act in the US, the Computer Misuse Act in the UK, Articles 272–274 of the Russian Criminal Code). Ignorance of the law is no excuse.</p>
+<h3>Liability</h3>
+<p>The CyberPath authors are not responsible for any misuse of the materials. All labs on the platform are simulations and do not interact with real systems.</p>` },
+    },
+    privacy: {
+      ru: { t: "Конфиденциальность", b: `
+<div class="legal-ok">🔒 Коротко: мы <b>ничего о вас не собираем</b>.</div>
+<h3>Где хранятся данные</h3>
+<p>Прогресс, XP, заметки, профиль и настройки хранятся <b>только в localStorage вашего браузера</b> на этом устройстве. На сервер они не отправляются — у проекта нет бэкенда.</p>
+<h3>Чего нет</h3>
+<ul><li>Нет регистрации и аккаунтов.</li><li>Нет cookies отслеживания, аналитики, рекламы и пикселей.</li><li>Нет передачи данных третьим лицам.</li></ul>
+<h3>Сторонние ресурсы</h3>
+<p>Шрифты могут загружаться с Google Fonts — при этом Google видит стандартный веб-запрос (IP-адрес, браузер). После первой загрузки файлы кэшируются для офлайн-работы.</p>
+<h3>Управление данными</h3>
+<p>Сделайте резервную копию или перенесите прогресс через <b>Профиль → экспорт/импорт</b>. Удалить всё можно там же или очистив данные сайта в браузере. Учтите: очистка браузера без экспорта удалит прогресс безвозвратно.</p>` },
+      en: { t: "Privacy", b: `
+<div class="legal-ok">🔒 In short: we <b>collect nothing about you</b>.</div>
+<h3>Where data lives</h3>
+<p>Your progress, XP, notes, profile and settings are stored <b>only in your browser's localStorage</b> on this device. Nothing is sent to a server — the project has no backend.</p>
+<h3>What we don't do</h3>
+<ul><li>No sign-up or accounts.</li><li>No tracking cookies, analytics, ads or pixels.</li><li>No sharing data with third parties.</li></ul>
+<h3>Third-party resources</h3>
+<p>Fonts may be loaded from Google Fonts, which sees a standard web request (IP address, browser). After the first load the files are cached for offline use.</p>
+<h3>Managing your data</h3>
+<p>Back up or move your progress via <b>Profile → export/import</b>. You can wipe everything there or by clearing the site data in your browser. Note: clearing the browser without exporting deletes progress permanently.</p>` },
+    },
+    license: {
+      ru: { t: "Лицензия", b: `
+<h3>Код — MIT</h3>
+<p>Исходный код платформы распространяется по лицензии <b>MIT</b>: его можно свободно использовать, изменять и распространять, в том числе в коммерческих целях, при сохранении уведомления об авторских правах. Полный текст — в файле <code>LICENSE</code> репозитория.</p>
+<h3>Учебный контент — CC BY-NC-SA 4.0</h3>
+<p>Тексты курсов, задания, глоссарий и лабы распространяются по лицензии <b>Creative Commons Attribution-NonCommercial-ShareAlike 4.0</b>:</p>
+<ul><li><b>Можно</b> делиться и адаптировать материалы — для учёбы, преподавания, в клубах и школах.</li>
+<li><b>Нужно</b> указывать CyberPath как источник и распространять производные работы на тех же условиях.</li>
+<li><b>Нельзя</b> использовать контент в коммерческих целях без согласия авторов.</li></ul>
+<h3>Сторонние материалы</h3>
+<p>Названия инструментов и продуктов (Nmap, Wireshark, Burp Suite, Windows и др.) — товарные знаки их владельцев и упоминаются только в образовательных целях.</p>
+<p class="muted">Платформа предоставляется «как есть», без каких-либо гарантий.</p>` },
+      en: { t: "License", b: `
+<h3>Code — MIT</h3>
+<p>The platform's source code is released under the <b>MIT</b> license: you may freely use, modify and distribute it, including commercially, as long as the copyright notice is kept. Full text is in the repository's <code>LICENSE</code> file.</p>
+<h3>Learning content — CC BY-NC-SA 4.0</h3>
+<p>Course texts, tasks, glossary and labs are licensed under <b>Creative Commons Attribution-NonCommercial-ShareAlike 4.0</b>:</p>
+<ul><li><b>You may</b> share and adapt the materials — for study, teaching, clubs and schools.</li>
+<li><b>You must</b> credit CyberPath and share derivatives under the same terms.</li>
+<li><b>You may not</b> use the content commercially without the authors' consent.</li></ul>
+<h3>Third-party names</h3>
+<p>Tool and product names (Nmap, Wireshark, Burp Suite, Windows, etc.) are trademarks of their owners and are mentioned for educational purposes only.</p>
+<p class="muted">The platform is provided "as is", without warranty of any kind.</p>` },
+    },
+  };
+  function renderLegal(page) {
+    const keys = Object.keys(LEGAL);
+    if (!LEGAL[page]) page = "about";
+    const lang = window.I18N && I18N.current() === "en" ? "en" : "ru";
+    const doc = LEGAL[page][lang];
+    root().innerHTML = `
+      <section class="section legal">
+        ${crumbs([["home", T("Главная")], [null, doc.t]])}
+        <div class="legal-tabs">${keys.map((k) => `<a href="#/legal/${k}" class="seg-btn ${k === page ? "on" : ""}">${LEGAL[k][lang].t}</a>`).join("")}</div>
+        <article class="card legal-body"><h1>${doc.t}</h1>${doc.b}</article>
+      </section>`;
+    window.scrollTo(0, 0);
   }
 
   function renderNotes() {
