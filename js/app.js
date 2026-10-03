@@ -3124,6 +3124,36 @@ const App = (() => {
       </div>`;
   }
 
+  function platformMasteryCard(s) {
+    const pct = s.tasksTotal ? Math.round(s.tasksDone / s.tasksTotal * 100) : 0;
+    const next = s.nextRank;
+    // XP до следующего звания (звание даётся по уровню, уровень = 100 XP)
+    const xpToRank = next ? Math.max(0, (next.min - 1) * 100 - s.xp) : 0;
+    const tasksToRank = Math.ceil(xpToRank / 13); // ~13 XP за задание в среднем
+    const seg = [
+      [s.coursesDone, s.coursesTotal, T("курсы")],
+      [Progress.metric("rooms"), COURSES.reduce((n, c) => n + c.rooms.filter((r) => r.tasks.length).length, 0), T("комнаты")],
+      [Progress.metric("labs"), COURSES.reduce((n, c) => n + c.rooms.reduce((a, r) => a + r.tasks.filter((t) => t.type === "lab").length, 0), 0), T("лаборатории")],
+      [Progress.metric("flags"), 6, T("флаги")],
+      [Progress.metric("exams"), COURSES.length, T("экзамены")],
+    ];
+    return `
+      <div class="pmastery card">
+        <div class="pm-top">
+          <div><span class="pm-kicker">${T("Освоение платформы")}</span><h2>${pct}%</h2></div>
+          <div class="pm-sub">
+            <b>${s.tasksDone} / ${s.tasksTotal}</b> <span>${T("заданий выполнено")}</span>
+            ${next ? `<div class="pm-forecast">${T("До звания")} <b>${next.icon || ""} ${next.name}</b>: ${xpToRank} XP <span class="muted">(≈ ${tasksToRank} ${T("заданий")})</span></div>`
+              : `<div class="pm-forecast">🏆 ${T("Высшее звание достигнуто")}</div>`}
+          </div>
+        </div>
+        <div class="pm-bar"><span style="width:${pct}%"></span></div>
+        <div class="pm-seg">
+          ${seg.map(([d, t, l]) => `<div class="pm-chip ${d >= t ? "full" : ""}"><b>${d}/${t}</b><span>${l}</span></div>`).join("")}
+        </div>
+      </div>`;
+  }
+
   function capstoneCard(s) {
     const done = s.coursesDone, total = s.coursesTotal, pct = Math.round(done / total * 100);
     if (done >= total) {
@@ -3171,6 +3201,8 @@ const App = (() => {
         <div class="page-title"><h1>${T("Профиль и прогресс")}</h1></div>
 
         ${playerCard(s)}
+
+        ${platformMasteryCard(s)}
 
         ${capstoneCard(s)}
 

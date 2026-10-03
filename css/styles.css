@@ -1867,3 +1867,22 @@ button.nav-xp:hover { border-color: var(--o-200); }
 .ob-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--line); transition: background .2s, width .2s; }
 .ob-dots span.on { background: var(--o-500); width: 22px; border-radius: 4px; }
 .ob-actions { display: flex; justify-content: space-between; gap: 10px; }
+
+/* ---------- Освоение платформы (профиль) ---------- */
+.pmastery { margin: 20px 0; }
+.pm-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; flex-wrap: wrap; }
+.pm-kicker { font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; }
+.pmastery h2 { font-family: var(--disp); font-size: 2.4rem; line-height: 1; color: var(--o-600); margin-top: 2px; }
+.pm-sub { text-align: right; font-size: .9rem; }
+.pm-sub > b { font-family: var(--disp); font-size: 1.1rem; }
+.pm-sub > span { color: var(--muted); }
+.pm-forecast { margin-top: 6px; font-size: .85rem; color: var(--ink-2); }
+.pm-bar { height: 12px; border-radius: 10px; background: var(--bg-3); overflow: hidden; margin: 14px 0; }
+.pm-bar span { display: block; height: 100%; background: linear-gradient(90deg, var(--o-400), var(--o-600)); border-radius: 10px; transition: width .6s cubic-bezier(.2,.9,.3,1); }
+.pm-seg { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.pm-chip { background: var(--bg-2); border: 1px solid var(--line); border-radius: 11px; padding: 10px 8px; text-align: center; }
+.pm-chip b { display: block; font-family: var(--disp); font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+.pm-chip span { font-size: .72rem; color: var(--muted); }
+.pm-chip.full { border-color: color-mix(in srgb, var(--ok) 35%, var(--line)); background: var(--ok-bg); }
+.pm-chip.full b { color: var(--ok); }
+@media (max-width: 640px) { .pm-sub { text-align: left; } .pm-seg { grid-template-columns: repeat(2, 1fr); } }

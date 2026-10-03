@@ -11,6 +11,14 @@ const I18N = (() => {
 
   /* -------- UI-словарь (ключ = русская строка) -------- */
   const UI = {
+    "Освоение платформы": "Platform mastery",
+    "заданий выполнено": "tasks completed",
+    "До звания": "To the rank",
+    "курсы": "courses",
+    "комнаты": "rooms",
+    "лаборатории": "labs",
+    "флаги": "flags",
+    "экзамены": "exams",
     "Добро пожаловать": "Welcome",
     "Добро пожаловать в CyberPath!": "Welcome to CyberPath!",
     "Бесплатная платформа, где вы осваиваете кибербезопасность на практике: теория, задания, интерактивные лаборатории и флаги. Весь прогресс хранится локально в этом браузере.": "A free platform where you learn cybersecurity hands-on: theory, tasks, interactive labs and flags. All progress is stored locally in this browser.",
