@@ -186,7 +186,7 @@
       ph_spear: ["Targeted phishing", "What is targeted phishing against a specific person called? (2 words or the first word)", ["\"Spear\"."], { answers: ["spear phishing", "spear", "spearphishing"] }],
       ph_lever: ["The main lever", "Which technique is most often used so the victim doesn't stop to think?", null, { options: ["Urgency and threats", "A polite greeting", "A long email", "A reference to the law"] }],
       ph_action: ["The right reaction", "An \"email from the bank\" asks you to urgently log in via a link. What do you do?", null, { options: ["Go to the bank yourself via the known address/app", "Click the link and log in", "Reply and ask for the password", "Forward it to friends"] }],
-      ph_lab: ["Lab: email analysis", "Mark all the red flags in the email headers."],
+      ph_lab: ["Lab: red flags in an email", "Mark the phishing signs visible without a header analysis."],
     },
   },
 };

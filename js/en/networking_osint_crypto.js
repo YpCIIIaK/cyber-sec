@@ -286,6 +286,9 @@ CONTENT_EN.osint = {
       op_chrono: ["Determine the time", "What is determining the shooting time from shadows/weather/events called? (one word)", ["Chrono = time."], { answers: ["chronolocation"] }],
       op_puppet: ["A clean account", "What is a separate \"puppet\" research account, unlinked from your identity, called? (2 words)", ["Sock ..."], { answers: ["sock puppet", "sockpuppet", "puppet"] }],
       op_privacy: ["Privacy defense", "What reduces the risk of geolocation from your photos?", null, { options: ["Stripping EXIF before posting", "Posting more photos", "Using one nickname everywhere", "Turning on geotags"] }],
+      op_line: ["Where OSINT ends", "Which action clearly goes beyond open-source intelligence, even if the data looks public?", ["OSINT is reading what was published, with no technical interaction."], { options: ["Guessing a password for someone else's account", "Reading a public company profile", "Checking WHOIS for a domain", "Searching for files in open indexes"] }],
+      op_careful: ["Checking your own leak", "How can you lawfully find out whether your email appeared in a breach?", ["Self-service: your own address is fine, other people's is not."], { answers: ["Check your own address on HIBP"] }],
+      op_line_lab: ["Lab: the OSINT boundary", "Mark the actions that stay inside open sources and get a reconnaissance plan."],
     },
   },
 };

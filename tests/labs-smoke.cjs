@@ -70,11 +70,14 @@ const sandbox = {
 };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
-const files = ["js/data.js", "js/labs.js", "js/labs_triage.js", "js/labs_ad.js", "js/labs_pe.js", "js/icons.js", "js/explanations.js", "js/i18n.js"];
+const files = ["js/data.js", "js/labs.js", "js/labs_triage.js", "js/labs_ad.js", "js/labs_pe.js", "js/labs_hardening.js", "js/labs_blueteam.js", "js/labs_reverse2.js", "js/labs_osint.js", "js/icons.js", "js/explanations.js", "js/i18n.js"];
 vm.runInContext(files.map((f) => fs.readFileSync(path.join(root, f), "utf8")).join("\n;\n") +
   "\n;Object.assign(window, { COURSES, Labs, I18N });", sandbox);
 
-const wanted = ["wintriage", "eventlog", "bhgraph", "peinspect", "passmeter", "sqli", "xss", "harden", "logtriage"];
+/* Все лаборатории, объявленные в js/data.js, + контрольный список старых */
+const used = new Set();
+(sandbox.COURSES || []).forEach((c) => c.rooms.forEach((r) => r.tasks.forEach((t) => { if (t.type === "lab") used.add(t.lab); })));
+const wanted = [...new Set([...used, "passmeter", "sqli", "xss", "harden", "logtriage"])];
 let fails = 0;
 wanted.forEach((id) => {
   const el = mkEl();

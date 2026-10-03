@@ -241,6 +241,9 @@ CONTENT_EN.reverse = {
       rea_upx: ["A famous packer", "Name the best-known open-source executable packer. (acronym, 3 letters)", ["Ultimate Packer for eXecutables."]],
       rea_entropy: ["A sign of packing", "A high value of which metric (byte randomness) hints at packing/encryption? (one word)", ["A measure of disorder/randomness."], { answers: ["entropy"] }],
       rea_antivm: ["Fooling the sandbox", "What does anti-VM malware do when it lands in a sandbox/VM?", null, { options: ["Detects it and shows no malicious activity", "Runs faster", "Deletes the hypervisor", "Nothing changes"] }],
+      rea_oep: ["Entry point of a packer", "Where do you set a breakpoint to catch the moment the code is unpacked? (acronym, 3 letters)", ["Original Entry Point — the real entry point after unpacking."], { answers: ["oep", "o.e.p"] }],
+      rea_rwx: ["Memory permissions", "What do the page permissions RWX mean? Choose the correct reading.", null, { options: ["Read/Write/Execute — readable, writable and executable memory", "Read/Write/Xor — on-the-fly encryption", "Read/Write/Exclude — writes are blocked", "Read/Write/Execute — read only"] }],
+      rea_dyn_lab: ["Lab: walking a sample in the debugger", "Follow the packed sample through OEP → VirtualAlloc → WinHttpOpen → CreateRemoteThread and write the conclusion."],
     },
   },
 };

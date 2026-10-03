@@ -625,6 +625,61 @@ main { min-height: 72vh; }
 .pe-opts button:hover { background: var(--o-50); }
 .pe-opts button.on { border-color: var(--o-500); background: var(--o-50); color: var(--o-700); font-weight: 600; }
 
+/* ---------- Лаборатории волны 2: CIS, сеть/облако, охота, IR, отладчик, beacon ---------- */
+.cis-table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+.cis-table th { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); color: var(--muted); }
+.cis-table td { padding: 7px 10px; border-bottom: 1px solid var(--line); }
+.cis-row { cursor: pointer; }
+.cis-row:hover { background: var(--bg-soft); }
+.cis-row.sel { background: var(--o-50); }
+.cis-bad { color: var(--err); font-weight: 700; }
+.cis-ok { color: var(--ok); }
+.cis-acts { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 10px; }
+.cis-acts button { padding: 9px 13px; border-radius: 9px; border: 1px solid var(--o-200); background: var(--surface); color: var(--ink-2); font-size: .85rem; font-family: var(--sans); cursor: pointer; }
+.cis-acts button:hover { background: var(--surface-2); border-color: var(--o-400); }
+
+.net-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+@media (max-width: 820px) { .net-grid { grid-template-columns: 1fr; } }
+.net-list { margin: 0; padding-left: 18px; font-size: .85rem; line-height: 1.6; color: var(--ink-2); }
+.net-list li { margin-bottom: 4px; }
+.net-h { margin: 14px 0 9px; font-size: .95rem; }
+.net-finds { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.net-row { display: flex; gap: 9px; align-items: flex-start; font-size: .86rem; line-height: 1.45; cursor: pointer; padding: 7px 9px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg-soft); }
+.net-row:hover { border-color: var(--o-300); }
+.net-row.sel { border-color: var(--o-400); background: var(--o-50); }
+.net-row input { margin-top: 3px; }
+.net-hint { font-size: .85rem; color: var(--muted); margin-top: 6px; }
+
+.hunt-box { margin-bottom: 12px; }
+.hunt-hyp, .ev-answer { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.hunt-hyp .fld-in { flex: 1 1 320px; min-width: 240px; }
+.hunt-acts { display: flex; flex-direction: column; gap: 8px; }
+.hunt-acts button { padding: 10px 13px; border-radius: 9px; border: 1px solid var(--o-200); background: var(--surface); color: var(--ink-2); font-size: .86rem; font-family: var(--sans); cursor: pointer; text-align: left; }
+.hunt-acts button:hover { background: var(--surface-2); border-color: var(--o-400); }
+
+.tl-pool { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.tl-item { padding: 9px 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); font-size: .85rem; font-family: var(--sans); cursor: pointer; text-align: left; }
+.tl-item:hover { border-color: var(--o-300); }
+.tl-item.sel { border-color: var(--o-500); background: var(--o-50); }
+.tl-item.on { border-color: var(--o-300); background: var(--o-50); cursor: pointer; }
+.tl-cols { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+@media (max-width: 900px) { .tl-cols { grid-template-columns: 1fr 1fr; } }
+.tl-col h4 { font-size: .82rem; margin: 0 0 7px; color: var(--muted); }
+.tl-drop { min-height: 92px; border: 1px dashed var(--o-300); border-radius: 9px; padding: 7px; display: flex; flex-direction: column; gap: 7px; background: var(--bg-soft); }
+
+.dbg-steps { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
+.dbg-step { display: grid; grid-template-columns: 170px 1fr; gap: 12px; align-items: start; }
+@media (max-width: 760px) { .dbg-step { grid-template-columns: 1fr; gap: 3px; } }
+.dbg-cmd { font-family: var(--mono); font-size: .78rem; color: var(--o-700); background: var(--bg-soft); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; }
+.dbg-out { font-size: .85rem; color: var(--ink-2); line-height: 1.5; }
+
+.mail-card { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; margin-bottom: 6px; background: var(--surface); }
+.mail-head { padding: 10px 13px; background: var(--bg-soft); border-bottom: 1px solid var(--line); font-size: .82rem; color: var(--muted); }
+.mail-head b { color: var(--ink); }
+.mail-body { padding: 14px; font-size: .88rem; line-height: 1.6; }
+.mail-body p { margin: 0 0 9px; }
+.mail-link { color: var(--o-700); text-decoration: underline; word-break: break-all; }
+
 /* Разбор ответа после решения */
 .task-why {
   margin: 10px 0 2px 39px;

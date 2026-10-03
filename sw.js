@@ -1,5 +1,5 @@
 /* CyberPath Service Worker — офлайн-режим (network-first для своих файлов) */
-const CACHE = "cyberpath-v48";
+const CACHE = "cyberpath-v49";
 const CORE = [
   "./",
   "./index.html",
@@ -22,7 +22,11 @@ const CORE = [
   "./js/i18n.js",
   "./js/labs.js",
   "./js/labs_ad.js",
+  "./js/labs_blueteam.js",
+  "./js/labs_hardening.js",
+  "./js/labs_osint.js",
   "./js/labs_pe.js",
+  "./js/labs_reverse2.js",
   "./js/labs_triage.js",
   "./js/terminal.js",
   "./js/toolkit.js",
