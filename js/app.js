@@ -3294,6 +3294,7 @@ const App = (() => {
             <button class="btn btn-ghost" onclick="document.getElementById('import-file').click()">${Icon.ui("book")} ${T("Загрузить из файла")}</button>
             <input id="import-file" type="file" accept="application/json,.json" hidden onchange="App.importProgress(this.files[0])">
             <button class="btn btn-ghost" onclick="App.startOnboard()">${Icon.ui("quest")} ${T("Пройти тур заново")}</button>
+            <button class="btn btn-ghost" onclick="App.toggleSound()">${Icon.ui(soundOn() ? "bolt" : "lock")} ${soundOn() ? T("Звук наград: вкл") : T("Звук наград: выкл")}</button>
           </div>
         </div>
 
@@ -3501,10 +3502,47 @@ const App = (() => {
     render();
   }
 
+  /* ---------- Звуки наград (WebAudio, без файлов) ---------- */
+  const SFX_KEY = "cyberpath_sound";
+  function soundOn() { try { return localStorage.getItem(SFX_KEY) !== "0"; } catch (e) { return true; } }
+  function setSound(on) { try { localStorage.setItem(SFX_KEY, on ? "1" : "0"); } catch (e) {} }
+  const Sfx = (() => {
+    let ctx = null;
+    const ac = () => (ctx = ctx || (window.AudioContext ? new AudioContext() : null));
+    function notes(seq, type = "sine") {
+      if (!soundOn()) return;
+      const a = ac(); if (!a) return;
+      if (a.state === "suspended") a.resume();
+      const t0 = a.currentTime;
+      seq.forEach(([f, start, dur, vol]) => {
+        const o = a.createOscillator(), g = a.createGain();
+        o.type = type; o.frequency.value = f;
+        o.connect(g); g.connect(a.destination);
+        const t = t0 + start;
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime((vol || 0.18), t + 0.012);
+        g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+        o.start(t); o.stop(t + dur + 0.02);
+      });
+    }
+    return {
+      solve: () => notes([[660, 0, 0.12], [880, 0.08, 0.16]], "triangle"),
+      flag: () => notes([[784, 0, 0.1], [1047, 0.07, 0.1], [1319, 0.14, 0.22]], "triangle"),
+      achievement: () => notes([[523, 0, 0.18, 0.14], [659, 0, 0.18, 0.12], [784, 0, 0.3, 0.14]], "sine"),
+      level: () => notes([[523, 0, 0.12], [659, 0.09, 0.12], [784, 0.18, 0.12], [1047, 0.27, 0.3]], "triangle"),
+      win: () => notes([[523, 0, 0.14], [659, 0.12, 0.14], [784, 0.24, 0.14], [1047, 0.36, 0.18], [1319, 0.5, 0.4, 0.2]], "sine"),
+    };
+  })();
+  function toggleSound() { setSound(!soundOn()); toast(soundOn() ? T("Звук наград включён") : T("Звук наград выключен")); if (soundOn()) Sfx.solve(); if (current.view === "profile") renderProfile(); }
+
   function celebrate(res) {
     if (!res || res.already) return;
     if (res.xpGained) { flyXP(res.xpGained); animateXP(Progress.overallStats().xp); }
     else renderNav();
+    // звук — по значимости события (самое крупное имеет приоритет)
+    if (res.courseDone || res.levelUp) Sfx.win ? (res.courseDone ? Sfx.win() : Sfx.level()) : 0;
+    else if ((res.newAchievements || []).length) Sfx.achievement();
+    else if (res.xpGained) Sfx.solve();
     if (res.levelUp) { toast(`🎉 Новый уровень: ${res.levelUp}!`); confetti(); }
     if (res.newRank) toast(`${res.newRank.icon} Новое звание: ${res.newRank.name}`);
     if (res.courseDone) confetti();
@@ -3768,7 +3806,7 @@ const App = (() => {
 
   return {
     init, go, submit, markInfo, showHint, toast, toastAchievement, resetConfirm, toggleTheme,
-    toggleUserMenu, closeUserMenu, startOnboard, nextOnboard, endOnboard,
+    toggleUserMenu, closeUserMenu, startOnboard, nextOnboard, endOnboard, toggleSound,
     catalogSearch, catalogLevel, catalogSort, downloadCertificate, downloadMasterCertificate, exportProgress, importProgress,
     submitChoice, submitMatch, orderPick, orderReset, submitDaily,
     submitMission, toggleShell, openShortcuts, closeShortcuts,
