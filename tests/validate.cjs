@@ -2,45 +2,28 @@
    CyberPath — проверка целостности данных / data-integrity check
    Запуск: node tests/validate.cjs
    Загружает data.js / i18n.js / labs.js / toolkit.js в «псевдо-браузерном»
-   контексте и проверяет согласованность контента (RU/EN, лабы, пререки,
-   глоссарий, достижения, ежедневные вопросы). Код выхода 1 при ошибках.
+   контексте и проверяет согласованность контента: структура курсов,
+   RU/EN-переводы, лаборатории, достижения, глоссарий, миссии,
+   чистоту вариантов ответа и достижимость флагов в песочнице.
+   Код выхода 1 при ошибках.
+
+   Глубокие проверки заданий вынесены в tests/content-checks.cjs.
    ============================================================ */
-const fs = require("fs");
-const path = require("path");
-const vm = require("vm");
+const { loadAll } = require("./load.cjs");
+const contentChecks = require("./content-checks.cjs");
 
-const root = path.join(__dirname, "..");
-const read = (f) => fs.readFileSync(path.join(root, f), "utf8");
-
-// Минимальное браузерное окружение
-const sandbox = {
-  window: {},
-  document: { documentElement: {}, querySelectorAll: () => [], getElementById: () => null, createElement: () => ({ style: {}, classList: { add() {}, remove() {}, toggle() {} }, appendChild() {}, setAttribute() {} }) },
-  localStorage: { getItem: () => null, setItem() {} },
-  matchMedia: () => ({ matches: false, addEventListener() {} }),
-  console,
-};
-sandbox.window = sandbox;
-vm.createContext(sandbox);
-
-// Классические top-level const/let в vm не попадают в глобальный объект,
-// поэтому склеиваем все скрипты в один и экспортируем нужные переменные.
-const enDir = path.join(root, "js", "en");
-const enFiles = fs.readdirSync(enDir).map((f) => "js/en/" + f);
-const files = ["js/data.js", "js/labs.js", "js/toolkit.js", "js/icons.js", "js/i18n.js", ...enFiles];
-const combined = files.map(read).join("\n;\n") +
-  "\n;Object.assign(window, { COURSES, GLOSSARY, ACHIEVEMENTS, ACH_RARITY, DAILY_QUESTIONS, MISSIONS, Labs, Toolkit, I18N });";
-vm.runInContext(combined, sandbox, { filename: "combined.js" });
-
+const sandbox = loadAll();
 const { COURSES, GLOSSARY, ACHIEVEMENTS, ACH_RARITY, DAILY_QUESTIONS, MISSIONS } = sandbox;
 const Labs = sandbox.Labs;
 const CONTENT_EN = sandbox.CONTENT_EN || {};
 
-let errors = [];
+const errors = [];
+const warns = [];
 let checks = 0;
 const ok = (cond, msg) => { checks++; if (!cond) errors.push(msg); };
+const CYR = /[\u0400-\u04FF]/;
 
-/* 1. Уникальность id задач во всех курсах */
+/* 1. Уникальность id задач */
 const taskIds = {};
 COURSES.forEach((c) => c.rooms.forEach((r) => r.tasks.forEach((t) => {
   if (taskIds[t.id]) errors.push(`Дубликат id задачи: "${t.id}" (${c.id}/${r.id} и ${taskIds[t.id]})`);
@@ -67,14 +50,18 @@ COURSES.forEach((c) => (c.prereq || []).forEach((pr) => ok(courseIds.has(pr), `�
 /* 5. Задачи с проверкой имеют ответы/опции */
 COURSES.forEach((c) => c.rooms.forEach((r) => r.tasks.forEach((t) => {
   if (t.type === "question") ok((t.answers && t.answers.length) || t.answer, `Задача ${t.id}: question без ответа`);
-  if (t.type === "choice") { ok(t.options && t.options.length, `Задача ${t.id}: choice без options`); ok(t.answers && t.answers.length, `Задача ${t.id}: choice без answers`); ok(!t.answers || t.answers.every((a) => t.options.includes(a)), `Задача ${t.id}: answer не входит в options`); }
+  if (t.type === "choice") {
+    ok(t.options && t.options.length, `Задача ${t.id}: choice без options`);
+    ok(t.answers && t.answers.length, `Задача ${t.id}: choice без answers`);
+    ok(!t.answers || t.answers.every((a) => t.options.includes(a)), `Задача ${t.id}: answer не входит в options`);
+  }
   if (t.type === "flag") ok(t.answers && t.answers.length, `Задача ${t.id}: flag без ответа`);
 })));
 
 /* 6. GLOSSARY и GLOSS_EN выровнены (через применение EN) */
 const ruLen = GLOSSARY.length;
 sandbox.I18N.apply("en");
-const enMissing = GLOSSARY.filter((g, i) => !g.term).length;
+const enMissing = GLOSSARY.filter((g) => !g.term).length;
 ok(enMissing === 0, `GLOSSARY: ${enMissing} пустых EN-терминов (рассинхрон с GLOSS_EN?)`);
 sandbox.I18N.apply("ru");
 ok(GLOSSARY.length === ruLen, "GLOSSARY: длина изменилась после переключения языка");
@@ -83,7 +70,7 @@ ok(GLOSSARY.length === ruLen, "GLOSSARY: длина изменилась пос�
 sandbox.I18N.apply("en");
 const dqEmpty = DAILY_QUESTIONS.filter((d) => !d.q).length;
 ok(dqEmpty === 0, `DAILY_QUESTIONS: ${dqEmpty} вопросов без текста в EN`);
-const dqCyr = DAILY_QUESTIONS.filter((d) => /[А-Яа-яЁё]/.test(d.q)).length;
+const dqCyr = DAILY_QUESTIONS.filter((d) => CYR.test(d.q)).length;
 ok(dqCyr === 0, `DAILY_QUESTIONS: ${dqCyr} EN-вопросов с кириллицей (нет перевода)`);
 sandbox.I18N.apply("ru");
 
@@ -111,13 +98,30 @@ Object.keys(CONTENT_EN).forEach((cid) => {
 
 /* 10. MISSIONS: уникальные id и наличие флага */
 const misIds = new Set();
-(MISSIONS || []).forEach((m) => { ok(!misIds.has(m.id), `Дубликат миссии ${m.id}`); misIds.add(m.id); ok(/^CYBER\{.+\}$/.test(m.flag), `Миссия ${m.id}: некорректный флаг`); });
+(MISSIONS || []).forEach((m) => {
+  ok(!misIds.has(m.id), `Дубликат миссии ${m.id}`); misIds.add(m.id);
+  ok(/^CYBER\{.+\}$/.test(m.flag), `Миссия ${m.id}: некорректный флаг`);
+});
+
+/* 11–24. Глубокая проверка заданий (варианты, дубли, sandbox, RU/EN) */
+const deep = contentChecks(sandbox);
+deep.errors.forEach((e) => errors.push(e));
+deep.warns.forEach((w) => warns.push(w));
+checks += deep.checks;
 
 /* ---- Итог ---- */
 const totalTasks = Object.keys(taskIds).length;
-console.log(`Проверок выполнено: ${checks + totalTasks}`);
+const { total, withEN, withWhy } = deep.stats;
 console.log(`Курсов: ${COURSES.length} · комнат: ${COURSES.reduce((s, c) => s + c.rooms.length, 0)} · задач: ${totalTasks} · лаб: ${COURSES.reduce((s, c) => s + c.rooms.reduce((a, r) => a + r.tasks.filter((t) => t.type === "lab").length, 0), 0)}`);
+console.log(`EN-перевод: ${withEN}/${total} задач · объяснения (explanation): ${withWhy}/${total}`);
 console.log(`Глоссарий: ${GLOSSARY.length} · достижений: ${ACHIEVEMENTS.length} · вопросов дня: ${DAILY_QUESTIONS.length} · миссий: ${(MISSIONS || []).length}`);
+console.log(`Проверок выполнено: ${checks + totalTasks}`);
+
+if (warns.length) {
+  console.warn(`\n⚠️  Предупреждений: ${warns.length}`);
+  warns.slice(0, 40).forEach((w) => console.warn("  • " + w));
+  if (warns.length > 40) console.warn(`  … ещё ${warns.length - 40}`);
+}
 
 if (errors.length) {
   console.error(`\n❌ НАЙДЕНО ОШИБОК: ${errors.length}`);

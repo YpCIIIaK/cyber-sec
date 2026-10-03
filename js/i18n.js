@@ -438,6 +438,7 @@ const I18N = (() => {
     "Требуется": "Requires", "Пройдено": "Done", "готово": "ready", "Решено": "Solved", "из": "of",
     "Отмечено как прочитанное": "Marked as read", "Введите ответ": "Enter your answer",
     "Комната пройдена!": "Room complete!", "Верно! Решено": "Correct! Solved",
+    "Разбор: почему так": "Walkthrough: why",
     "Ответ или выполните в терминале": "Answer or run it in the terminal",
     "Выполните команду в терминале слева — затем нажмите «Проверить».": "Run the command in the terminal on the left, then press “Check”.",
     "Выполните команду в терминале и нажмите «Проверить».": "Run the command in the terminal and press “Check”.",
@@ -880,7 +881,7 @@ const I18N = (() => {
     ["IOC / IOA", "Blue Team", "Indicator of Compromise (traces: hashes, IPs, domains) and Indicator of Attack (behavior). Used in detection."],
     ["MITRE ATT&CK", "Blue Team", "A knowledge base of attacker tactics and techniques. The Enterprise matrix has 14 tactics and hundreds of techniques. TTP = Tactics, Techniques, Procedures."],
     ["Pyramid of Pain", "Blue Team", "David Bianco's model (2013): the higher up the pyramid (to TTPs) defenders detect, the more painful for the attacker."],
-    ["NIST SP 800-61", "Blue Team", "The incident response standard. 4 phases: preparation; detection & analysis; containment/eradication/recovery; post-incident activity."],
+    ["NIST SP 800-61", "Blue Team", "The incident response standard. Rev. 2 (2012) — 4 phases: preparation; detection & analysis; containment/eradication/recovery; post-incident activity. Rev. 3 (April 2025) reframes the same cycle in NIST CSF 2.0 terms."],
     ["CIS Benchmarks", "Hardening", "Consensus secure-configuration guides (OS, cloud, software). Levels: Level 1 (baseline) and Level 2 (hardened)."],
     ["Least Privilege", "Hardening", "The principle of minimal privileges: grant only the rights needed for the task."],
     ["Attack Surface", "Hardening", "The set of entry points. Hardening reduces it (disabling services, ports, features)."],
@@ -994,7 +995,8 @@ const I18N = (() => {
       r.__ru = { title: r.title, intro: r.intro };
       r.tasks.forEach((t) => {
         t.__ru = { title: t.title, prompt: t.prompt, hints: t.hints && t.hints.slice(), options: t.options && t.options.slice(),
-          answers: t.answers && t.answers.slice(), pairs: t.pairs && t.pairs.map((x) => x.slice()), items: t.items && t.items.slice() };
+          answers: t.answers && t.answers.slice(), pairs: t.pairs && t.pairs.map((x) => x.slice()), items: t.items && t.items.slice(),
+          explanation: t.explanation };
       });
     }));
     stashed = true;
@@ -1019,12 +1021,15 @@ const I18N = (() => {
      extra: { answers: [доп. EN-ответы], options: [...], pairs: [...], items: [...] } — по позициям RU-версии. */
   function applyContentEN() {
     const CE = window.CONTENT_EN || {};
+    const WHY = window.CONTENT_EN_WHY || {};
     COURSES.forEach((c) => c.rooms.forEach((r) => {
       const er = CE[c.id] && CE[c.id][r.id];
       if (!er) return;
       if (er.t) r.title = er.t;
       if (er.intro) r.intro = er.intro;
       r.tasks.forEach((t) => {
+        // Разбор ответа переводим всегда: EN-текст из js/en/why.js
+        t.explanation = WHY[t.id] || null;
         const e = er.tasks && er.tasks[t.id];
         if (!e) return;
         const [title, prompt, hints, x] = e;
@@ -1041,6 +1046,7 @@ const I18N = (() => {
         }
         if (x && x.pairs && ru.pairs && x.pairs.length === ru.pairs.length) t.pairs = x.pairs;
         if (x && x.items && ru.items && x.items.length === ru.items.length) t.items = x.items;
+        if (x && x.why) t.explanation = x.why; // перевод разбора может лежать и здесь
       });
     }));
   }
@@ -1062,6 +1068,7 @@ const I18N = (() => {
         if (ru.answers) t.answers = ru.answers.slice();
         if (ru.pairs) t.pairs = ru.pairs.map((x) => x.slice());
         if (ru.items) t.items = ru.items.slice();
+        t.explanation = ru.explanation;
       });
     }));
   }
@@ -1076,7 +1083,7 @@ const I18N = (() => {
   }
 
   /* Переводы курсов (~150 КБ) грузим лениво — только когда пользователь выбрал EN */
-  const EN_FILES = ["ad_reverse", "forensics_phishing", "fundamentals", "hardening_blue_malware", "networking_osint_crypto", "web_pentest", "windows"];
+  const EN_FILES = ["ad_reverse", "forensics_phishing", "fundamentals", "hardening_blue_malware", "networking_osint_crypto", "web_pentest", "why", "windows"];
   let enPromise = null;
   function loadContentEN() {
     if (window.__CONTENT_EN_READY) return Promise.resolve();
