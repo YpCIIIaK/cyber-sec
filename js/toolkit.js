@@ -756,6 +756,8 @@ Message-ID: <d4e1@maiil-paypaI.com>`,
   window.Toolkit = {
     render, open,
     list: TOOLS.map((t) => ({ id: t.id, ru: t.ru, en: t.en })),
+    flagTools: Object.keys(FLAGS),
+    flagValues: FLAGS,
     mailPick, mailClear, mailAnalyze, mailAnswer,
     evFilter, evAnswer,
     pkFilter, pkAnswer,

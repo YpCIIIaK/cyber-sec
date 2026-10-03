@@ -660,6 +660,7 @@ const App = (() => {
     if (view === "roadmap") return "#/roadmap";
     if (view === "review") return "#/review";
     if (view === "notes") return "#/notes";
+    if (view === "ctf") return "#/ctf";
     if (view === "boss") return `#/course/${params.courseId}/boss`;
     if (view === "weekly") return "#/weekly";
     if (view === "tools") return params.tool ? `#/tools/${params.tool}` : "#/tools";
@@ -676,6 +677,7 @@ const App = (() => {
     if (parts[0] === "roadmap") return { view: "roadmap" };
     if (parts[0] === "review") return { view: "review" };
     if (parts[0] === "notes") return { view: "notes" };
+    if (parts[0] === "ctf") return { view: "ctf" };
     if (parts[0] === "weekly") return { view: "weekly" };
     if (parts[0] === "tools") return { view: "tools", tool: parts[1] || null };
     if (parts[0] === "course" && parts[1]) {
@@ -721,6 +723,7 @@ const App = (() => {
               ${item(Icon.ui("progress"), T("Профиль"), "App.go('profile')")}
               ${item(Icon.ui("quest"), T("Повторение"), "App.go('review')", due ? `<em class="um-badge">${due}</em>` : "")}
               ${item(Icon.ui("book"), T("Словарь"), "App.go('glossary')")}
+              ${item(Icon.ui("flag"), T("CTF — флаги"), "App.go('ctf')")}
               ${item(Icon.ui("list"), T("Заметки"), "App.go('notes')", `<em class="um-count">${Progress.notes().length}</em>`)}
               ${item(Icon.ui("shield"), T("Звания"), "App.openRanks()")}
             </div>
@@ -795,6 +798,7 @@ const App = (() => {
       case "roadmap": renderRoadmap(); break;
       case "review": renderReview(); break;
       case "notes": renderNotes(); break;
+      case "ctf": renderCTF(); break;
       case "boss": renderBoss(c.courseId); break;
       case "weekly": renderWeekly(); break;
       case "tools": renderTools(c.tool); break;
@@ -2379,6 +2383,7 @@ const App = (() => {
       { label: "Каталог курсов", sub: "Все курсы", go: () => go("courses") },
       { label: "Путь обучения", sub: "Дорожная карта", go: () => go("roadmap") },
       { label: "Песочница", sub: "Терминал и квесты", go: () => go("sandbox") },
+      { label: T("CTF — охота за флагами"), sub: T("Все флаги платформы"), go: () => go("ctf") },
       { label: "Повторение", sub: "Карточки на повторение", go: () => go("review") },
       { label: "Словарь терминов", sub: "Глоссарий", go: () => go("glossary") },
       { label: "Профиль", sub: "Прогресс и достижения", go: () => go("profile") },
@@ -2510,6 +2515,83 @@ const App = (() => {
       bindNoteSelection._doc = true;
       document.addEventListener("mousedown", (e) => { const p = document.getElementById("note-pop"); if (p && e.target !== p) p.classList.remove("show"); });
     }
+  }
+
+  /* ---------- CTF: все флаги платформы ---------- */
+  function collectFlags() {
+    const list = [];
+    // флаги-задачи в курсах
+    COURSES.forEach((c) => c.rooms.forEach((r) => r.tasks.forEach((t) => {
+      if (t.type === "flag") list.push({
+        kind: "task", title: t.title.replace(/^🚩\s*/, ""), source: c.title + " · " + r.title,
+        value: (t.answers && t.answers[0]) || "", found: Progress.isDone(t.id),
+        go: () => go("room", { courseId: c.id, roomId: r.id }), color: c.color,
+      });
+    })));
+    // миссии песочницы
+    (typeof MISSIONS !== "undefined" ? MISSIONS : []).forEach((m) => list.push({
+      kind: "mission", title: m.title, source: T("Песочница") + " · " + T("Миссия"),
+      value: m.flag, found: Progress.missionDone(m.id), go: () => go("sandbox"), color: "#2f8f96",
+    }));
+    // флаги в инструментах Blue Team
+    if (window.Toolkit && Toolkit.list) {
+      const en = window.I18N && I18N.current() === "en";
+      Toolkit.list.forEach((tk) => {
+        if (!Toolkit.flagTools || Toolkit.flagTools.indexOf(tk.id) < 0) return;
+        list.push({
+          kind: "tool", title: en ? tk.en : tk.ru, source: T("Инструменты") + " · Blue Team",
+          value: (Toolkit.flagValues && Toolkit.flagValues[tk.id]) || "", found: Progress.bonusDone("flag_" + tk.id),
+          go: () => go("tools", { tool: tk.id }), color: "#d2312a",
+        });
+      });
+    }
+    return list;
+  }
+  function renderCTF() {
+    const flags = collectFlags();
+    const found = flags.filter((f) => f.found).length;
+    const pct = flags.length ? Math.round(found / flags.length * 100) : 0;
+    const kindLabel = { task: T("Курсы"), mission: T("Песочница"), tool: T("Инструменты") };
+    const groups = ["task", "mission", "tool"];
+    root().innerHTML = `
+      <section class="section">
+        <div class="page-title">
+          <h1>${Icon.ui("flag")} ${T("CTF — охота за флагами")}</h1>
+          <p>${T("Все спрятанные флаги платформы в одном месте. Найдите их все!")}</p>
+        </div>
+        <div class="ctf-head card">
+          <div class="ctf-ring" style="--p:${pct}"><b>${found}</b><span>/${flags.length}</span></div>
+          <div class="ctf-head-body">
+            <h3>${T("Найдено флагов")}: ${found} ${T("из")} ${flags.length}</h3>
+            <div class="ctf-bar"><span style="width:${pct}%"></span></div>
+            <p class="muted">${found === flags.length ? T("Все флаги найдены — вы настоящий охотник! 🏆") : T("Флаг раскрывается после того, как вы его добудете.")}</p>
+          </div>
+        </div>
+        ${groups.map((gk) => {
+          const items = flags.filter((f) => f.kind === gk);
+          if (!items.length) return "";
+          const gf = items.filter((i) => i.found).length;
+          return `
+          <h2 class="rooms-title">${kindLabel[gk]} <span class="ctf-cnt">${gf}/${items.length}</span></h2>
+          <div class="ctf-grid">
+            ${items.map((f) => `
+              <button class="ctf-card ${f.found ? "found" : "hidden"}" style="--c:${f.color}">
+                <span class="ctf-ic">${f.found ? Icon.ui("flag") : Icon.ui("lock")}</span>
+                <div class="ctf-body">
+                  <b>${escapeHtml(f.title)}</b>
+                  <span class="ctf-src">${escapeHtml(f.source)}</span>
+                  <code class="ctf-val">${f.found ? escapeHtml(f.value) : "CYBER{" + "•".repeat(10) + "}"}</code>
+                </div>
+                <span class="ctf-status">${f.found ? "✓" : "🔒"}</span>
+              </button>`).join("")}
+          </div>`;
+        }).join("")}
+      </section>`;
+    // навешиваем переходы (нельзя сериализовать функции в onclick).
+    // Порядок карточек в DOM совпадает с порядком flags (task → mission → tool).
+    const ordered = [...flags].sort((a, b) => groups.indexOf(a.kind) - groups.indexOf(b.kind));
+    root().querySelectorAll(".ctf-card").forEach((btn, i) => { const f = ordered[i]; if (f && f.go) btn.addEventListener("click", f.go); });
+    highlightNav();
   }
 
   function renderNotes() {

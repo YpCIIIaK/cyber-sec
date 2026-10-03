@@ -1813,3 +1813,33 @@ button.nav-xp:hover { border-color: var(--o-200); }
 .cert-chip.master .cc-ic { background: linear-gradient(145deg,#e9c15a,#c9951f); color: #fff; font-size: 1.2rem; }
 .cert-chip.master b { color: #b8860b; }
 .cert-empty { font-size: .9rem; margin-top: -4px; }
+
+/* ---------- Страница CTF / Флаги ---------- */
+.ctf-head { display: flex; align-items: center; gap: 22px; margin-bottom: 8px; }
+.ctf-ring { --p: 0; width: 92px; height: 92px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; background: conic-gradient(var(--o-500) calc(var(--p) * 1%), var(--bg-3) 0); position: relative; }
+.ctf-ring::before { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: var(--surface); }
+.ctf-ring b { position: relative; font-family: var(--disp); font-size: 1.7rem; line-height: 1; color: var(--o-600); }
+.ctf-ring span { position: relative; font-size: .8rem; color: var(--muted); }
+.ctf-head-body { flex: 1; min-width: 0; }
+.ctf-head-body h3 { font-size: 1.1rem; }
+.ctf-bar { height: 8px; border-radius: 10px; background: var(--bg-3); overflow: hidden; margin: 8px 0; }
+.ctf-bar span { display: block; height: 100%; background: linear-gradient(90deg, var(--o-400), var(--o-600)); border-radius: 10px; }
+.ctf-cnt { font-size: .85rem; color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
+.ctf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.ctf-card { display: flex; align-items: center; gap: 13px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); cursor: pointer; text-align: left; font-family: var(--sans); transition: border-color .15s, box-shadow .15s, transform .15s; }
+.ctf-card:hover { border-color: color-mix(in srgb, var(--c, var(--o-400)) 45%, var(--line)); box-shadow: var(--sh-sm); transform: translateY(-2px); }
+.ctf-card.found { border-left: 3px solid var(--c, var(--o-500)); }
+.ctf-ic { width: 40px; height: 40px; flex-shrink: 0; border-radius: 11px; display: grid; place-items: center; background: color-mix(in srgb, var(--c, var(--o-500)) 12%, var(--surface)); color: var(--c, var(--o-600)); }
+.ctf-card.hidden .ctf-ic { background: var(--bg-3); color: var(--muted); }
+.ctf-ic svg { width: 20px; height: 20px; }
+.ctf-body { flex: 1; min-width: 0; }
+.ctf-body b { display: block; font-size: .92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ctf-src { font-size: .74rem; color: var(--muted); }
+.ctf-val { display: block; margin-top: 4px; font-family: var(--mono); font-size: .78rem; color: var(--o-700); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ctf-card.hidden .ctf-val { color: var(--muted); letter-spacing: 1px; }
+.ctf-status { flex-shrink: 0; font-size: 1rem; }
+.ctf-card.found .ctf-status { color: var(--ok); }
+@media (max-width: 560px) { .ctf-head { flex-direction: column; text-align: center; } .ctf-grid { grid-template-columns: 1fr; } }
+
+/* Иконка в заголовке страницы (напр. CTF) не должна раздуваться */
+.page-title h1 svg { width: .9em; height: .9em; vertical-align: -2px; }

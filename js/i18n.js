@@ -11,6 +11,15 @@ const I18N = (() => {
 
   /* -------- UI-словарь (ключ = русская строка) -------- */
   const UI = {
+    "Все флаги платформы": "All platform flags",
+    "CTF — флаги": "CTF — flags",
+    "CTF — охота за флагами": "CTF — flag hunt",
+    "Все спрятанные флаги платформы в одном месте. Найдите их все!": "Every hidden flag on the platform in one place. Find them all!",
+    "Найдено флагов": "Flags found",
+    "из": "of",
+    "Все флаги найдены — вы настоящий охотник! 🏆": "All flags found — you're a true hunter! 🏆",
+    "Флаг раскрывается после того, как вы его добудете.": "A flag is revealed once you capture it.",
+    "Миссия": "Mission",
     "Мои сертификаты": "My certificates",
     "Диплом мастера": "Master diploma",
     "весь путь": "the whole path",
