@@ -88,7 +88,7 @@
       ps_proc: ["List of processes", "Which cmdlet shows running processes? (Verb-Noun)", ["Get-Process"], { answers: ["get-process", "ps"] }],
       ps_pipe: ["The pipeline", "Which character joins cmdlets into a pipeline (passing objects along)? (1 character)", ["Vertical bar."], { answers: ["|"] }],
       ps_verb_new: ["The create verb", "Which verb do object-creation cmdlets start with? (e.g. ...-Item)", ["New-Item, New-LocalUser..."]],
-      ps_enc: ["Sign of an attack", "What in PowerShell logs most strongly hints at malicious activity?", null, { options: ["powershell -w hidden -enc <base64>", "Get-Help Get-Process", "Get-Content report.txt", "Get-Service"] }],
+      ps_enc: ["Sign of an attack", "What in PowerShell logs most strongly hints at malicious activity?", null, { options: ["powershell -w hidden -enc SQBFAFgA", "Get-Help Get-Process", "Get-Content report.txt", "Get-Service"] }],
       ps_log: ["Blue-team defense", "What is the logging of executed PowerShell script content called? (2 words, Script ...)", ["Script Block ...", "Event 4104."], { answers: ["script block logging", "script block", "scriptblock logging"] }],
     },
   },

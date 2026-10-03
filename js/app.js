@@ -26,7 +26,7 @@ const Progress = (() => {
     createdAt: Date.now(),
   };
   const SRS_INTERVALS = [0, 1, 2, 4, 8, 16]; // дни по номеру box (1..5)
-  const EXAM_PASS = 0.8;   // порог сдачи
+  const EXAM_PASS = 0.7;   // порог сдачи (мягче: 70% вместо 80%)
   const EXAM_BONUS = 30;   // бонус XP за первую сдачу
 
   const HINT_PENALTY = 5; // XP штраф за каждую использованную подсказку
@@ -496,6 +496,25 @@ const Progress = (() => {
   }
   function srsDueCount() { return srsDueList().length; }
   function srsTotal() { return Object.keys(state.srs || {}).length; }
+  // Разбивка колоды по курсам: { courseId: { title, total, due, lapses } }
+  function srsDeckStats() {
+    const today = dayIndex();
+    const out = {};
+    Object.keys(state.srs || {}).forEach((id) => {
+      const info = TASK_INDEX[id];
+      if (!info) return;
+      const cid = info.course.id;
+      if (!out[cid]) out[cid] = { title: info.course.title, total: 0, due: 0, lapses: 0 };
+      out[cid].total++;
+      if (state.srs[id].due <= today) out[cid].due++;
+      out[cid].lapses += state.srs[id].lapses || 0;
+    });
+    return out;
+  }
+  function srsDueListFor(courseId) {
+    if (!courseId) return srsDueList();
+    return srsDueList().filter((id) => TASK_INDEX[id] && TASK_INDEX[id].course.id === courseId);
+  }
   function srsReview(taskId, ok) {
     const card = state.srs[taskId];
     if (!card) return;
@@ -550,6 +569,17 @@ const Progress = (() => {
     });
     return buckets;
   }
+  function xpByDay(days) {
+    days = days || 14;
+    const today = dayIndex();
+    const buckets = Array.from({ length: days }, () => 0);
+    (state.xpLog || []).forEach((e) => {
+      const ago = today - e.d;
+      const di = days - 1 - ago;
+      if (di >= 0 && di < days) buckets[di] += e.a;
+    });
+    return buckets;
+  }
   function activityMap(days) {
     days = days || 84;
     const out = [];
@@ -584,7 +614,8 @@ const Progress = (() => {
     tasks.forEach((t) => { const a = (state.attempts || {})[t.id]; if (a) { cr += a.c || 0; wr += a.w || 0; } });
     const acc = cr + wr ? cr / (cr + wr) : 1;
     const hintsPenalty = tasks.filter((t) => state.hintsUsed[t.id]).length / Math.max(1, tasks.length);
-    const quality = 0.7 + 0.3 * acc - 0.1 * hintsPenalty;
+    // Мягкий штраф: ошибки в обучении — норма, не наказываем за них сильно
+    const quality = 0.85 + 0.15 * acc - 0.05 * hintsPenalty;
     const exam = (state.exams || {})[c.id];
     const examPart = exam && exam.passed ? 15 * (exam.best / 100) : 0;
     return { score: Math.round(Math.max(0, Math.min(100, pct * 0.85 * quality + examPart))), pct, acc: Math.round(acc * 100), exam: !!(exam && exam.passed) };
@@ -616,8 +647,8 @@ const Progress = (() => {
     examPassed, examBest, recordExam,
     recordAttempt, accuracyOverall, taskInfo,
     getDraft, setDraft, clearDraft,
-    srsEnsure, srsDueList, srsDueCount, srsTotal, srsReview, srsEligible,
-    weakTasks, weakCourses, xpByWeek, activityMap, skillRadar, courseMastery,
+    srsEnsure, srsDueList, srsDueCount, srsTotal, srsReview, srsEligible, srsDeckStats, srsDueListFor,
+    weakTasks, weakCourses, xpByWeek, xpByDay, activityMap, skillRadar, courseMastery,
     metric, bumpStat, awardBonus, bonusDone, stats, profile, setProfile, weekKey, challengeRec, recordChallenge, challenges, notes, addNote, updateNote, deleteNote,
     _state: () => state,
   };
@@ -2028,8 +2059,8 @@ const App = (() => {
     for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
     return a.slice(0, n);
   }
-  const BOSS = { n: 6, limit: 480, pass: 5, bonus: 50 };
-  const WEEKLY = { n: 8, limit: 600, pass: 6, bonus: 40 };
+  const BOSS = { n: 6, limit: 480, pass: 4, bonus: 50 };
+  const WEEKLY = { n: 8, limit: 600, pass: 5, bonus: 40 };
   let chal = null;
   function fmtTime(sec) { return String(Math.floor(sec / 60)).padStart(2, "0") + ":" + String(sec % 60).padStart(2, "0"); }
 
@@ -2378,6 +2409,8 @@ const App = (() => {
 
   /* ---------- Режим повторения (spaced repetition) ---------- */
   let reviewSession = null;
+  let dashXpMode = "week"; // "week" | "day" — период графика XP на дашборде
+  function setXpMode(m) { dashXpMode = m === "day" ? "day" : "week"; if (current.view === "profile") renderProfile(); }
   function renderReview() {
     const total = Progress.srsTotal();
     const due = Progress.srsDueList();
@@ -2398,9 +2431,35 @@ const App = (() => {
       highlightNav();
       return;
     }
-    reviewSession = { queue: due.slice(), idx: 0, correct: 0, total: due.length, revealed: false };
-    root().innerHTML = `<section class="section"><div class="page-title"><h1>${T("Повторение")}</h1><p>Сессия: ${due.length} карточек к повторению.</p></div><div id="review-stage"></div></section>`;
+    // Экран выбора: вся колода или фокус на слабой теме
+    const deck = Progress.srsDeckStats();
+    const rows = Object.keys(deck)
+      .filter((cid) => deck[cid].due > 0)
+      .sort((a, b) => deck[b].due - deck[a].due)
+      .map((cid) => `
+        <button class="rev-topic" onclick="App.reviewStart('${cid}')">
+          <span class="rev-topic-t">${deck[cid].title}</span>
+          <span class="rev-topic-n">${deck[cid].due} ${plural(deck[cid].due, "карточка", "карточки", "карточек")}${deck[cid].lapses ? ` · ${T("ошибок")}: ${deck[cid].lapses}` : ""}</span>
+        </button>`).join("");
+    root().innerHTML = `
+      <section class="section">
+        <div class="page-title"><h1>${T("Повторение")}</h1><p>${T("Интервальное повторение слабых тем — как флеш-карты Anki.")}</p></div>
+        <div class="review-start card">
+          <h3>${T("Готово к повторению:")} <b>${due.length}</b></h3>
+          <p>${T("Повторите всё сразу или сфокусируйтесь на отдельной теме.")}</p>
+          <button class="btn btn-primary" onclick="App.reviewStart('')">${Icon.ui("arrow")} ${T("Повторить всё")} (${due.length})</button>
+        </div>
+        ${rows ? `<h3 class="rev-topics-h">${T("По темам")}</h3><div class="rev-topics">${rows}</div>` : ""}
+        <div id="review-stage"></div>
+      </section>`;
     highlightNav();
+  }
+  function reviewStart(courseId) {
+    const due = Progress.srsDueListFor(courseId || "");
+    if (!due.length) { renderReview(); return; }
+    reviewSession = { queue: due.slice(), idx: 0, correct: 0, total: due.length, revealed: false, courseId: courseId || "" };
+    const stage = document.getElementById("review-stage");
+    if (stage) { stage.scrollIntoView({ behavior: "smooth", block: "start" }); }
     renderReviewCard();
   }
   function renderReviewCard() {
@@ -2785,7 +2844,6 @@ const App = (() => {
     const acc = Progress.accuracyOverall();
     const due = Progress.srsDueCount();
     const active = Object.keys(Progress._state().activeDays || {}).length;
-    const weak = Progress.weakCourses().slice(0, 4);
     const kpis = [
       [T("Точность ответов"), acc.total ? acc.pct + "%" : "—", acc.total ? acc.correct + "/" + acc.total : T("нет данных")],
       [T("На повторение"), String(due), due ? T("карточек готово") : T("всё повторено")],
@@ -2799,7 +2857,13 @@ const App = (() => {
       </div>
       <div class="dash-grid">
         <div class="card chart-card">
-          <div class="chart-head"><h3>${T("XP по неделям")}</h3><span class="chart-sub">${T("последние 8 недель")}</span></div>
+          <div class="chart-head">
+            <h3>${dashXpMode === "day" ? T("XP по дням") : T("XP по неделям")}</h3>
+            <div class="seg" role="tablist" aria-label="${T("Период")}">
+              <button class="seg-btn${dashXpMode === "week" ? " on" : ""}" role="tab" aria-selected="${dashXpMode === "week"}" onclick="App.setXpMode('week')">${T("Недели")}</button>
+              <button class="seg-btn${dashXpMode === "day" ? " on" : ""}" role="tab" aria-selected="${dashXpMode === "day"}" onclick="App.setXpMode('day')">${T("Дни")}</button>
+            </div>
+          </div>
           ${xpBarsSVG()}
         </div>
         <div class="card chart-card">
@@ -2810,28 +2874,20 @@ const App = (() => {
           <div class="chart-head"><h3>${T("Календарь активности")}</h3><span class="chart-sub">${T("последние 17 недель")}</span></div>
           ${heatmapSVG()}
         </div>
-        ${weak.length ? `
-        <div class="card chart-card wide">
-          <div class="chart-head"><h3>${T("Слабые места")}</h3><span class="chart-sub">${T("где чаще ошибки — стоит повторить")}</span></div>
-          <div class="weak-list">
-            ${weak.map((w) => `<div class="weak-row" onclick="App.go('course',{courseId:'${w.course.id}'})">
-              <span class="cpl-ic" style="color:${w.course.color}">${Icon.course(w.course.id)}</span>
-              <span class="weak-name">${w.course.title}</span>
-              <span class="weak-count">${Math.round(w.rate * 100)}% ${T("ошибок")} · ${w.wrong}</span>
-            </div>`).join("")}
-          </div>
-        </div>` : ""}
       </div>`;
   }
 
   function xpBarsSVG() {
-    const data = Progress.xpByWeek(8);
+    const byDay = dashXpMode === "day";
+    const data = byDay ? Progress.xpByDay(14) : Progress.xpByWeek(8);
     const max = Math.max(1, ...data);
     const W = 460, H = 170, pad = 26, bw = (W - pad * 2) / data.length;
     const bars = data.map((v, i) => {
       const h = Math.round((v / max) * (H - pad - 24));
       const x = pad + i * bw + bw * 0.18, y = H - 24 - h, w = bw * 0.64;
-      const lbl = i === data.length - 1 ? T("сейчас") : (data.length - 1 - i) + T("н");
+      const back = data.length - 1 - i;
+      const showLbl = i === data.length - 1 || !byDay || back % 2 === 0;
+      const lbl = !showLbl ? "" : (i === data.length - 1 ? T("сейчас") : (byDay ? back + T("д") : back + T("н")));
       return `<g>
         <rect x="${x.toFixed(1)}" y="${y}" width="${w.toFixed(1)}" height="${Math.max(h, 2)}" rx="4" fill="var(--o-500)"><title>${v} XP</title></rect>
         ${v > 0 ? `<text x="${(x + w / 2).toFixed(1)}" y="${y - 5}" class="c-val">${v}</text>` : ""}
@@ -3811,7 +3867,7 @@ const App = (() => {
     submitChoice, submitMatch, orderPick, orderReset, submitDaily,
     submitMission, toggleShell, openShortcuts, closeShortcuts,
     glossarySearch, submitExam, retryExam, openPalette, palettePick, installApp,
-    reviewChoose, reviewCheck, reviewNext, shareCard, saveDraft, toggleLang,
+    reviewChoose, reviewCheck, reviewNext, reviewStart, setXpMode, shareCard, saveDraft, toggleLang,
     openRanks, closeRanks, achSetFilter, tilt, openProfileEditor, closeProfileEditor, profTab, profAvatar, profUpload,
     profDraftSet, profToggleShowcase, saveProfile, chalStart, chalAnswer, chalSkip, chalRestart, notesFilter, noteComment, noteDelete, exportNotes,
   };

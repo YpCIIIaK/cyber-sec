@@ -572,7 +572,7 @@ const COURSES = [
           { id: "ps_proc", type: "question", title: "Список процессов", prompt: "Какой командлет показывает запущенные процессы? (Глагол-Существительное)", answers: ["get-process", "ps"], hints: ["Get-Process"], points: 15 },
           { id: "ps_pipe", type: "question", title: "Конвейер", prompt: "Какой символ соединяет командлеты в конвейер (передаёт объекты дальше)? (1 символ)", answers: ["|"], hints: ["Вертикальная черта."], points: 10 },
           { id: "ps_verb_new", type: "question", title: "Глагол создания", prompt: "С какого глагола начинаются командлеты создания объектов? (англ., напр. ...-Item)", answers: ["new", "new-"], hints: ["New-Item, New-LocalUser..."], points: 10 },
-          { id: "ps_enc", type: "choice", title: "Признак атаки", prompt: "Что в логах PowerShell сильнее всего намекает на вредоносную активность?", options: ["powershell -w hidden -enc <base64>", "Get-Help Get-Process", "Get-Content report.txt", "Get-Service"], answers: ["powershell -w hidden -enc <base64>"], points: 15 },
+          { id: "ps_enc", type: "choice", title: "Признак атаки", prompt: "Что в логах PowerShell сильнее всего намекает на вредоносную активность?", options: ["powershell -w hidden -enc SQBFAFgA", "Get-Help Get-Process", "Get-Content report.txt", "Get-Service"], answers: ["powershell -w hidden -enc SQBFAFgA"], points: 15 },
           { id: "ps_log", type: "question", title: "Защита блю-тим", prompt: "Как называется логирование содержимого выполняемых скриптов PowerShell? (2 слова, англ., напр. Script ...)", answers: ["script block logging", "script block", "scriptblock logging"], hints: ["Script Block ...", "Событие 4104."], points: 15 },
         ],
       },
