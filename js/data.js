@@ -136,7 +136,7 @@ const GLOSSARY = [
   { term: "IOC / IOA", cat: "Blue Team", def: "Индикатор компрометации (следы: хеши, IP, домены) и индикатор атаки (поведение). Используются в детекте." },
   { term: "MITRE ATT&CK", cat: "Blue Team", def: "База знаний тактик и техник атакующих. В Enterprise-матрице 14 тактик и сотни техник. TTP = Tactics, Techniques, Procedures." },
   { term: "Pyramid of Pain", cat: "Blue Team", def: "Модель Дэвида Бьянко (2013): чем выше по пирамиде (до TTP) детектит защита, тем «больнее» атакующему." },
-  { term: "NIST SP 800-61", cat: "Blue Team", def: "Стандарт реагирования на инциденты. 4 фазы: подготовка; обнаружение и анализ; сдерживание/устранение/восстановление; действия после инцидента." },
+  { term: "NIST SP 800-61", cat: "Blue Team", def: "Стандарт реагирования на инциденты. Rev. 2 (2012) — 4 фазы: подготовка; обнаружение и анализ; сдерживание/устранение/восстановление; действия после инцидента. Rev. 3 (апрель 2025) — тот же цикл в терминах NIST CSF 2.0." },
   { term: "CIS Benchmarks", cat: "Харденинг", def: "Консенсусные гайды безопасной конфигурации (ОС, облака, ПО). Уровни: Level 1 (базовый) и Level 2 (усиленный)." },
   { term: "Least Privilege", cat: "Харденинг", def: "Принцип минимальных привилегий: давать ровно столько прав, сколько нужно для задачи." },
   { term: "Attack Surface", cat: "Харденинг", def: "Поверхность атаки — совокупность точек входа. Харденинг снижает её (отключение служб, портов, фич)." },
@@ -793,11 +793,11 @@ const COURSES = [
 `,
         tasks: [
           { id: "nm_read", type: "info", title: "Изучить Nmap", prompt: "Прочитайте о сканировании, состояниях портов и NSE.", points: 5 },
-          { id: "nm_version", type: "question", title: "Определение версий", prompt: "Какой флаг Nmap определяет версии сервисов? (например -X)", answers: ["-sv", "-sV"], hints: ["s + Version"], points: 15, caseSensitive: false },
+          { id: "nm_version", type: "question", title: "Определение версий", prompt: "Какой флаг Nmap определяет версии сервисов? (например -X)", answers: ["-sV"], hints: ["s + Version"], points: 15, caseSensitive: false },
           { id: "nm_allports", type: "question", title: "Все порты", prompt: "Какой флаг сканирует все 65535 портов?", answers: ["-p-"], hints: ["p и дефис."], points: 15 },
-          { id: "nm_syn", type: "question", title: "Тихий скан", prompt: "Какой флаг запускает SYN-скан («полуоткрытый»)? (напр. -sX)", answers: ["-ss", "-sS"], hints: ["s + SYN"], points: 15, caseSensitive: false },
+          { id: "nm_syn", type: "question", title: "Тихий скан", prompt: "Какой флаг запускает SYN-скан («полуоткрытый»)? (напр. -sX)", answers: ["-sS"], hints: ["s + SYN"], points: 15, caseSensitive: false },
           { id: "nm_filtered", type: "question", title: "Экран мешает", prompt: "Каким словом Nmap помечает порт, ответ которого блокирует межсетевой экран? (англ.)", answers: ["filtered"], hints: ["Не open и не closed."], points: 15 },
-          { id: "nm_os", type: "question", title: "Определить ОС", prompt: "Какой флаг Nmap пытается определить операционную систему? (напр. -X)", answers: ["-o", "-O"], hints: ["O как OS."], points: 10, caseSensitive: false },
+          { id: "nm_os", type: "question", title: "Определить ОС", prompt: "Какой флаг Nmap пытается определить операционную систему? (напр. -X)", answers: ["-O"], hints: ["O как OS."], points: 10, caseSensitive: false },
           { id: "nm_flag", type: "flag", title: "🚩 Скан цели в песочнице", prompt: "Запустите nmap на 10.10.10.5 в песочнице. Один из портов необычный — введите его номер.", answers: ["1337"], hints: ["nmap 10.10.10.5", "Ищите порт, которого нет в стандартном списке."], points: 25, sandbox: true },
           { id: "nm_lab", type: "lab", lab: "portscan", title: "Лаборатория: разбор скана портов", prompt: "Отметьте рискованные открытые порты в выводе nmap.", points: 25 },
         ],
@@ -873,33 +873,34 @@ const COURSES = [
 <h3>Зачем нужен Top 10</h3>
 <p><b>OWASP</b> (Open Worldwide Application Security Project) — некоммерческое сообщество, которое раз в несколько лет публикует <b>Top 10</b>: список самых критичных и распространённых рисков веб-приложений. Это не «10 конкретных багов», а 10 <i>категорий</i>, с которых начинают и разработчик, и пентестер, и аудитор. Знать их наизусть — профессиональный минимум.</p>
 
-<h3>OWASP Top 10 (редакция 2021)</h3>
+<h3>OWASP Top 10 (актуальная редакция 2025)</h3>
 <table>
-  <thead><tr><th>#</th><th>Категория</th><th>О чём</th></tr></thead>
+  <thead><tr><th>#</th><th>Категория (редакция 2025)</th><th>О чём</th></tr></thead>
   <tbody>
-    <tr><td>A01</td><td><b>Broken Access Control</b></td><td>Доступ к чужим данным/действиям (IDOR, обход прав)</td></tr>
-    <tr><td>A02</td><td><b>Cryptographic Failures</b></td><td>Нет/слабое шифрование, пароли в открытом виде</td></tr>
-    <tr><td>A03</td><td><b>Injection</b></td><td>SQL/команды/LDAP в вводе; сюда входит и XSS</td></tr>
-    <tr><td>A04</td><td><b>Insecure Design</b></td><td>Небезопасная архитектура, нет моделирования угроз</td></tr>
-    <tr><td>A05</td><td><b>Security Misconfiguration</b></td><td>Дефолтные пароли, открытые панели, лишние функции</td></tr>
-    <tr><td>A06</td><td><b>Vulnerable Components</b></td><td>Старые библиотеки с известными CVE</td></tr>
-    <tr><td>A07</td><td><b>Auth Failures</b></td><td>Слабая аутентификация, перебор, угон сессий</td></tr>
-    <tr><td>A08</td><td><b>Data Integrity Failures</b></td><td>Небезопасная десериализация, недоверенные обновления</td></tr>
-    <tr><td>A09</td><td><b>Logging Failures</b></td><td>Нет логов и мониторинга — атаку не замечают</td></tr>
-    <tr><td>A10</td><td><b>SSRF</b></td><td>Сервер заставляют делать запросы от своего имени</td></tr>
+    <tr><td>A01</td><td><b>Broken Access Control</b></td><td>Доступ к чужим данным/действиям: IDOR, обход прав, SSRF</td></tr>
+    <tr><td>A02</td><td><b>Security Misconfiguration</b></td><td>Дефолтные пароли, открытые панели, лишние функции, подробные ошибки</td></tr>
+    <tr><td>A03</td><td><b>Software Supply Chain Failures</b></td><td>Скомпрометированные зависимости, CI/CD, отсутствие проверки артефактов</td></tr>
+    <tr><td>A04</td><td><b>Cryptographic Failures</b></td><td>Нет/слабое шифрование, пароли в открытом виде, неверный режим шифра</td></tr>
+    <tr><td>A05</td><td><b>Injection</b></td><td>SQL/команды/LDAP/NoSQL-инъекции; в редакции 2021 сюда же относили XSS</td></tr>
+    <tr><td>A06</td><td><b>Insecure Design</b></td><td>Небезопасная архитектура, нет моделирования угроз</td></tr>
+    <tr><td>A07</td><td><b>Authentication Failures</b></td><td>Слабая аутентификация, перебор, угон сессий, отсутствие MFA</td></tr>
+    <tr><td>A08</td><td><b>Software or Data Integrity Failures</b></td><td>Небезопасная десериализация, недоверенные обновления, CI/CD без подписи</td></tr>
+    <tr><td>A09</td><td><b>Security Logging and Alerting Failures</b></td><td>Нет логов, алертов и мониторинга — атаку не замечают</td></tr>
+    <tr><td>A10</td><td><b>Mishandling of Exceptional Conditions</b></td><td>Некорректная обработка ошибок и отказов: исключения, таймауты, утечка деталей в ответе</td></tr>
   </tbody>
 </table>
+<div class="callout">📚 <b>Что изменилось с редакции 2021:</b> A03 «Vulnerable and Outdated Components» выросла в A03 «Software Supply Chain Failures»; отдельная A10 «SSRF» ушла внутрь A01 «Broken Access Control»; XSS больше не отдельная категория (в 2021 он был внутри A03 Injection), зато появилась A10 про обработку исключений. Если в документе заказчика вы видите «Top 10:2021» — номера и названия будут другими, суть рисков той же.</div>
 <div class="callout">📚 Всё изучаем с точки зрения защиты: чтобы находить и чинить уязвимости, надо понимать их механику. Тестировать можно только свои приложения и учебные полигоны.</div>
-<div class="callout warn">⚠️ #1 уже много лет — <b>Broken Access Control</b>. Самая частая реальная дыра — не хитрый эксплойт, а банально «проверку прав забыли».</div>
+<div class="callout warn">⚠️ #1 и в 2019, и в 2021, и в 2025 — <b>Broken Access Control</b>. Самая частая реальная дыра — не хитрый эксплойт, а банально «проверку прав забыли».</div>
 `,
         tasks: [
           { id: "ow_read", type: "info", title: "Изучить OWASP", prompt: "Прочитайте про Top 10 и его категории.", points: 5 },
           { id: "ow_idor", type: "question", title: "Доступ к чужому", prompt: "Как называется уязвимость, когда сменив id в URL видишь чужие данные? (англ., аббревиатура 4 буквы)", answers: ["idor"], hints: ["Insecure Direct Object Reference."], points: 15 },
           { id: "ow_org", type: "question", title: "Кто это составляет", prompt: "Как называется организация-автор Top 10? (аббревиатура, 5 букв)", answers: ["owasp"], hints: ["Open Worldwide Application Security Project."], points: 10 },
-          { id: "ow_first", type: "question", title: "Риск №1", prompt: "Какая категория много лет занимает 1-е место в OWASP Top 10? (2 слова англ., Broken ...)", answers: ["broken access control", "access control", "broken access"], hints: ["Контроль доступа.", "A01:2021."], points: 15 },
-          { id: "ow_ssrf", type: "question", title: "Запрос от сервера", prompt: "Как называется атака, где сервер заставляют делать запросы от своего имени? (аббревиатура, 4 буквы)", answers: ["ssrf"], hints: ["Server-Side Request Forgery."], points: 15 },
+          { id: "ow_first", type: "question", title: "Риск №1", prompt: "Какая категория занимает 1-е место в OWASP Top 10:2025 (и была A01 в 2021, и в 2019)? (2 слова англ., Broken ...)", answers: ["broken access control", "access control", "broken access"], hints: ["Контроль доступа.", "A01:2025 (и A01:2021)."], points: 15 },
+          { id: "ow_ssrf", type: "question", title: "Запрос от сервера", prompt: "Как называется атака, где сервер заставляют делать запросы от своего имени? (аббревиатура, 4 буквы)", answers: ["ssrf"], hints: ["Server-Side Request Forgery. В Top 10:2021 это была отдельная A10, в редакции 2025 — часть A01."], points: 15 },
           { id: "ow_cve", type: "question", title: "Старые библиотеки", prompt: "Как называется идентификатор известной публичной уязвимости (напр. ...-2021-44228)? (аббревиатура, 3 буквы)", answers: ["cve"], hints: ["Common Vulnerabilities and Exposures."], points: 15 },
-          { id: "ow_choice", type: "choice", title: "Куда отнести SQLi", prompt: "К какой категории OWASP относится SQL-инъекция?", options: ["Injection", "Cryptographic Failures", "Logging Failures", "SSRF"], answers: ["Injection"], points: 15 },
+          { id: "ow_choice", type: "choice", title: "Куда отнести SQLi", prompt: "К какой категории OWASP Top 10 относится SQL-инъекция? (в редакции 2021 — A03, в 2025 — A05)", options: ["Injection", "Cryptographic Failures", "Logging Failures", "SSRF"], answers: ["Injection"], points: 15 },
         ],
       },
       {
@@ -936,7 +937,7 @@ const COURSES = [
 `,
         tasks: [
           { id: "sql_read", type: "info", title: "Изучить SQLi", prompt: "Прочитайте про инъекции, их виды и защиту.", points: 5 },
-          { id: "sql_payload", type: "question", title: "Классический пейлоад", prompt: "Введите классическое условие, всегда истинное: ' OR '1'='... (закончите: цифра)", answers: ["1", "'1"], hints: ["'1'='1"], points: 15 },
+          { id: "sql_payload", type: "question", title: "Классический пейлоад", prompt: "Введите классическое условие, всегда истинное, для запроса вида SELECT * FROM users WHERE name='<ввод>'. Ориентир: 1' OR '1'='1", answers: ["1' or '1'='1", "' or '1'='1", "' or 1=1--", "' or 1=1#", "1 or 1=1", "admin'--"], hints: ["Классика: ' OR '1'='1", "После закрытия кавычки условие всегда истинно — вернётся первая строка."], points: 15 },
           { id: "sql_defense", type: "question", title: "Главная защита", prompt: "Как называются запросы с плейсхолдерами вместо конкатенации? (2 слова, англ.)", answers: ["prepared statements", "parameterized queries", "prepared statement"], hints: ["Prepared ...", "'prepared statements' или 'parameterized queries'"], points: 20 },
           { id: "sql_union", type: "question", title: "Подклеить таблицу", prompt: "Какой оператор SQL подклеивает результат другого SELECT к текущему (используется в инъекциях)? (англ., 1 слово)", answers: ["union"], hints: ["UNION SELECT..."], points: 15 },
           { id: "sql_blind", type: "question", title: "Инъекция вслепую", prompt: "Как называется SQLi, где ответа не видно и вывод определяют по «да/нет» или задержке? (англ., 1 слово)", answers: ["blind"], hints: ["Слепая инъекция."], points: 15 },
@@ -1127,7 +1128,7 @@ const COURSES = [
           { id: "meth_last", type: "question", title: "Финал", prompt: "Какая фаза завершает пентест и даёт ценность заказчику? (англ., 1 слово)", answers: ["reporting", "report"], hints: ["Отчёт."], points: 15 },
           { id: "meth_privesc", type: "question", title: "Повышение прав", prompt: "Как коротко называют повышение привилегий? (англ., 1 слово-сленг)", answers: ["privesc"], hints: ["Privilege Escalation → priv..."], points: 15 },
           { id: "meth_lateral", type: "question", title: "Переход по сети", prompt: "Как называется перемещение атакующего на соседние машины в сети? (2 слова, англ.)", answers: ["lateral movement", "lateralmovement"], hints: ["Боковое перемещение."], points: 15 },
-          { id: "meth_attack", type: "question", title: "Матрица техник", prompt: "Как называется матрица тактик и техник атак от MITRE? (1 слово после MITRE)", answers: ["att&ck", "attack", "att&ck"], hints: ["MITRE ...", "ATT&CK"], points: 15 },
+          { id: "meth_attack", type: "question", title: "Матрица техник", prompt: "Как называется матрица тактик и техник атак от MITRE? (1 слово после MITRE)", answers: ["att&ck", "attack"], hints: ["MITRE ...", "ATT&CK"], points: 15 },
           { id: "meth_order", type: "order", title: "Порядок фаз", prompt: "Расставьте фазы пентеста по порядку — нажимайте по очереди.", items: ["Разведка", "Сканирование", "Эксплуатация", "Пост-эксплуатация", "Отчёт"], points: 20 },
         ],
       },
@@ -2217,7 +2218,7 @@ const COURSES = [
         title: "Реагирование на инциденты (NIST SP 800-61)",
         intro: `
 <h3>Инцидент — это процесс, а не паника</h3>
-<p>Когда что-то случилось, импровизация дорого стоит. Стандарт <b>NIST SP 800-61</b> задаёт понятный жизненный цикл из 4 фаз, по которому действует команда реагирования (CSIRT).</p>
+<p>Когда что-то случилось, импровизация дорого стоит. Стандарт <b>NIST SP 800-61</b> задаёт понятный жизненный цикл реагирования, по которому действует команда (CSIRT). Четыре фазы ниже — это <b>Rev. 2 (2012)</b>, их до сих пор цитируют в регламентах и учебных материалах:</p>
 
 <ol>
   <li><b>Preparation</b> — подготовка: люди, процессы, инструменты, playbook-и <i>до</i> инцидента.</li>
@@ -2225,6 +2226,8 @@ const COURSES = [
   <li><b>Containment, Eradication &amp; Recovery</b> — сдержать распространение, удалить угрозу, восстановить работу.</li>
   <li><b>Post-Incident Activity</b> — разбор «lessons learned».</li>
 </ol>
+
+<div class="callout">📌 <b>Актуальность:</b> действующая редакция — <b>NIST SP 800-61 Rev. 3</b> (апрель 2025), «Incident Response Recommendations and Considerations for Cybersecurity Risk Management: A CSF 2.0 Community Profile». Она не отменяет логику фаз, а переводит рекомендации в термины <b>NIST CSF 2.0</b> (Govern, Identify, Protect, Detect, Respond, Recover) и подчёркивает, что реагирование — часть управления рисками. Rev. 2 формально заменена (superseded), но именно четыре фазы Rev. 2 чаще всего ожидают на собеседовании и в типовых процедурах.</div>
 
 <h3>Containment: быстро и правильно</h3>
 <ul class="tl">

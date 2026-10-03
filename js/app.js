@@ -1695,8 +1695,18 @@ const App = (() => {
         </div>
         <p class="task-prompt">${task.prompt}</p>
         ${done
-          ? `<div class="task-ok">${Icon.ui("check")} ${task.type === "info" ? T("Отмечено как прочитанное") : T("Верно! Решено") + " (+" + (Progress._state().earned[task.id] ?? task.points) + " XP)"}</div>`
+          ? `<div class="task-ok">${Icon.ui("check")} ${task.type === "info" ? T("Отмечено как прочитанное") : T("Верно! Решено") + " (+" + (Progress._state().earned[task.id] ?? task.points) + " XP)"}</div>` + whyBlock(task)
           : answerArea(course, task) + hintsArea(course, task)}
+      </div>`;
+  }
+
+  /* Разбор после решения: почему ответ верный и почему другие варианты не подходят */
+  function whyBlock(task) {
+    const why = task.explanation;
+    if (!why) return "";
+    return `<div class="task-why">
+        <div class="why-head">${Icon.ui("book")} ${T("Разбор: почему так")}</div>
+        <div class="why-body">${why}</div>
       </div>`;
   }
 

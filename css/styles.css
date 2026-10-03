@@ -550,6 +550,36 @@ main { min-height: 72vh; }
 .hint-btn:hover { background: var(--o-50); }
 .hint-shown { background: var(--o-50); border: 1px solid var(--o-100); padding: 9px 13px; border-radius: 9px; font-size: .86rem; color: var(--ink-2); }
 
+/* Разбор ответа после решения */
+.task-why {
+  margin: 10px 0 2px 39px;
+  padding: 13px 15px;
+  border: 1px solid var(--o-100);
+  border-left: 3px solid var(--o-500);
+  border-radius: 10px;
+  background: linear-gradient(160deg, var(--o-50), var(--surface) 75%);
+}
+.why-head {
+  display: flex; align-items: center; gap: 7px;
+  font-size: .82rem; font-weight: 700; letter-spacing: .02em;
+  color: var(--o-700); text-transform: uppercase; margin-bottom: 7px;
+}
+.why-head svg { width: 15px; height: 15px; }
+.why-body { font-size: .89rem; color: var(--ink-2); line-height: 1.55; }
+.why-body p { margin: 0 0 7px; }
+.why-body p:last-child { margin-bottom: 0; }
+.why-body ul, .why-body ol { margin: 5px 0 7px; padding-left: 20px; }
+.why-body li { margin-bottom: 4px; }
+.why-body b, .why-body strong { color: var(--ink); }
+.why-body code {
+  font-family: var(--mono); font-size: .86em;
+  background: var(--surface); border: 1px solid var(--o-100);
+  border-radius: 5px; padding: 1px 5px;
+}
+.why-body .no { color: var(--err); font-weight: 600; }
+.why-body .yes { color: var(--ok); font-weight: 600; }
+@media (max-width: 640px) { .task-why { margin-left: 0; } }
+
 .complete-banner {
   background: linear-gradient(150deg, var(--o-50), var(--surface) 70%);
   border: 1px solid var(--o-100); border-radius: var(--r);
