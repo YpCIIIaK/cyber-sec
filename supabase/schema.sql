@@ -1,0 +1,299 @@
+-- ============================================================
+-- CyberPath — схема Supabase (аккаунты, прогресс, рейтинг)
+-- Запускать целиком в Supabase → SQL Editor. Скрипт идемпотентен.
+-- После него выполните supabase/catalog.sql (каталог заданий).
+--
+-- Принципы безопасности:
+--  * клиент НЕ может писать в таблицы напрямую — только через RPC-функции
+--    с проверками (security definer + жёсткий search_path);
+--  * XP считает база по каталогу заданий (с подсказками и множителем серии), а не браузер;
+--  * лимиты частоты отправки решений (минута / час / сутки);
+--  * ник — только латиница/цифры/_ (никаких HTML и омоглифов);
+--  * каждый видит только свои строки (RLS), рейтинг — через функцию,
+--    отдающую лишь ник и очки.
+-- ============================================================
+
+create extension if not exists citext;
+
+-- Домен «служебных» email для входа по нику и паролю.
+-- Должен совпадать с pseudoEmailDomain в js/config.js.
+-- Зона .invalid зарезервирована (RFC 2606): письма туда физически не уходят,
+-- поэтому сброс пароля по email для таких аккаунтов невозможен — это by design.
+create or replace function public.cp_pseudo_domain() returns text
+language sql immutable as $$ select 'players.cyberpath.invalid' $$;
+
+-- ---------- Таблицы ----------
+create table if not exists public.task_catalog (
+  task_id   text primary key,
+  course_id text not null,
+  points    int  not null check (points between 0 and 500)
+);
+
+create table if not exists public.profiles (
+  id         uuid primary key references auth.users(id) on delete cascade,
+  nick       citext not null unique check (nick ~ '^[A-Za-z0-9_]{3,20}$'),
+  hidden     boolean not null default false,   -- скрыт из рейтинга (модерация)
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.solves (
+  user_id   uuid not null references auth.users(id) on delete cascade,
+  task_id   text not null references public.task_catalog(task_id) on delete cascade,
+  hints     smallint not null default 0 check (hints between 0 and 10),
+  xp        int not null check (xp between 0 and 500),
+  solved_at timestamptz not null default now(),
+  primary key (user_id, task_id)
+);
+create index if not exists solves_user_time on public.solves (user_id, solved_at desc);
+create index if not exists solves_time on public.solves (solved_at desc);
+
+create table if not exists public.progress (
+  user_id    uuid primary key references auth.users(id) on delete cascade,
+  data       jsonb not null check (pg_column_size(data) < 262144),  -- < 256 КБ
+  updated_at timestamptz not null default now()
+);
+
+-- Зарезервированные ники
+create table if not exists public.reserved_nicks (nick citext primary key);
+insert into public.reserved_nicks (nick) values
+  ('admin'),('administrator'),('root'),('system'),('support'),('moderator'),('mod'),
+  ('cyberpath'),('official'),('staff'),('owner'),('security'),('null'),('undefined'),('anonymous')
+on conflict do nothing;
+
+-- ---------- RLS: всё закрыто, читать можно только своё ----------
+alter table public.task_catalog   enable row level security;
+alter table public.profiles       enable row level security;
+alter table public.solves         enable row level security;
+alter table public.progress       enable row level security;
+alter table public.reserved_nicks enable row level security;
+
+drop policy if exists own_profile_read  on public.profiles;
+drop policy if exists own_solves_read   on public.solves;
+drop policy if exists own_progress_read on public.progress;
+create policy own_profile_read  on public.profiles for select to authenticated using (id = auth.uid());
+create policy own_solves_read   on public.solves   for select to authenticated using (user_id = auth.uid());
+create policy own_progress_read on public.progress for select to authenticated using (user_id = auth.uid());
+
+-- Снимаем стандартные гранты Supabase и выдаём минимум
+revoke all on all tables    in schema public from anon, authenticated;
+revoke all on all sequences in schema public from anon, authenticated;
+grant select on public.profiles, public.solves, public.progress to authenticated;
+
+alter default privileges in schema public revoke all on tables    from anon, authenticated;
+alter default privileges in schema public revoke all on sequences from anon, authenticated;
+alter default privileges in schema public revoke execute on functions from public, anon, authenticated;
+
+-- ---------- Регистрация по нику: профиль создаётся атомарно ----------
+-- Любая регистрация через email-провайдер обязана нести ник в метаданных,
+-- email вида <ник>@<служебный домен>. Иначе регистрация отклоняется —
+-- так через API нельзя наплодить аккаунты на произвольные адреса.
+create or replace function public.handle_new_user() returns trigger
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare n text;
+begin
+  if coalesce(new.raw_app_meta_data->>'provider', 'email') <> 'email' then
+    return new;                                   -- GitHub/Google: ник выберут после входа
+  end if;
+  n := new.raw_user_meta_data->>'nick';
+  if n is null or n !~ '^[A-Za-z0-9_]{3,20}$' then
+    raise exception 'invalid_nick';
+  end if;
+  if lower(new.email) <> (lower(n) || '@' || cp_pseudo_domain()) then
+    raise exception 'email_signup_disabled';
+  end if;
+  if exists (select 1 from reserved_nicks r where r.nick = n::citext) then
+    raise exception 'nick_reserved';
+  end if;
+  insert into profiles (id, nick) values (new.id, n);   -- unique → nick_taken
+  return new;
+exception when unique_violation then
+  raise exception 'nick_taken';
+end $$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- ---------- RPC ----------
+-- Свободен ли ник
+create or replace function public.nick_available(p_nick text) returns boolean
+language sql stable security definer set search_path = public, pg_temp as $$
+  select p_nick ~ '^[A-Za-z0-9_]{3,20}$'
+     and not exists (select 1 from profiles where nick = p_nick::citext)
+     and not exists (select 1 from reserved_nicks where nick = p_nick::citext)
+$$;
+
+-- Выбрать ник (для входа через GitHub/Google). Ник постоянный.
+create or replace function public.claim_nick(p_nick text) returns text
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare uid uuid := auth.uid();
+begin
+  if uid is null then raise exception 'auth_required'; end if;
+  if exists (select 1 from profiles where id = uid) then raise exception 'nick_already_set'; end if;
+  if p_nick is null or p_nick !~ '^[A-Za-z0-9_]{3,20}$' then raise exception 'invalid_nick'; end if;
+  if exists (select 1 from reserved_nicks where nick = p_nick::citext) then raise exception 'nick_reserved'; end if;
+  insert into profiles (id, nick) values (uid, p_nick);
+  return p_nick;
+exception when unique_violation then
+  raise exception 'nick_taken';
+end $$;
+
+-- Учебная серия: подряд идущие UTC-сутки (до вчера) с ≥3 решёнными заданиями.
+-- Один пропущенный день раз в 7 дней прощается. Совпадает с streakBefore() в js/app.js.
+create or replace function public.cp_streak_before(p_uid uuid) returns int
+language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare
+  today date := (now() at time zone 'utc')::date;
+  d date := today - 1; n int := 0; grace date := null;
+  cnt jsonb;
+begin
+  select coalesce(jsonb_object_agg(day::text, c), '{}'::jsonb) into cnt from (
+    select (solved_at at time zone 'utc')::date as day, count(*) as c
+      from solves where user_id = p_uid and solved_at > now() - interval '800 days' group by 1) q;
+  loop
+    exit when d < today - 800;
+    if coalesce((cnt->>d::text)::int, 0) >= 3 then n := n + 1;
+    elsif (grace is null or grace - d >= 7) and coalesce((cnt->>(d - 1)::text)::int, 0) >= 3 then grace := d;
+    else exit;
+    end if;
+    d := d - 1;
+  end loop;
+  return n;
+end $$;
+
+-- Множитель серии в процентах: 3+ дн 105 · 7+ 110 · 14+ 115 · 30+ 120
+create or replace function public.cp_streak_pct(p_days int) returns int
+language sql immutable as $$
+  select case when p_days >= 30 then 120 when p_days >= 14 then 115
+              when p_days >= 7 then 110 when p_days >= 3 then 105 else 100 end
+$$;
+
+-- Отправка решённых заданий. XP считает база по каталогу.
+-- Лимиты: 12 в минуту, 120 в час, 300 в сутки; лишнее возвращается как deferred
+-- (клиент отправит позже). Вход: [{ "id": "task_id", "h": подсказок }], до 20 штук.
+create or replace function public.submit_solves(items jsonb) returns jsonb
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  uid uuid := auth.uid();
+  c_min int; c_hour int; c_day int; budget int; c_today int; s_before int; pct int;
+  it jsonb; tid text; h int; pts int;
+  acc text[] := '{}'; def text[] := '{}'; rej text[] := '{}';
+begin
+  if uid is null then raise exception 'auth_required'; end if;
+  if not exists (select 1 from profiles where id = uid) then raise exception 'no_profile'; end if;
+  if items is null or jsonb_typeof(items) <> 'array' or jsonb_array_length(items) > 20 then
+    raise exception 'bad_input';
+  end if;
+  -- сериализуем запросы одного пользователя, чтобы параллельные вызовы не обходили лимиты
+  perform pg_advisory_xact_lock(hashtextextended(uid::text, 0));
+
+  select count(*) filter (where solved_at > now() - interval '1 minute'),
+         count(*) filter (where solved_at > now() - interval '1 hour'),
+         count(*)
+    into c_min, c_hour, c_day
+    from solves where user_id = uid and solved_at > now() - interval '1 day';
+  budget := least(12 - c_min, 120 - c_hour, 300 - c_day);
+  select count(*) into c_today from solves
+   where user_id = uid and solved_at >= ((now() at time zone 'utc')::date)::timestamp at time zone 'utc';
+  s_before := cp_streak_before(uid);
+
+  for it in select * from jsonb_array_elements(items) loop
+    if jsonb_typeof(it) <> 'object' then continue; end if;
+    tid := it->>'id';
+    if tid is null or length(tid) > 64 then continue; end if;
+    h := case when (it->>'h') ~ '^[0-9]{1,2}$' then least((it->>'h')::int, 10) else 0 end;
+    select points into pts from task_catalog where task_id = tid;
+    if pts is null then rej := rej || tid; continue; end if;
+    if exists (select 1 from solves where user_id = uid and task_id = tid) then
+      acc := acc || tid; continue;                 -- уже засчитано (идемпотентно)
+    end if;
+    if budget <= 0 then def := def || tid; continue; end if;
+    -- множитель серии действует с 3-го задания за UTC-сутки
+    pct := case when c_today >= 2 then cp_streak_pct(s_before + 1) else 100 end;
+    insert into solves (user_id, task_id, hints, xp)
+      values (uid, tid, h, round(greatest(1, pts - h * 5) * pct / 100.0)::int)
+      on conflict do nothing;
+    acc := acc || tid; budget := budget - 1; c_today := c_today + 1;
+  end loop;
+  return jsonb_build_object('accepted', to_jsonb(acc), 'deferred', to_jsonb(def), 'rejected', to_jsonb(rej));
+end $$;
+
+-- Резервная копия локального прогресса (для синхронизации между устройствами).
+-- На рейтинг НЕ влияет. Не чаще раза в 5 секунд.
+create or replace function public.save_progress(p_data jsonb) returns boolean
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare uid uuid := auth.uid(); last timestamptz;
+begin
+  if uid is null then raise exception 'auth_required'; end if;
+  if p_data is null or jsonb_typeof(p_data) <> 'object' then raise exception 'bad_input'; end if;
+  if pg_column_size(p_data) >= 262144 then raise exception 'too_large'; end if;
+  select updated_at into last from progress where user_id = uid;
+  if last is not null and last > now() - interval '5 seconds' then return false; end if;
+  insert into progress (user_id, data, updated_at) values (uid, p_data, now())
+    on conflict (user_id) do update set data = excluded.data, updated_at = now();
+  return true;
+end $$;
+
+-- Рейтинг: только ник, очки и число заданий. p_period: 'all' | 'week'
+create or replace function public.leaderboard(p_period text default 'all', p_limit int default 50)
+returns table (place bigint, nick text, xp bigint, solved bigint, is_me boolean)
+language sql stable security definer set search_path = public, pg_temp as $$
+  with s as (
+    select user_id, sum(xp)::bigint as xp, count(*)::bigint as solved, max(solved_at) as last_at
+      from solves
+     where p_period = 'all' or solved_at > now() - interval '7 days'
+     group by user_id
+  )
+  select rank() over (order by s.xp desc) as place, p.nick::text, s.xp, s.solved,
+         coalesce(p.id = auth.uid(), false) as is_me
+    from s join profiles p on p.id = s.user_id
+   where not p.hidden
+   order by s.xp desc, s.last_at asc
+   limit least(greatest(coalesce(p_limit, 50), 1), 100)
+$$;
+
+-- Моё место в рейтинге
+create or replace function public.my_place(p_period text default 'all')
+returns table (place bigint, xp bigint, solved bigint, total bigint)
+language sql stable security definer set search_path = public, pg_temp as $$
+  with s as (
+    select user_id, sum(xp)::bigint as xp, count(*)::bigint as solved
+      from solves
+     where p_period = 'all' or solved_at > now() - interval '7 days'
+     group by user_id
+  ), v as (
+    select s.*, rank() over (order by s.xp desc) as place
+      from s join profiles p on p.id = s.user_id where not p.hidden
+  )
+  select v.place, v.xp, v.solved, (select count(*) from v)::bigint
+    from v where v.user_id = auth.uid()
+$$;
+
+-- Удаление своего аккаунта со всеми данными (каскадом)
+create or replace function public.delete_my_account() returns void
+language plpgsql security definer set search_path = public, auth, pg_temp as $$
+declare uid uuid := auth.uid();
+begin
+  if uid is null then raise exception 'auth_required'; end if;
+  delete from auth.users where id = uid;
+end $$;
+
+-- ---------- Права на функции: только то, что нужно ----------
+revoke execute on all functions in schema public from public, anon, authenticated;
+grant execute on function public.nick_available(text)        to anon, authenticated;
+grant execute on function public.leaderboard(text, int)      to anon, authenticated;
+grant execute on function public.claim_nick(text)            to authenticated;
+grant execute on function public.submit_solves(jsonb)        to authenticated;
+grant execute on function public.save_progress(jsonb)        to authenticated;
+grant execute on function public.my_place(text)              to authenticated;
+grant execute on function public.delete_my_account()         to authenticated;
+
+-- ============================================================
+-- Модерация (выполнять вручную в SQL Editor):
+--   скрыть из рейтинга:  update public.profiles set hidden = true  where nick = 'Nick';
+--   вернуть:             update public.profiles set hidden = false where nick = 'Nick';
+--   обнулить очки:       delete from public.solves where user_id = (select id from public.profiles where nick = 'Nick');
+--   самые быстрые за час (кандидаты на проверку):
+--     select p.nick, count(*) from public.solves s join public.profiles p on p.id = s.user_id
+--      where s.solved_at > now() - interval '1 hour' group by p.nick order by 2 desc limit 20;
+-- ============================================================

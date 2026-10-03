@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="robots" content="noindex">
+  <title>CyberPath — страница не найдена</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'">
+  <style>body{font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;margin:0;background:#fffaf5;color:#1a1613}a{color:#c24a00}</style>
+</head>
+<body>
+  <p>Перенаправляем… <a id="home" href="./">CyberPath</a></p>
+  <script>
+    // GitHub Pages отдаёт этот файл для любых несуществующих путей.
+    // Отправляем на главную SPA (корень проекта — первый сегмент пути у project-pages) с маршрутом 404.
+    (function () {
+      var seg = location.pathname.split("/").filter(Boolean);
+      var base = location.hostname.endsWith("github.io") && seg.length ? "/" + seg[0] + "/" : "/";
+      location.replace(base + "#/404");
+    })();
+  </script>
+</body>
+</html>

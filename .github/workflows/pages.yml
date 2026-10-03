@@ -1,0 +1,53 @@
+# Публикация CyberPath на GitHub Pages.
+# Включить: Settings → Pages → Source: GitHub Actions.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Минимальные права: только чтение кода и публикация Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Проверка целостности контента
+        run: node tests/validate.cjs
+      - name: Каталог заданий для Supabase актуален
+        run: node tests/gen-catalog.cjs --check
+      - name: В конфиге нет секретного ключа
+        run: node tests/check-config.cjs
+      - name: Сборка публикуемой папки (только файлы сайта)
+        run: |
+          mkdir -p _site
+          cp -r index.html 404.html manifest.json sw.js .nojekyll LICENSE css js assets _site/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

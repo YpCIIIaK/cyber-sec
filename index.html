@@ -3,6 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Политика безопасности контента: GitHub Pages не даёт задать заголовки, поэтому — meta.
+       'unsafe-inline' для скриптов нужен из-за inline-обработчиков onclick; внешние скрипты запрещены
+       (кроме Cloudflare Turnstile), сетевые запросы — только к своему сайту и Supabase. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-src https://challenges.cloudflare.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <!-- Защита от кликджекинга: страница не показывается внутри чужого фрейма -->
+  <style id="anti-frame">html{display:none!important}</style>
+  <script>if (window.self === window.top) { document.getElementById("anti-frame").remove(); } else { try { window.top.location = window.self.location.href; } catch (e) {} }</script>
   <title>CyberPath — бесплатная платформа по кибербезопасности</title>
   <meta name="description" content="Бесплатная интерактивная платформа для изучения кибербезопасности: курсы, квесты, песочница-терминал и система прогрессии.">
   <meta name="theme-color" content="#f2620a">
@@ -83,12 +91,14 @@
       });
     }
   </script>
+  <script src="js/config.js"></script>
   <script src="js/icons.js"></script>
   <script src="js/data.js"></script>
   <script src="js/i18n.js"></script>
   <script src="js/labs.js"></script>
   <script src="js/terminal.js"></script>
   <script src="js/toolkit.js"></script>
+  <script src="js/cloud.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

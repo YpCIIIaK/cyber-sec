@@ -46,6 +46,11 @@ const Progress = (() => {
 
   // Бэкфилл аналитики для прогресса, накопленного до появления трекинга
   function migrate(s) {
+    // V3: учебная серия — дни с ≥3 заданиями; восстанавливаем из истории XP
+    if (!s.dayTasks) {
+      s.dayTasks = {};
+      (Array.isArray(s.xpLog) ? s.xpLog : []).forEach((e) => { if (e && Number.isInteger(e.d)) s.dayTasks[e.d] = (s.dayTasks[e.d] || 0) + 1; });
+    }
     if (s.migratedV2) return s;
     const completedIds = Object.keys(s.completed || {});
     const day = Math.floor(Date.now() / 86400000);
@@ -79,7 +84,19 @@ const Progress = (() => {
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(state)); }
     catch (e) { console.warn("Не удалось сохранить прогресс", e); }
+    emit("cp:saved");
   }
+  function emit(name, detail) { try { window.dispatchEvent(new CustomEvent(name, { detail })); } catch (e) {} }
+
+  // Для облачной синхронизации: снимок состояния и его замена (после слияния)
+  function getState() { return structuredClone(state); }
+  function replaceState(next) {
+    if (!next || typeof next !== "object" || typeof next.completed !== "object") return false;
+    state = migrate(Object.assign(structuredClone(defaultState), next));
+    save();
+    return true;
+  }
+  function hintsFor(taskId) { return state.hintsUsed[taskId] || 0; }
 
   function level() { return Math.floor(state.xp / XP_PER_LEVEL) + 1; }
   function xpInLevel() { return state.xp % XP_PER_LEVEL; }
@@ -119,14 +136,50 @@ const Progress = (() => {
     if (afterLvl >= 10) tryAch("level_10", events);
   }
 
+  /* ---------- Учебная серия и множитель XP ----------
+     День засчитывается в серию, если решено ≥3 заданий курсов (UTC-сутки, как на сервере).
+     Один пропущенный день раз в 7 дней прощается. Множитель действует с 3-го задания дня:
+     серия 3+ дн ×1.05 · 7+ ×1.10 · 14+ ×1.15 · 30+ ×1.20 (потолок). Та же формула — в supabase/schema.sql. */
+  const STREAK_MIN_TASKS = 3;
+  const STREAK_TIERS = [[30, 120], [14, 115], [7, 110], [3, 105]]; // [дней, процент]
+  function streakPct(days) { for (const [d, p] of STREAK_TIERS) if (days >= d) return p; return 100; }
+  function dayTasks() { if (!state.dayTasks) state.dayTasks = {}; return state.dayTasks; }
+  function streakBefore(today) {
+    const dt = dayTasks(); let n = 0, grace = null;
+    for (let d = today - 1; d > today - 800; d--) {
+      if ((dt[d] || 0) >= STREAK_MIN_TASKS) n++;
+      else if ((grace === null || grace - d >= 7) && (dt[d - 1] || 0) >= STREAK_MIN_TASKS) grace = d;
+      else break;
+    }
+    return n;
+  }
+  function streakInfo() {
+    const today = dayIndex(), cnt = dayTasks()[today] || 0, before = streakBefore(today);
+    const qualified = cnt >= STREAK_MIN_TASKS;
+    const days = before + (qualified ? 1 : 0);
+    const nextPct = streakPct(before + 1);                        // множитель с 3-го задания сегодня
+    const pct = cnt >= STREAK_MIN_TASKS - 1 ? nextPct : 100;      // действует на следующее задание
+    const tier = [...STREAK_TIERS].reverse().find(([d]) => d > days);
+    return { days, today: cnt, need: STREAK_MIN_TASKS, qualified, pct, nextPct, alive: before > 0,
+      nextTier: tier ? { days: tier[0], pct: tier[1] } : null };
+  }
+
   function completeTask(task, courseId) {
     if (state.completed[task.id]) return { already: true };
-    const gained = effectivePoints(task);
+    const today = dayIndex(), cntBefore = dayTasks()[today] || 0;
+    const pct = cntBefore >= STREAK_MIN_TASKS - 1 ? streakPct(streakBefore(today) + 1) : 100;
+    const gained = Math.round(effectivePoints(task) * pct / 100);
+    dayTasks()[today] = cntBefore + 1;
+    for (const k of Object.keys(state.dayTasks)) if (+k < today - 800) delete state.dayTasks[k];
     state.completed[task.id] = true;
     state.earned[task.id] = gained;
     if (state.drafts) delete state.drafts[task.id];
 
-    const events = { xpGained: gained, newAchievements: [] };
+    const events = { xpGained: gained, newAchievements: [], mult: pct };
+    if (cntBefore + 1 === STREAK_MIN_TASKS) events.streakDay = streakInfo();
+    state.streak = streakInfo().days;
+    if (state.streak >= 3) tryAch("streak_3", events);
+    if (state.streak >= 7) tryAch("streak_7", events);
     if (Object.keys(state.completed).length === 1) tryAch("first_blood", events);
     awardXP(gained, events);
     srsEnsure(task);
@@ -137,6 +190,7 @@ const Progress = (() => {
     checkMeta(events);
 
     save();
+    emit("cp:solved", { id: task.id, h: state.hintsUsed[task.id] || 0 });
     return events;
   }
 
@@ -348,10 +402,8 @@ const Progress = (() => {
 
   function trackVisit() {
     const today = new Date().toISOString().slice(0, 10);
+    state.streak = streakInfo().days;   // серия теперь учебная — считается по заданиям
     if (state.lastVisit === today) return;
-    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    if (state.lastVisit === yesterday) state.streak = (state.streak || 0) + 1;
-    else state.streak = 1;
     state.lastVisit = today;
     if (!state.activeDays) state.activeDays = {};
     if (state.activeDays[today] === undefined) state.activeDays[today] = 0; // отметка визита
@@ -643,9 +695,9 @@ const Progress = (() => {
 
   return {
     isDone, completeTask, useHint, hintsUsedFor, roomCompleted, roomUsedNoHints,
-    courseProgress, courseUnlocked, missingPrereqs, placement, setPlacement, overallStats, level, xpInLevel, xpToNext,
+    courseProgress, courseUnlocked, missingPrereqs, placement, setPlacement, streakInfo, overallStats, level, xpInLevel, xpToNext,
     unlockAchievement, hasAchievement, trackVisit, reset,
-    exportData, importData, courseXP, completedAtISO,
+    exportData, importData, courseXP, completedAtISO, getState, replaceState, hintsFor,
     effectivePoints, hintPenalty: () => HINT_PENALTY,
     dailyToday, dailyIsDone, dailyCount, solveDaily,
     missionDone, completeMission,
@@ -701,6 +753,7 @@ const App = (() => {
     if (view === "boss") return `#/course/${params.courseId}/boss`;
     if (view === "weekly") return "#/weekly";
     if (view === "start") return "#/start";
+    if (view === "leaderboard") return params.period === "week" ? "#/leaderboard/week" : "#/leaderboard";
     if (view === "legal") return `#/legal/${params.page || "about"}`;
     if (view === "tools") return params.tool ? `#/tools/${params.tool}` : "#/tools";
     return "#/";
@@ -720,6 +773,7 @@ const App = (() => {
     if (parts[0] === "weekly") return { view: "weekly" };
     if (parts[0] === "tools") return { view: "tools", tool: parts[1] || null };
     if (parts[0] === "start") return { view: "start" };
+    if (parts[0] === "leaderboard") return { view: "leaderboard", period: parts[1] === "week" ? "week" : "all" };
     if (parts[0] === "legal") return { view: "legal", page: parts[1] || "about" };
     if (parts[0] === "course" && parts[1]) {
       if (parts[2] === "room" && parts[3])
@@ -767,6 +821,8 @@ const App = (() => {
               ${item(Icon.ui("flag"), T("CTF — флаги"), "App.go('ctf')")}
               ${item(Icon.ui("list"), T("Заметки"), "App.go('notes')", `<em class="um-count">${Progress.notes().length}</em>`)}
               ${item(Icon.ui("shield"), T("Звания"), "App.openRanks()")}
+              ${item(Icon.ui("bolt"), T("Рейтинг"), "App.go('leaderboard')")}
+              ${window.Cloud && Cloud.enabled ? item(Icon.ui("lock"), Cloud.state.status === "in" ? `${T("Аккаунт")} · ${escapeHtml(Cloud.state.nick || "")}` : T("Войти"), "App.openAccount()") : ""}
             </div>
             <div class="um-list um-set">
               ${item(dark ? Icon.ui("sun") : Icon.ui("moon"), dark ? T("Светлая тема") : T("Тёмная тема"), "App.toggleTheme()")}
@@ -808,12 +864,12 @@ const App = (() => {
   }
 
   // Летящий «+N XP»
-  function flyXP(amount) {
+  function flyXP(amount, pct) {
     const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) return;
     const el = document.createElement("div");
     el.className = "xp-fly";
-    el.textContent = "+" + amount + " XP";
+    el.textContent = "+" + amount + " XP" + (pct > 100 ? " ×" + (pct / 100).toFixed(2) : "");
     const target = document.querySelector(".nav-xp");
     if (target) {
       const r = target.getBoundingClientRect();
@@ -847,6 +903,7 @@ const App = (() => {
       case "legal": renderLegal(c.page); break;
       case "notfound": renderNotFound(); break;
       case "start": renderPlacement(); break;
+      case "leaderboard": renderLeaderboard(c.period); break;
       default: renderHome();
     }
     highlightNav();
@@ -896,6 +953,7 @@ const App = (() => {
       </section>
 
       ${continueBlock()}
+      ${streakStrip()}
       ${dailyCard()}
       ${weeklyCard()}
       ${reviewCardHome()}
@@ -939,6 +997,28 @@ const App = (() => {
       }
     }
     return null;
+  }
+
+  // Учебная серия: прогресс дня и множитель XP
+  function streakStrip() {
+    const si = Progress.streakInfo();
+    if (!si.days && !si.today && !si.alive) return "";
+    const x = (p) => "×" + (p / 100).toFixed(2);
+    const dots = Array.from({ length: si.need }, (_, i) => `<i class="${i < si.today ? "on" : ""}"></i>`).join("");
+    const left = Math.max(0, si.need - si.today);
+    const status = si.qualified
+      ? `${T("Сегодня серия продлена")}${si.pct > 100 ? ` · ${T("действует")} <b>${x(si.pct)}</b>` : ""}`
+      : `${T("Решите ещё")} ${left} ${T(plural(left, "задание", "задания", "заданий"))}, ${T("чтобы продлить серию")}${si.nextPct > 100 ? ` ${T("и включить")} <b>${x(si.nextPct)}</b>` : ""}`;
+    const next = si.nextTier ? `${T("До")} ${x(si.nextTier.pct)}: ${si.nextTier.days - si.days} ${T("дн.")}` : T("Максимальный множитель!");
+    return `
+      <section class="section streak-section">
+        <div class="streak-strip" title="${T("День идёт в серию, если решено 3+ задания. Множитель XP действует с 3-го задания дня: 3 дня ×1.05, 7 ×1.10, 14 ×1.15, 30 ×1.20. Один пропуск раз в неделю прощается.")}">
+          <span class="ss-flame">🔥</span>
+          <div class="ss-main"><b>${si.days} ${T(plural(si.days, "день", "дня", "дней"))} ${T("серии")}</b><span>${status}</span></div>
+          <div class="ss-dots" aria-label="${si.today}/${si.need}">${dots}</div>
+          <span class="ss-next">${next}</span>
+        </div>
+      </section>`;
   }
 
   function continueBlock() {
@@ -2776,20 +2856,20 @@ const App = (() => {
       ru: { t: "О проекте", b: `
 <p><b>CyberPath</b> — бесплатная интерактивная платформа для изучения кибербезопасности с нуля: курсы, практические лабы, симулятор терминала, CTF-задачи и инструменты.</p>
 <h3>Принципы</h3>
-<ul><li><b>Бесплатно и без регистрации.</b> Всё работает прямо в браузере, в том числе офлайн.</li>
+<ul><li><b>Бесплатно, регистрация не обязательна.</b> Всё работает прямо в браузере, в том числе офлайн.</li>
 <li><b>Практика важнее теории.</b> Каждая тема закрепляется заданиями и лабами в безопасной симуляции.</li>
 <li><b>Этика прежде всего.</b> Мы учим защищать системы и понимать атаки, а не вредить.</li>
-<li><b>Приватность по умолчанию.</b> Никаких аккаунтов, трекеров и аналитики.</li></ul>
+<li><b>Приватность по умолчанию.</b> Без трекеров и аналитики; аккаунт — по желанию, только для рейтинга.</li></ul>
 <h3>Нашли ошибку?</h3>
 <p>Контент развивается, и неточности возможны. Если ответ в задании не принимается или вы нашли фактическую ошибку — сообщите о ней через репозиторий проекта на GitHub.</p>
 <p class="muted">Материалы не являются официальной подготовкой к сертификациям и не заменяют профессиональное обучение.</p>` },
       en: { t: "About", b: `
 <p><b>CyberPath</b> is a free interactive platform for learning cybersecurity from scratch: courses, hands-on labs, a terminal simulator, CTF challenges and tools.</p>
 <h3>Principles</h3>
-<ul><li><b>Free, no sign-up.</b> Everything runs right in your browser, even offline.</li>
+<ul><li><b>Free, sign-up optional.</b> Everything runs right in your browser, even offline.</li>
 <li><b>Practice over theory.</b> Every topic is reinforced with tasks and labs in a safe simulation.</li>
 <li><b>Ethics first.</b> We teach how to defend systems and understand attacks — not how to cause harm.</li>
-<li><b>Private by default.</b> No accounts, trackers or analytics.</li></ul>
+<li><b>Private by default.</b> No trackers or analytics; an account is optional, only for the leaderboard.</li></ul>
 <h3>Found a mistake?</h3>
 <p>The content keeps evolving and inaccuracies are possible. If an answer isn't accepted or you spot a factual error, please report it via the project's GitHub repository.</p>
 <p class="muted">The materials are not official certification prep and do not replace professional training.</p>` },
@@ -2820,21 +2900,31 @@ const App = (() => {
     },
     privacy: {
       ru: { t: "Конфиденциальность", b: `
-<div class="legal-ok">🔒 Коротко: мы <b>ничего о вас не собираем</b>.</div>
+<div class="legal-ok">🔒 Коротко: без аккаунта мы <b>ничего о вас не собираем</b>. С аккаунтом — только ник и прогресс прохождения.</div>
 <h3>Где хранятся данные</h3>
 <p>Прогресс, XP, заметки, профиль и настройки хранятся <b>только в localStorage вашего браузера</b> на этом устройстве. На сервер они не отправляются — у проекта нет бэкенда.</p>
+<h3>Аккаунт (по желанию)</h3>
+<p>Аккаунт нужен только для рейтинга и синхронизации. Если вы входите, на сервере (Supabase) хранятся:</p>
+<ul><li><b>ник</b> — виден всем в рейтинге;</li><li><b>решённые задания</b> с датой и числом подсказок — для подсчёта очков;</li><li><b>копия прогресса</b> — видна только вам, для переноса между устройствами.</li></ul>
+<p>При входе через GitHub или Google сервис авторизации получает от них идентификатор и email аккаунта — они нужны только для входа и нигде не показываются. При входе по нику email не используется.</p>
+<p>Аккаунт можно удалить в любой момент: <b>меню профиля → Аккаунт → Удалить аккаунт</b>. Удаляется всё: ник, решения и облачная копия.</p>
 <h3>Чего нет</h3>
-<ul><li>Нет регистрации и аккаунтов.</li><li>Нет cookies отслеживания, аналитики, рекламы и пикселей.</li><li>Нет передачи данных третьим лицам.</li></ul>
+<ul><li>Нет обязательной регистрации.</li><li>Нет cookies отслеживания, аналитики, рекламы и пикселей.</li><li>Нет продажи и передачи данных третьим лицам (кроме хостинга базы Supabase, если вы вошли).</li></ul>
 <h3>Сторонние ресурсы</h3>
 <p>Шрифты могут загружаться с Google Fonts — при этом Google видит стандартный веб-запрос (IP-адрес, браузер). После первой загрузки файлы кэшируются для офлайн-работы.</p>
 <h3>Управление данными</h3>
 <p>Сделайте резервную копию или перенесите прогресс через <b>Профиль → экспорт/импорт</b>. Удалить всё можно там же или очистив данные сайта в браузере. Учтите: очистка браузера без экспорта удалит прогресс безвозвратно.</p>` },
       en: { t: "Privacy", b: `
-<div class="legal-ok">🔒 In short: we <b>collect nothing about you</b>.</div>
+<div class="legal-ok">🔒 In short: without an account we <b>collect nothing about you</b>. With one — only your nickname and course progress.</div>
 <h3>Where data lives</h3>
 <p>Your progress, XP, notes, profile and settings are stored <b>only in your browser's localStorage</b> on this device. Nothing is sent to a server — the project has no backend.</p>
+<h3>Account (optional)</h3>
+<p>An account is only needed for the leaderboard and syncing. If you sign in, the server (Supabase) stores:</p>
+<ul><li>your <b>nickname</b> — visible to everyone on the leaderboard;</li><li><b>solved tasks</b> with date and hint count — to calculate points;</li><li>a <b>copy of your progress</b> — visible only to you, for syncing between devices.</li></ul>
+<p>When signing in with GitHub or Google, the auth service receives the account ID and email from them — used only for signing in and never shown. Nickname sign-in uses no email.</p>
+<p>You can delete your account at any time: <b>profile menu → Account → Delete account</b>. Everything is removed: nickname, solves and the cloud copy.</p>
 <h3>What we don't do</h3>
-<ul><li>No sign-up or accounts.</li><li>No tracking cookies, analytics, ads or pixels.</li><li>No sharing data with third parties.</li></ul>
+<ul><li>No mandatory sign-up.</li><li>No tracking cookies, analytics, ads or pixels.</li><li>No selling or sharing data with third parties (except Supabase database hosting, if you sign in).</li></ul>
 <h3>Third-party resources</h3>
 <p>Fonts may be loaded from Google Fonts, which sees a standard web request (IP address, browser). After the first load the files are cached for offline use.</p>
 <h3>Managing your data</h3>
@@ -2952,6 +3042,182 @@ const App = (() => {
     else if (current.view === "home") renderHome();
   }
   function startPlacement() { endOnboard(); placeState = null; go("start"); }
+
+  /* ---------- Аккаунт, вход и рейтинг ---------- */
+  function cloudErr(e) {
+    const m = String((e && (e.message || e.error_description)) || e || "");
+    if (/invalid login|invalid_login|invalid credentials/i.test(m)) return T("Неверный ник или пароль.");
+    if (/nick_taken|database error saving new user|already registered/i.test(m)) return T("Этот ник уже занят.");
+    if (/nick_reserved/.test(m)) return T("Этот ник зарезервирован.");
+    if (/invalid_nick/.test(m)) return T("Ник: 3–20 символов — латиница, цифры и _.");
+    if (/weak_password|password should/i.test(m)) return T("Пароль — минимум 8 символов.");
+    if (/captcha/i.test(m)) return T("Подтвердите, что вы не робот.");
+    if (/rate limit|too many|429/i.test(m)) return T("Слишком много попыток. Подождите немного.");
+    if (/manual linking|identity.*(already|exists)/i.test(m)) return T("Этот аккаунт GitHub/Google уже привязан к другому профилю или привязка отключена.");
+    return T("Не удалось связаться с сервером. Проверьте интернет и попробуйте ещё раз.");
+  }
+  let accTab = "login", accToken = "";
+  function openAccount() {
+    closeUserMenu();
+    if (!window.Cloud || !Cloud.enabled) { toast(T("Аккаунты пока не подключены.")); return; }
+    let ov = document.getElementById("account-modal");
+    if (!ov) {
+      ov = document.createElement("div"); ov.id = "account-modal"; ov.className = "modal-overlay";
+      ov.addEventListener("click", (e) => { if (e.target === ov) closeAccount(); });
+      document.body.appendChild(ov); requestAnimationFrame(() => ov.classList.add("show"));
+    }
+    renderAccountModal();
+    Cloud.connect().catch(() => {});
+  }
+  function closeAccount() { const ov = document.getElementById("account-modal"); if (ov) ov.remove(); }
+  function providerBtns(action) {
+    return `<div class="acc-oauth">
+      <button class="btn acc-gh" onclick="App.${action}('github')">${GH_SVG} GitHub</button>
+      <button class="btn acc-gg" onclick="App.${action}('google')">${GG_SVG} Google</button></div>`;
+  }
+  const GH_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="currentColor"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg>`;
+  const GG_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#EA4335" d="M12 10.2v3.9h5.4c-.24 1.4-1.66 4.1-5.4 4.1-3.25 0-5.9-2.69-5.9-6s2.65-6 5.9-6c1.85 0 3.09.79 3.8 1.47l2.59-2.5C16.73 3.6 14.6 2.6 12 2.6 6.92 2.6 2.8 6.72 2.8 11.8S6.92 21 12 21c6.93 0 9.2-4.86 9.2-7.37 0-.5-.05-.87-.12-1.25H12z"/></svg>`;
+  function renderAccountModal() {
+    const ov = document.getElementById("account-modal"); if (!ov) return;
+    const cs = Cloud.state;
+    let body;
+    if (cs.status === "loading") body = `<div class="acc-wait">${T("Подключение…")}</div>`;
+    else if (cs.status === "in") {
+      const ids = Cloud.identities();
+      const pw = Cloud.isPasswordAccount();
+      const hasRecovery = ids.includes("github") || ids.includes("google");
+      body = `
+        <div class="acc-me"><span class="acc-nick">${escapeHtml(cs.nick || "")}</span>
+          <span class="acc-sync">${cs.syncing ? T("Синхронизация…") : cs.pending ? `${T("В очереди на отправку")}: ${cs.pending}` : "✓ " + T("Прогресс синхронизирован")}</span></div>
+        <div class="acc-ids">${T("Способы входа")}: ${ids.map((p) => `<span class="acc-id">${p === "email" ? T("ник + пароль") : p === "github" ? "GitHub" : p === "google" ? "Google" : escapeHtml(p)}</span>`).join("")}</div>
+        ${pw && !hasRecovery ? `<div class="acc-warn">⚠️ ${T("Восстановить пароль невозможно, пока к аккаунту не привязан GitHub или Google. Привяжите один из них — тогда сможете войти, даже если забудете пароль.")}</div>` : ""}
+        ${!(ids.includes("github") && ids.includes("google")) ? `<div class="acc-sub">${T("Привязать вход")}</div>
+          <div class="acc-oauth">${!ids.includes("github") ? `<button class="btn acc-gh" onclick="App.accLink('github')">${GH_SVG} GitHub</button>` : ""}${!ids.includes("google") ? `<button class="btn acc-gg" onclick="App.accLink('google')">${GG_SVG} Google</button>` : ""}</div>` : ""}
+        <div class="acc-actions">
+          <button class="btn btn-ghost btn-sm" onclick="App.go('leaderboard');App.closeAccount()">${T("Рейтинг")}</button>
+          <button class="btn btn-ghost btn-sm" onclick="App.accSignOut()">${T("Выйти")}</button>
+          <button class="btn btn-ghost btn-sm acc-danger" onclick="App.accDelete()">${T("Удалить аккаунт")}</button>
+        </div>`;
+    } else {
+      const reg = accTab === "register";
+      body = `
+        <p class="acc-lead">${T("Аккаунт нужен только для рейтинга и синхронизации между устройствами. Без него всё работает как раньше.")}</p>
+        ${providerBtns("accOAuth")}
+        <div class="acc-or"><span>${T("или по нику")}</span></div>
+        <div class="seg acc-tabs" role="tablist">
+          <button class="seg-btn ${reg ? "" : "on"}" role="tab" aria-selected="${!reg}" onclick="App.accSetTab('login')">${T("Вход")}</button>
+          <button class="seg-btn ${reg ? "on" : ""}" role="tab" aria-selected="${reg}" onclick="App.accSetTab('register')">${T("Регистрация")}</button>
+        </div>
+        <form class="acc-form" onsubmit="event.preventDefault();App.accSubmit()">
+          <label>${T("Ник")}<input id="acc-nick" class="lab-input" autocomplete="username" maxlength="20" pattern="[A-Za-z0-9_]{3,20}" required spellcheck="false"></label>
+          <label>${T("Пароль")}<input id="acc-pw" class="lab-input" type="password" autocomplete="${reg ? "new-password" : "current-password"}" minlength="${reg ? 8 : 1}" maxlength="72" required></label>
+          ${reg ? `<label>${T("Пароль ещё раз")}<input id="acc-pw2" class="lab-input" type="password" autocomplete="new-password" minlength="8" maxlength="72" required></label>
+            <p class="acc-note">${T("Ник: 3–20 символов, латиница, цифры и _. Его нельзя будет сменить.")}<br>⚠️ ${T("Без email пароль восстановить нельзя. Чтобы не потерять доступ, после регистрации привяжите GitHub или Google — тогда вход через них будет работать всегда.")}</p>` : ""}
+          ${Cloud.captchaEnabled() ? `<div id="acc-captcha"></div>` : ""}
+          <div id="acc-err" class="acc-err" role="alert"></div>
+          <button class="btn btn-primary" type="submit">${reg ? T("Создать аккаунт") : T("Войти")}</button>
+        </form>
+        <p class="acc-note">${T("Мы храним только ник и прогресс прохождения. Подробнее — в разделе «Конфиденциальность».")}</p>`;
+    }
+    ov.innerHTML = `<div class="modal acc-modal" role="dialog" aria-modal="true" aria-label="${T("Аккаунт")}">
+      <div class="acc-head"><h2>${cs.status === "in" ? T("Аккаунт") : T("Вход в CyberPath")}</h2><button class="acc-x" onclick="App.closeAccount()" aria-label="${T("Закрыть")}">✕</button></div>
+      <div class="acc-body">${cs.error === "oauth" ? `<div class="acc-err">${T("Вход отменён или не удался.")}</div>` : ""}${body}</div></div>`;
+    if (Cloud.captchaEnabled()) { accToken = ""; Cloud.renderCaptcha(document.getElementById("acc-captcha"), (t) => { accToken = t; }); }
+  }
+  function accSetTab(t) { accTab = t === "register" ? "register" : "login"; renderAccountModal(); }
+  function accShowErr(msg) { const e = document.getElementById("acc-err"); if (e) e.textContent = msg; }
+  async function accOAuth(p) { try { await Cloud.signInOAuth(p); } catch (e) { accShowErr(cloudErr(e)); } }
+  async function accLink(p) { try { await Cloud.linkProvider(p); } catch (e) { toast(cloudErr(e)); } }
+  async function accSubmit() {
+    const nick = (document.getElementById("acc-nick") || {}).value || "";
+    const pw = (document.getElementById("acc-pw") || {}).value || "";
+    const btn = document.querySelector(".acc-form button[type=submit]");
+    if (!Cloud.NICK_RE.test(nick.trim())) return accShowErr(T("Ник: 3–20 символов — латиница, цифры и _."));
+    if (accTab === "register") {
+      const pw2 = (document.getElementById("acc-pw2") || {}).value || "";
+      if (pw.length < 8) return accShowErr(T("Пароль — минимум 8 символов."));
+      if (pw !== pw2) return accShowErr(T("Пароли не совпадают."));
+    }
+    if (Cloud.captchaEnabled() && !accToken) return accShowErr(T("Подтвердите, что вы не робот."));
+    if (btn) btn.disabled = true;
+    try {
+      if (accTab === "register") await Cloud.signUpNick(nick.trim(), pw, accToken);
+      else await Cloud.signInNick(nick.trim(), pw, accToken);
+      closeAccount(); toast(T("Вы вошли в аккаунт"));
+    } catch (e) { accShowErr(cloudErr(e)); if (btn) btn.disabled = false; }
+  }
+  async function accSignOut() { await Cloud.signOut(); toast(T("Вы вышли из аккаунта. Прогресс остался на этом устройстве.")); }
+  async function accDelete() {
+    const ok = confirm(T("Удалить аккаунт? Ник, место в рейтинге и облачная копия прогресса будут удалены безвозвратно. Прогресс на этом устройстве останется."));
+    if (!ok) return;
+    try { await Cloud.deleteAccount(); closeAccount(); toast(T("Аккаунт удалён")); } catch (e) { toast(cloudErr(e)); }
+  }
+
+  // Выбор ника после первого входа через GitHub/Google
+  function openNickModal() {
+    if (document.getElementById("nick-modal")) return;
+    closeAccount();
+    const ov = document.createElement("div"); ov.id = "nick-modal"; ov.className = "modal-overlay";
+    ov.innerHTML = `<div class="modal acc-modal" role="dialog" aria-modal="true" aria-label="${T("Выберите ник")}">
+      <div class="acc-head"><h2>${T("Выберите ник")}</h2></div>
+      <form class="acc-body acc-form" onsubmit="event.preventDefault();App.nickSubmit()">
+        <p class="acc-lead">${T("Под ним вас увидят в рейтинге. 3–20 символов: латиница, цифры и _. Сменить потом нельзя.")}</p>
+        <input id="nick-in" class="lab-input" maxlength="20" autocomplete="off" spellcheck="false" aria-label="${T("Ник")}" pattern="[A-Za-z0-9_]{3,20}" required>
+        <div id="nick-err" class="acc-err" role="alert"></div>
+        <button class="btn btn-primary" type="submit">${T("Сохранить")}</button>
+        <button class="btn btn-ghost btn-sm" type="button" onclick="App.nickCancel()">${T("Выйти из аккаунта")}</button>
+      </form></div>`;
+    document.body.appendChild(ov); requestAnimationFrame(() => ov.classList.add("show"));
+    setTimeout(() => { const i = document.getElementById("nick-in"); if (i) i.focus(); }, 50);
+  }
+  async function nickSubmit() {
+    const v = ((document.getElementById("nick-in") || {}).value || "").trim();
+    const err = document.getElementById("nick-err");
+    if (!Cloud.NICK_RE.test(v)) { err.textContent = T("Ник: 3–20 символов — латиница, цифры и _."); return; }
+    try { await Cloud.claimNick(v); const ov = document.getElementById("nick-modal"); if (ov) ov.remove(); toast(T("Готово! Вы в рейтинге.")); }
+    catch (e) { err.textContent = cloudErr(e); }
+  }
+  async function nickCancel() { const ov = document.getElementById("nick-modal"); if (ov) ov.remove(); await Cloud.signOut(); }
+
+  function accountCard() {
+    if (!window.Cloud || !Cloud.enabled) return `<div id="acc-card"></div>`;
+    const cs = Cloud.state;
+    return `<div id="acc-card" class="acc-card">
+      ${cs.status === "in"
+        ? `<span>☁️ ${T("Аккаунт")}: <b>${escapeHtml(cs.nick || "")}</b> · ${cs.pending ? `${T("В очереди на отправку")}: ${cs.pending}` : T("синхронизировано")}</span>`
+        : `<span>☁️ ${T("Войдите, чтобы попасть в рейтинг и синхронизировать прогресс между устройствами.")}</span>`}
+      <button class="btn btn-ghost btn-sm" onclick="App.openAccount()">${cs.status === "in" ? T("Управление") : T("Войти")}</button></div>`;
+  }
+
+  let lbLoading = false;
+  async function renderLeaderboard(period) {
+    period = period === "week" ? "week" : "all";
+    const head = `${crumbs([["home", T("Главная")], [null, T("Рейтинг")]])}
+      <div class="page-title"><h1>${T("Рейтинг")}</h1><p>${T("Очки считаются на сервере по решённым заданиям курсов — с учётом подсказок и множителя серии.")}</p></div>
+      <div class="seg lb-tabs"><a class="seg-btn ${period === "all" ? "on" : ""}" href="#/leaderboard">${T("За всё время")}</a><a class="seg-btn ${period === "week" ? "on" : ""}" href="#/leaderboard/week">${T("За 7 дней")}</a></div>`;
+    if (!window.Cloud || !Cloud.enabled) {
+      root().innerHTML = `<section class="section">${head}${emptyState("🏆", T("Рейтинг скоро появится"), T("Аккаунты и общий рейтинг ещё не подключены. Ваш прогресс сохраняется на этом устройстве."))}</section>`;
+      return;
+    }
+    root().innerHTML = `<section class="section">${head}<div class="card lb-card"><div class="acc-wait">${T("Загрузка…")}</div></div></section>`;
+    lbLoading = true;
+    let res;
+    try { res = await Cloud.leaderboard(period); }
+    catch (e) { lbLoading = false; if (current.view !== "leaderboard") return; root().querySelector(".lb-card").innerHTML = emptyState("📡", T("Не удалось загрузить рейтинг"), cloudErr(e), `<button class="btn btn-ghost btn-sm" onclick="App.go('leaderboard',{period:'${period}'})">${T("Повторить")}</button>`); return; }
+    lbLoading = false;
+    if (current.view !== "leaderboard" || current.period !== period) return;
+    const cs = Cloud.state;
+    const medal = (n) => (n === 1 ? "🥇" : n === 2 ? "🥈" : n === 3 ? "🥉" : n);
+    const rows = res.rows.map((r) => `<tr class="${r.is_me ? "me" : ""}"><td class="lb-place">${medal(Number(r.place))}</td><td class="lb-nick">${escapeHtml(String(r.nick))}${r.is_me ? ` <em>${T("вы")}</em>` : ""}</td><td class="lb-xp">${Number(r.xp)} XP</td><td class="lb-solved">${Number(r.solved)}</td></tr>`).join("");
+    const me = res.me;
+    const meLine = cs.status !== "in"
+      ? `<div class="lb-me">${T("Войдите, чтобы попасть в рейтинг.")} <button class="btn btn-primary btn-sm" onclick="App.openAccount()">${T("Войти")}</button></div>`
+      : me ? `<div class="lb-me">${T("Ваше место")}: <b>${Number(me.place)}</b> ${T("из")} ${Number(me.total)} · ${Number(me.xp)} XP${cs.pending ? ` · ${T("ещё в очереди")}: ${cs.pending}` : ""}</div>`
+      : `<div class="lb-me">${T("Решите задание, чтобы появиться в рейтинге.")}${cs.pending ? ` ${T("В очереди на отправку")}: ${cs.pending}` : ""}</div>`;
+    root().querySelector(".lb-card").innerHTML = res.rows.length
+      ? `${meLine}<table class="lb-table"><thead><tr><th>#</th><th>${T("Ник")}</th><th>${T("Очки")}</th><th>${T("Заданий")}</th></tr></thead><tbody>${rows}</tbody></table>`
+      : `${meLine}${emptyState("🏁", T("Пока никого нет"), T("Станьте первым в рейтинге!"))}`;
+  }
 
   // Заголовок вкладки по текущей странице (для истории, закладок и вкладок)
   function updateTitle() {
@@ -3600,6 +3866,7 @@ const App = (() => {
             <h3>${T("Перенос прогресса")}</h3>
             <p>${T("Прогресс хранится локально в этом браузере. Скачайте файл, чтобы перенести его на другое устройство или сделать резервную копию.")}</p>
           </div>
+          ${accountCard()}
           <div class="data-actions">
             <button class="btn btn-ghost" onclick="App.exportProgress()">${Icon.ui("progress")} ${T("Скачать прогресс")}</button>
             <button class="btn btn-ghost" onclick="document.getElementById('import-file').click()">${Icon.ui("book")} ${T("Загрузить из файла")}</button>
@@ -3849,7 +4116,13 @@ const App = (() => {
 
   function celebrate(res) {
     if (!res || res.already) return;
-    if (res.xpGained) { flyXP(res.xpGained); animateXP(Progress.overallStats().xp); }
+    if (res.xpGained) { flyXP(res.xpGained, res.mult); animateXP(Progress.overallStats().xp); }
+    if (res.streakDay) {
+      const si = res.streakDay;
+      toast(si.nextPct > 100
+        ? `🔥 ${T("День засчитан в серию")}: ${si.days} ${T("дн.")} · ${T("множитель")} ×${(si.nextPct / 100).toFixed(2)} ${T("до конца дня")}`
+        : `🔥 ${T("День засчитан в серию")}: ${si.days} ${T("дн.")}`);
+    }
     else renderNav();
     // звук — по значимости события (самое крупное имеет приоритет)
     if (res.courseDone || res.levelUp) Sfx.win ? (res.courseDone ? Sfx.win() : Sfx.level()) : 0;
@@ -3978,7 +4251,7 @@ const App = (() => {
       if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
         e.preventDefault(); palette.open ? closePalette() : openPalette();
       } else if (e.key === "Escape") {
-        closePalette(); closeShortcuts(); closeRanks(); closeUserMenu();
+        closePalette(); closeShortcuts(); closeRanks(); closeUserMenu(); closeAccount();
       } else if (e.key === "?" && !typing) {
         e.preventDefault(); openShortcuts();
       }
@@ -3997,6 +4270,18 @@ const App = (() => {
     initA11y();
     // EN-контент курсов подгрузился лениво — перерисовать текущий экран
     window.addEventListener("i18n:content", () => render());
+    // Облако: смена статуса входа и подтянутый из облака прогресс
+    if (window.Cloud) {
+      Cloud.onChange((cs) => {
+        renderNav();
+        if (cs.status === "needNick") openNickModal();
+        if (document.getElementById("account-modal")) renderAccountModal();
+        if (current.view === "leaderboard" && !lbLoading) renderLeaderboard(current.period);
+        if (current.view === "profile") { const z = document.getElementById("acc-card"); if (z) z.outerHTML = accountCard(); }
+      });
+      window.addEventListener("cloud:merged", () => { render(); toast(T("Прогресс синхронизирован с облаком")); });
+      Cloud.init();
+    }
     current = parseHash();
     render();
     document.body.classList.add("ready");
@@ -4153,7 +4438,7 @@ const App = (() => {
     catalogSearch, catalogLevel, catalogSort, downloadCertificate, downloadMasterCertificate, exportProgress, importProgress,
     submitChoice, submitMatch, orderPick, orderReset, submitDaily,
     submitMission, toggleShell, openShortcuts, closeShortcuts,
-    glossarySearch, glossaryClear, placeAnswer, placeFinish, placeSkip, placeRetry, startPlacement, catalogReset, submitExam, retryExam, openPalette, palettePick, installApp,
+    glossarySearch, glossaryClear, placeAnswer, placeFinish, placeSkip, openAccount, closeAccount, accSetTab, accOAuth, accLink, accSubmit, accSignOut, accDelete, nickSubmit, nickCancel, placeRetry, startPlacement, catalogReset, submitExam, retryExam, openPalette, palettePick, installApp,
     reviewChoose, reviewCheck, reviewNext, reviewStart, setXpMode, shareCard, saveDraft, toggleLang,
     openRanks, closeRanks, achSetFilter, tilt, openProfileEditor, closeProfileEditor, profTab, profAvatar, profUpload,
     profDraftSet, profToggleShowcase, saveProfile, chalStart, chalAnswer, chalSkip, chalRestart, notesFilter, noteComment, noteDelete, exportNotes,

@@ -1,8 +1,10 @@
 /* CyberPath Service Worker — офлайн-режим (network-first для своих файлов) */
-const CACHE = "cyberpath-v38";
+const CACHE = "cyberpath-v39";
 const CORE = [
   "./",
   "./index.html",
+  "./js/config.js",
+  "./js/cloud.js",
   "./css/styles.css",
   "./js/icons.js",
   "./js/data.js",
@@ -61,7 +63,10 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // Сторонние (шрифты, cdn) — cache-first
+  // Supabase и прочие API — только сеть, никакого кэша (данные аккаунта не должны оседать в кэше)
+  if (!url.hostname.includes("gstatic") && !url.hostname.includes("googleapis")) return;
+
+  // Сторонние (шрифты) — cache-first
   e.respondWith(
     caches.match(req).then((hit) => {
       if (hit) return hit;
