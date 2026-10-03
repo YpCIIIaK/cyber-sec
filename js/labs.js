@@ -47,10 +47,19 @@ const Labs = (() => {
   /* ---------- общий обработчик: клик-выбор строк + проверка множества ---------- */
   function selectable(el, rowSel, btnSel, outEl, correctIdx, okMsg, noMsg, onSolve) {
     const sel = new Set(); let solved = false;
-    el.querySelectorAll(rowSel).forEach((row) => row.addEventListener("click", () => {
-      if (solved) return; const i = +row.dataset.i;
-      if (sel.has(i)) { sel.delete(i); row.classList.remove("sel"); } else { sel.add(i); row.classList.add("sel"); }
-    }));
+    el.querySelectorAll(rowSel).forEach((row) => {
+      // доступность с клавиатуры: строки работают как переключатели
+      row.setAttribute("role", "checkbox");
+      row.setAttribute("tabindex", "0");
+      row.setAttribute("aria-checked", "false");
+      const toggle = () => {
+        if (solved) return; const i = +row.dataset.i;
+        if (sel.has(i)) { sel.delete(i); row.classList.remove("sel"); row.setAttribute("aria-checked", "false"); }
+        else { sel.add(i); row.classList.add("sel"); row.setAttribute("aria-checked", "true"); }
+      };
+      row.addEventListener("click", toggle);
+      row.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+    });
     el.querySelector(btnSel).addEventListener("click", () => {
       if (solved) return;
       const out = el.querySelector(outEl);
@@ -310,12 +319,17 @@ const Labs = (() => {
         const h = el.querySelector("#ph-headers"); h.hidden = !h.hidden;
         e.target.textContent = (h.hidden ? "▾ " : "▴ ") + t("Показать оригинал (заголовки)");
       });
-      el.querySelector("#ph-headers").addEventListener("click", (ev) => {
-        const row = ev.target.closest(".hdr-line"); if (!row || solved) return;
+      const togglePh = (row) => {
+        if (!row || solved) return;
         const i = row.dataset.i;
-        if (sel.has(i)) { sel.delete(i); row.classList.remove("sel"); }
-        else { sel.add(i); row.classList.add("sel"); }
+        if (sel.has(i)) { sel.delete(i); row.classList.remove("sel"); row.setAttribute("aria-checked", "false"); }
+        else { sel.add(i); row.classList.add("sel"); row.setAttribute("aria-checked", "true"); }
+      };
+      el.querySelectorAll("#ph-headers .hdr-line").forEach((row) => {
+        row.setAttribute("role", "checkbox"); row.setAttribute("tabindex", "0"); row.setAttribute("aria-checked", "false");
+        row.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); togglePh(row); } });
       });
+      el.querySelector("#ph-headers").addEventListener("click", (ev) => togglePh(ev.target.closest(".hdr-line")));
       el.querySelector("#ph-go").addEventListener("click", () => {
         if (solved) return;
         const out = el.querySelector("#ph-out");
@@ -504,12 +518,17 @@ const Labs = (() => {
         <div class="lab-out" id="tm-out"></div>`;
       let picked = null, solved = false;
       const go = el.querySelector("#tm-go"), pick = el.querySelector("#tm-pick");
-      el.querySelectorAll(".tm-row").forEach((row) => row.addEventListener("click", () => {
-        if (solved) return;
-        el.querySelectorAll(".tm-row").forEach((r) => r.classList.remove("sel"));
-        row.classList.add("sel"); picked = +row.dataset.i;
-        pick.textContent = procs[picked].n + " (PID " + procs[picked].pid + ")"; go.disabled = false;
-      }));
+      el.querySelectorAll(".tm-row").forEach((row) => {
+        row.setAttribute("role", "radio"); row.setAttribute("tabindex", "0"); row.setAttribute("aria-checked", "false");
+        const choose = () => {
+          if (solved) return;
+          el.querySelectorAll(".tm-row").forEach((r) => { r.classList.remove("sel"); r.setAttribute("aria-checked", "false"); });
+          row.classList.add("sel"); row.setAttribute("aria-checked", "true"); picked = +row.dataset.i;
+          pick.textContent = procs[picked].n + " (PID " + procs[picked].pid + ")"; go.disabled = false;
+        };
+        row.addEventListener("click", choose);
+        row.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); choose(); } });
+      });
       go.addEventListener("click", () => {
         if (solved || picked == null) return;
         const out = el.querySelector("#tm-out");
