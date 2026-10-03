@@ -3028,6 +3028,19 @@ const App = (() => {
       </div>`;
   }
 
+  function certificatesSection(s) {
+    const earned = COURSES.filter((c) => Progress.courseProgress(c).pct === 100);
+    const all = s.coursesDone >= s.coursesTotal;
+    return `
+      <h2 class="rooms-title">${T("Мои сертификаты")} (${earned.length}/${s.coursesTotal})</h2>
+      ${earned.length || all ? `<div class="cert-grid">
+        ${all ? `<button class="cert-chip master" onclick="App.downloadMasterCertificate()">
+          <span class="cc-ic">★</span><div><b>${T("Диплом мастера")}</b><span>${T("весь путь")} · PNG</span></div>${Icon.ui("progress")}</button>` : ""}
+        ${earned.map((c) => `<button class="cert-chip" style="--c:${c.color}" onclick="App.downloadCertificate('${c.id}')">
+          <span class="cc-ic" style="color:${c.color}">${Icon.course(c.id)}</span><div><b>${c.title}</b><span>${T("сертификат")} · PNG</span></div>${Icon.ui("progress")}</button>`).join("")}
+      </div>` : `<p class="muted cert-empty">${T("Пройдите курс на 100%, чтобы получить сертификат. Он появится здесь для скачивания.")}</p>`}`;
+  }
+
   function renderProfile() {
     const s = Progress.overallStats();
     root().innerHTML = `
@@ -3056,6 +3069,8 @@ const App = (() => {
             </div>`;
           }).join("")}
         </div>
+
+        ${certificatesSection(s)}
 
         <h2 class="rooms-title">${T("Достижения")} (${s.achievements}/${s.achievementsTotal})</h2>
         <div class="ach-tabs">

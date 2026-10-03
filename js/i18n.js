@@ -11,6 +11,11 @@ const I18N = (() => {
 
   /* -------- UI-словарь (ключ = русская строка) -------- */
   const UI = {
+    "Мои сертификаты": "My certificates",
+    "Диплом мастера": "Master diploma",
+    "весь путь": "the whole path",
+    "сертификат": "certificate",
+    "Пройдите курс на 100%, чтобы получить сертификат. Он появится здесь для скачивания.": "Complete a course to 100% to earn a certificate. It will appear here for download.",
     "Диплом мастера CyberPath": "CyberPath Master Diploma",
     "Все курсы пройдены!": "All courses completed!",
     "Вы освоили все": "You have mastered all",
