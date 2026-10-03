@@ -310,8 +310,13 @@ const Progress = (() => {
   }
 
   // Курс открыт, если все курсы-предпосылки пройдены на 100%
+  const LVL_RANK = { "Новичок": 0, "Средний": 1, "Сложный": 2 };
+  // Результат теста уровня: открывает курсы своего уровня без предпосылок
+  function placement() { return state.placement || null; }
+  function setPlacement(lvl) { state.placement = lvl; save(); }
   function courseUnlocked(course) {
     if (!course.prereq || !course.prereq.length) return true;
+    if (state.placement && LVL_RANK[course.level] <= LVL_RANK[state.placement]) return true;
     return course.prereq.every((pid) => {
       const pc = COURSES.find((c) => c.id === pid);
       return pc && courseProgress(pc).pct === 100;
@@ -638,7 +643,7 @@ const Progress = (() => {
 
   return {
     isDone, completeTask, useHint, hintsUsedFor, roomCompleted, roomUsedNoHints,
-    courseProgress, courseUnlocked, missingPrereqs, overallStats, level, xpInLevel, xpToNext,
+    courseProgress, courseUnlocked, missingPrereqs, placement, setPlacement, overallStats, level, xpInLevel, xpToNext,
     unlockAchievement, hasAchievement, trackVisit, reset,
     exportData, importData, courseXP, completedAtISO,
     effectivePoints, hintPenalty: () => HINT_PENALTY,
@@ -679,6 +684,7 @@ const App = (() => {
     location.hash = buildHash(view, params);
     render();
     window.scrollTo(0, 0);
+    const v = root(); if (v) v.focus({ preventScroll: true });
   }
   function buildHash(view, params) {
     if (view === "course") return `#/course/${params.courseId}`;
@@ -694,6 +700,7 @@ const App = (() => {
     if (view === "ctf") return "#/ctf";
     if (view === "boss") return `#/course/${params.courseId}/boss`;
     if (view === "weekly") return "#/weekly";
+    if (view === "start") return "#/start";
     if (view === "legal") return `#/legal/${params.page || "about"}`;
     if (view === "tools") return params.tool ? `#/tools/${params.tool}` : "#/tools";
     return "#/";
@@ -712,6 +719,7 @@ const App = (() => {
     if (parts[0] === "ctf") return { view: "ctf" };
     if (parts[0] === "weekly") return { view: "weekly" };
     if (parts[0] === "tools") return { view: "tools", tool: parts[1] || null };
+    if (parts[0] === "start") return { view: "start" };
     if (parts[0] === "legal") return { view: "legal", page: parts[1] || "about" };
     if (parts[0] === "course" && parts[1]) {
       if (parts[2] === "room" && parts[3])
@@ -722,7 +730,7 @@ const App = (() => {
         return { view: "boss", courseId: parts[1] };
       return { view: "course", courseId: parts[1] };
     }
-    return { view: "home" };
+    return { view: "notfound" };
   }
 
   /* ---------- Рендер шапки/навигации ---------- */
@@ -837,9 +845,12 @@ const App = (() => {
       case "tools": renderTools(c.tool); break;
       case "exam": renderExam(c.courseId); break;
       case "legal": renderLegal(c.page); break;
+      case "notfound": renderNotFound(); break;
+      case "start": renderPlacement(); break;
       default: renderHome();
     }
     highlightNav();
+    updateTitle();
     const v = root();
     if (v) { v.classList.remove("view-enter"); void v.offsetWidth; v.classList.add("view-enter"); }
     observeReveal();
@@ -940,11 +951,12 @@ const App = (() => {
           <span class="cont-ic">${Icon.course(n.course.id)}</span>
           <div class="cont-body">
             <span class="cont-label">${started ? T("Продолжить обучение") : T("Начните здесь")}</span>
-            <h3>${n.course.title}</h3>
+            <h2>${n.course.title}</h2>
             <p>${n.room.title} · ${T("курс пройден на")} ${n.pct}%</p>
           </div>
           <button class="btn btn-primary">${started ? T("Продолжить") : T("Начать")} ${Icon.ui("arrow")}</button>
         </div>
+        ${!started && !Progress.placement() ? `<div class="place-teaser">🧭 ${T("Уже что-то знаете?")} <a href="#/start">${T("Пройдите тест уровня за 1 минуту")}</a> — ${T("откроем подходящие курсы сразу.")}</div>` : ""}
       </section>`;
   }
 
@@ -1009,7 +1021,7 @@ const App = (() => {
       ? `App.go('course',{courseId:'${course.id}'})`
       : `App.toast('🔒 Сначала пройдите: ${missing.map((m) => m.title).join(", ")}')`;
     return `
-      <article class="course-card reveal ${unlocked ? "" : "locked"} ${p.pct === 100 ? "completed" : ""}" style="--c:${course.color}" onclick="${onclick}" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}">
+      <div class="course-card reveal ${unlocked ? "" : "locked"} ${p.pct === 100 ? "completed" : ""}" style="--c:${course.color}" onclick="${onclick}" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}">
         <div class="cc-top">
           <span class="cc-icon">${Icon.course(course.id)}</span>
           <span class="cc-level">${unlocked ? "" : Icon.ui("lock")}${TL(course.level)}</span>
@@ -1023,7 +1035,7 @@ const App = (() => {
           <span class="cc-pct">${p.pct === 100 ? "✓ " + T("Пройдено") : p.done + "/" + p.total + " · " + p.pct + "%"}</span>
         </div>`
         : `<div class="cc-lock">${Icon.ui("lock")} ${T("Требуется")}: ${missing.map((m) => m.title).join(", ")}</div>`}
-      </article>`;
+      </div>`;
   }
 
   const catalog = { q: "", level: "all", sort: "default" };
@@ -1050,7 +1062,7 @@ const App = (() => {
     const list = filteredCourses();
     grid.innerHTML = list.length
       ? list.map(courseCard).join("")
-      : `<div class="empty-state">Ничего не найдено. Попробуйте изменить запрос или фильтр.</div>`;
+      : emptyState("🔍", T("Ничего не найдено"), T("Попробуйте изменить запрос или фильтр."), `<button class="btn btn-ghost btn-sm" onclick="App.catalogReset()">${T("Сбросить фильтры")}</button>`);
     const count = document.getElementById("catalog-count");
     if (count) count.textContent = `${list.length} ${T("из")} ${COURSES.length}`;
     observeReveal();
@@ -1072,7 +1084,7 @@ const App = (() => {
           <div class="filter-chips">
             ${LEVELS.map((lv) => `<button class="chip ${catalog.level === lv ? "active" : ""}" data-lv="${lv}" onclick="App.catalogLevel('${lv}')">${lv === "all" ? T("Все уровни") : TL(lv)}</button>`).join("")}
           </div>
-          <select class="sort-select" onchange="App.catalogSort(this.value)">
+          <select class="sort-select" aria-label="${T("Сортировка")}" onchange="App.catalogSort(this.value)">
             <option value="default" ${catalog.sort === "default" ? "selected" : ""}>${T("По умолчанию")}</option>
             <option value="progress" ${catalog.sort === "progress" ? "selected" : ""}>${T("По прогрессу")}</option>
             <option value="level" ${catalog.sort === "level" ? "selected" : ""}>${T("По сложности")}</option>
@@ -1085,6 +1097,15 @@ const App = (() => {
     highlightNav();
   }
   function catalogSearch(v) { catalog.q = v; renderCourseGrid(); }
+  function catalogReset() {
+    catalog.q = ""; catalog.level = "all";
+    const i = document.getElementById("catalog-search"); if (i) i.value = "";
+    document.querySelectorAll(".chip[data-lv]").forEach((b) => b.classList.toggle("active", b.dataset.lv === "all"));
+    renderCourseGrid();
+  }
+  function emptyState(ic, title, text, action) {
+    return `<div class="empty-state"><div class="es-ic" aria-hidden="true">${ic}</div><h3>${title}</h3>${text ? `<p>${text}</p>` : ""}${action || ""}</div>`;
+  }
   function catalogLevel(lv) {
     catalog.level = lv;
     document.querySelectorAll(".filter-chips .chip").forEach((el) =>
@@ -1095,7 +1116,7 @@ const App = (() => {
 
   function renderCourse(courseId) {
     const course = COURSES.find((c) => c.id === courseId);
-    if (!course) return go("courses");
+    if (!course) return renderNotFound();
     const p = Progress.courseProgress(course);
 
     if (!Progress.courseUnlocked(course)) {
@@ -1244,7 +1265,7 @@ const App = (() => {
   function renderRoom(courseId, roomId) {
     const course = COURSES.find((c) => c.id === courseId);
     const room = course && course.rooms.find((r) => r.id === roomId);
-    if (!room) return go("course", { courseId });
+    if (!room) return course ? renderNotFound(course) : renderNotFound();
     const idx = course.rooms.indexOf(room);
     const nextRoom = course.rooms[idx + 1];
     const hasSandbox = room.tasks.some((t) => t.sandbox);
@@ -1265,7 +1286,7 @@ const App = (() => {
         </div>
         <div class="room-columns">
           <div class="lesson-col">
-            <div class="lesson card">${room.intro}</div>
+            <div class="lesson card"><h2 class="sr-only">${T("Теория")}</h2>${room.intro}</div>
             ${hasSandbox ? inlineTerminal() : ""}
           </div>
           <div class="tasks">
@@ -1351,7 +1372,7 @@ const App = (() => {
           <div id="term-out"></div>
           <div class="term-input-row">
             <span class="term-path" id="term-cwd">C:\\Users\\hacker</span><span class="term-prompt">&gt;</span>
-            <input type="text" id="term-input" autocomplete="off" spellcheck="false">
+            <input type="text" id="term-input" aria-label="${T("Команда терминала")}" autocomplete="off" spellcheck="false">
           </div>
         </div>
       </div>`;
@@ -1666,7 +1687,7 @@ const App = (() => {
         <div class="task-head">
           <span class="task-check">${done ? Icon.ui("check") : ""}</span>
           <div class="task-title">
-            <h4>${task.title}</h4>
+            <h3 class="task-h">${task.title}</h3>
             <span class="task-points">+${task.points} XP</span>
             ${task.sandbox ? `<span class="task-sandbox" title="${T("Решается в песочнице")}">${Icon.ui("terminal")} ${T("песочница")}</span>` : ""}
           </div>
@@ -1699,7 +1720,7 @@ const App = (() => {
               <div class="match-row">
                 <span class="match-left">${p[0]}</span>
                 <span class="match-arrow">${Icon.ui("arrow")}</span>
-                <select class="match-sel" data-left="${escapeAttr(p[0])}">
+                <select class="match-sel" aria-label="${escapeAttr(p[0])}" data-left="${escapeAttr(p[0])}">
                   <option value="">${T("— выбрать —")}</option>
                   ${rights.map((r) => `<option value="${escapeAttr(r)}">${r}</option>`).join("")}
                 </select>
@@ -1792,7 +1813,7 @@ const App = (() => {
             <div id="term-out"></div>
             <div class="term-input-row">
               <span class="term-path" id="term-cwd">C:\\Users\\hacker</span><span class="term-prompt">&gt;</span>
-              <input type="text" id="term-input" autocomplete="off" spellcheck="false" autofocus>
+              <input type="text" id="term-input" aria-label="${T("Команда терминала")}" autocomplete="off" spellcheck="false" autofocus>
             </div>
           </div>
         </div>
@@ -1915,7 +1936,7 @@ const App = (() => {
     const q = glossaryState.q.trim().toLowerCase();
     const items = GLOSSARY.filter((g) => !q || (g.term + " " + g.def + " " + g.cat).toLowerCase().includes(q))
       .sort((a, b) => a.term.localeCompare(b.term, "ru"));
-    if (!items.length) { el.innerHTML = `<div class="empty-state">Ничего не найдено.</div>`; return; }
+    if (!items.length) { el.innerHTML = emptyState("📖", T("Термин не найден"), T("Проверьте написание или поищите по-английски — многие термины пишутся латиницей."), `<button class="btn btn-ghost btn-sm" onclick="App.glossaryClear()">${T("Очистить поиск")}</button>`); return; }
     const byCat = {};
     items.forEach((g) => (byCat[g.cat] = byCat[g.cat] || []).push(g));
     el.innerHTML = Object.keys(byCat).sort((a, b) => a.localeCompare(b, "ru")).map((cat) => `
@@ -1932,6 +1953,7 @@ const App = (() => {
     observeReveal();
   }
   function glossarySearch(v) { glossaryState.q = v; renderGlossaryList(); }
+  function glossaryClear() { const i = document.getElementById("gloss-search"); if (i) { i.value = ""; i.focus(); } glossarySearch(""); }
 
   /* ---------- Дорожная карта (граф зависимостей) ---------- */
   function renderRoadmap() {
@@ -2593,7 +2615,7 @@ const App = (() => {
   function renderPaletteResults() {
     const box = document.getElementById("palette-results");
     if (!box) return;
-    if (!palette.filtered.length) { box.innerHTML = `<div class="palette-empty">Ничего не найдено</div>`; return; }
+    if (!palette.filtered.length) { box.innerHTML = `<div class="palette-empty">${T("Ничего не найдено")}</div>`; return; }
     box.innerHTML = palette.filtered.map((it, i) => `
       <div class="palette-item ${i === palette.active ? "active" : ""}" data-i="${i}" onclick="App.palettePick(${i})">
         <span class="pi-label">${it.label}</span>
@@ -2842,6 +2864,107 @@ const App = (() => {
 <p class="muted">The platform is provided "as is", without warranty of any kind.</p>` },
     },
   };
+  /* ---------- Тест уровня (онбординг) ---------- */
+  function placementQs() {
+    return [
+      { q: T("Вам пришло письмо «Ваш аккаунт заблокирован, срочно войдите по ссылке». Что это скорее всего?"), o: [T("Фишинг"), T("Обновление системы"), T("Спам-фильтр"), T("Резервная копия")], a: 0 },
+      { q: T("Какой порт по умолчанию использует HTTPS?"), o: ["80", "443", "22", "3389"], a: 1 },
+      { q: T("Чем хеширование отличается от шифрования?"), o: [T("Хеш нельзя обратить в исходные данные"), T("Хеш всегда длиннее данных"), T("Хеширование требует ключ"), T("Ничем, это синонимы")], a: 0 },
+      { q: T("Что делает команда nmap -sV?"), o: [T("Определяет версии сервисов на открытых портах"), T("Включает VPN"), T("Проверяет орфографию"), T("Удаляет вирусы")], a: 0 },
+      { q: T("Какой ввод — классический пример SQL-инъекции?"), o: ["<script>alert(1)</script>", "' OR 1=1 --", "../../etc/passwd", "admin:admin"], a: 1 },
+      { q: T("Что такое Kerberoasting?"), o: [T("Офлайн-подбор паролей сервисных учёток AD по TGS-билетам"), T("Перегрев сервера"), T("DDoS на DNS"), T("Шифрование диска")], a: 0 },
+    ];
+  }
+  const PLACE_RECS = { "Новичок": ["fundamentals", "osint", "windows"], "Средний": ["networking", "crypto", "phishing"], "Сложный": ["pentest", "blueteam", "ad"] };
+  let placeState = null;
+  function renderPlacement() {
+    if (!placeState) placeState = { i: 0, score: 0, picked: null };
+    const qs = placementQs(), st = placeState;
+    if (st.i >= qs.length) return renderPlacementResult();
+    const q = qs[st.i];
+    root().innerHTML = `
+      <section class="section placement">
+        ${crumbs([["home", T("Главная")], [null, T("Тест уровня")]])}
+        <div class="page-title"><h1>${T("С чего начать?")}</h1>
+          <p>${T("6 коротких вопросов — подберём стартовый курс. Не знаете ответ — выбирайте «Не знаю», это нормально.")}</p></div>
+        <div class="card place-card">
+          <div class="place-prog" role="progressbar" aria-valuemin="0" aria-valuemax="${qs.length}" aria-valuenow="${st.i}"><span style="width:${(st.i / qs.length) * 100}%"></span></div>
+          <div class="place-num">${T("Вопрос")} ${st.i + 1} / ${qs.length}</div>
+          <h2 class="place-q">${escapeHtml(q.q)}</h2>
+          <div class="place-opts">
+            ${q.o.map((o, k) => `<button class="choice-opt" onclick="App.placeAnswer(${k})">${escapeHtml(o)}</button>`).join("")}
+            <button class="choice-opt place-skip" onclick="App.placeAnswer(-1)">${T("Не знаю")}</button>
+          </div>
+        </div>
+      </section>`;
+    const first = root().querySelector(".place-opts button"); if (first && st.i > 0) first.focus();
+  }
+  function placeAnswer(k) {
+    const q = placementQs()[placeState.i];
+    if (k === q.a) placeState.score++;
+    placeState.i++;
+    renderPlacement(); updateTitle();
+  }
+  function renderPlacementResult() {
+    const sc = placeState.score;
+    const lvl = sc >= 5 ? "Сложный" : sc >= 3 ? "Средний" : "Новичок";
+    const recs = PLACE_RECS[lvl].map((id) => COURSES.find((c) => c.id === id)).filter(Boolean);
+    const msg = {
+      "Новичок": T("Отличная точка старта! Начните с основ — дальше курсы будут открываться по мере прохождения."),
+      "Средний": T("У вас уже есть база. Курсы среднего уровня открыты сразу — можно не проходить основы."),
+      "Сложный": T("Впечатляет! Открыты все курсы, включая продвинутые. Начните с того, что интереснее."),
+    }[lvl];
+    root().innerHTML = `
+      <section class="section placement">
+        ${crumbs([["home", T("Главная")], [null, T("Тест уровня")]])}
+        <div class="card place-card place-result">
+          <div class="place-score">${sc} / ${placementQs().length}</div>
+          <h1>${T("Ваш уровень:")} <span class="accent">${TL(lvl)}</span></h1>
+          <p>${msg}</p>
+          <h3>${T("Рекомендуем начать с")}</h3>
+          <div class="place-recs">
+            ${recs.map((c, i) => `<button class="place-rec ${i === 0 ? "main" : ""}" style="--c:${c.color}" onclick="App.placeFinish('${lvl}','${c.id}')">
+              <span class="cont-ic">${Icon.course(c.id)}</span><span><b>${escapeHtml(c.title)}</b><small>${TL(c.level)} · ${c.rooms.length} ${T("комн.")}</small></span></button>`).join("")}
+          </div>
+          <div class="nf-actions"><button class="btn btn-ghost btn-sm" onclick="App.placeRetry()">${T("Пройти заново")}</button>
+            <button class="btn btn-ghost btn-sm" onclick="App.placeFinish('${lvl}',null)">${T("Ко всем курсам")}</button></div>
+        </div>
+      </section>`;
+  }
+  function placeFinish(lvl, courseId) {
+    if (lvl !== "Новичок") Progress.setPlacement(lvl);
+    try { localStorage.setItem(ONBOARD_KEY, "1"); } catch (e) {}
+    placeState = null;
+    courseId ? go("course", { courseId }) : go("courses");
+  }
+  function placeRetry() { placeState = null; renderPlacement(); }
+  function startPlacement() { endOnboard(); placeState = null; go("start"); }
+
+  // Заголовок вкладки по текущей странице (для истории, закладок и вкладок)
+  function updateTitle() {
+    const base = "CyberPath";
+    const h = document.querySelector("#view h1");
+    const txt = h ? h.textContent.replace(/\s+/g, " ").trim() : "";
+    document.title = current.view === "home" || !txt ? base + " — " + T("бесплатная платформа по кибербезопасности") : txt + " · " + base;
+  }
+
+  function renderNotFound(course) {
+    const back = course
+      ? `<button class="btn btn-primary" onclick="App.go('course',{courseId:'${course.id}'})">${T("К курсу")} «${escapeHtml(course.title)}»</button>`
+      : `<button class="btn btn-primary" onclick="App.go('courses')">${T("Каталог курсов")}</button>`;
+    root().innerHTML = `
+      <section class="section notfound">
+        <div class="nf-code" aria-hidden="true">404</div>
+        <h1>${course ? T("Комната не найдена") : T("Страница не найдена")}</h1>
+        <p>${T("Возможно, ссылка устарела или в ней опечатка. Даже лучшие разведчики иногда упираются в тупик.")}</p>
+        <div class="nf-actions">${back}
+          <button class="btn btn-ghost" onclick="App.go('home')">${T("На главную")}</button>
+          <button class="btn btn-ghost" onclick="App.openPalette()">${T("Поиск")} ⌘K</button>
+        </div>
+        <pre class="nf-term" aria-hidden="true">$ cd ${escapeHtml(location.hash.replace(/^#/, "") || "/")}\nbash: cd: No such file or directory</pre>
+      </section>`;
+  }
+
   function renderLegal(page) {
     const keys = Object.keys(LEGAL);
     if (!LEGAL[page]) page = "about";
@@ -2888,7 +3011,13 @@ const App = (() => {
   }
   function notesFilter(q) {
     q = q.toLowerCase().trim();
-    document.querySelectorAll(".note-card").forEach((el) => { el.style.display = !q || el.dataset.q.includes(q) ? "" : "none"; });
+    let shown = 0;
+    document.querySelectorAll(".note-card").forEach((el) => { const ok = !q || el.dataset.q.includes(q); el.style.display = ok ? "" : "none"; if (ok) shown++; });
+    let e = document.getElementById("notes-empty");
+    if (!shown && q) {
+      if (!e) { e = document.createElement("div"); e.id = "notes-empty"; const first = document.querySelector(".note-card"); if (first) first.parentElement.appendChild(e); }
+      e.innerHTML = emptyState("📝", T("Ничего не найдено"), T("В заметках нет совпадений с запросом."));
+    } else if (e) e.remove();
   }
   function noteComment(id, v) { Progress.updateNote(id, v); toast(T("Комментарий сохранён")); }
   function noteDelete(id) { Progress.deleteNote(id); renderNotes(); }
@@ -3850,9 +3979,37 @@ const App = (() => {
       if (pill) pill.hidden = true;
       toast("Приложение установлено 🎉");
     });
+    initA11y();
+    // EN-контент курсов подгрузился лениво — перерисовать текущий экран
+    window.addEventListener("i18n:content", () => render());
     current = parseHash();
     render();
+    document.body.classList.add("ready");
     maybeOnboard();
+  }
+
+  /* ---------- Доступность: клавиатура для кликабельных div/span ---------- */
+  const NATIVE = /^(A|BUTTON|INPUT|SELECT|TEXTAREA|SUMMARY|LABEL)$/;
+  function enhanceA11y(scope) {
+    (scope || document).querySelectorAll("[onclick]").forEach((el) => {
+      if (el.dataset.a11y) return;
+      el.dataset.a11y = "1";
+      if (el.tagName === "A" && !el.hasAttribute("href")) { el.setAttribute("href", "javascript:void(0)"); el.setAttribute("role", el.getAttribute("role") || "link"); return; }
+      if (NATIVE.test(el.tagName)) return;
+      if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex", "0");
+      if (!el.hasAttribute("role")) el.setAttribute("role", "button");
+    });
+  }
+  function initA11y() {
+    enhanceA11y();
+    new MutationObserver(() => enhanceA11y()).observe(document.body, { childList: true, subtree: true });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const el = e.target;
+      if (!el || !el.dataset || !el.dataset.a11y || NATIVE.test(el.tagName) || el.hasAttribute("onkeydown")) return;
+      e.preventDefault(); el.click();
+    });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && document.getElementById("onboard")) endOnboard(); });
   }
 
   /* ---------- Онбординг при первом запуске ---------- */
@@ -3885,7 +4042,9 @@ const App = (() => {
         <div class="ob-dots">${steps.map((_, i) => `<span class="${i === obStep ? "on" : ""}"></span>`).join("")}</div>
         <div class="ob-actions">
           <button class="btn btn-ghost btn-sm" onclick="App.endOnboard()">${T("Пропустить")}</button>
-          <button class="btn btn-primary btn-sm" onclick="App.nextOnboard()">${last ? T("Начать обучение") : T("Далее")}</button>
+          ${last ? `<button class="btn btn-ghost btn-sm" onclick="App.endOnboard()">${T("Начать с основ")}</button>
+          <button class="btn btn-primary btn-sm" onclick="App.startPlacement()">${T("Определить мой уровень")}</button>`
+          : `<button class="btn btn-primary btn-sm" onclick="App.nextOnboard()">${T("Далее")}</button>`}
         </div>
       </div>`;
   }
@@ -3978,7 +4137,7 @@ const App = (() => {
     catalogSearch, catalogLevel, catalogSort, downloadCertificate, downloadMasterCertificate, exportProgress, importProgress,
     submitChoice, submitMatch, orderPick, orderReset, submitDaily,
     submitMission, toggleShell, openShortcuts, closeShortcuts,
-    glossarySearch, submitExam, retryExam, openPalette, palettePick, installApp,
+    glossarySearch, glossaryClear, placeAnswer, placeFinish, placeRetry, startPlacement, catalogReset, submitExam, retryExam, openPalette, palettePick, installApp,
     reviewChoose, reviewCheck, reviewNext, reviewStart, setXpMode, shareCard, saveDraft, toggleLang,
     openRanks, closeRanks, achSetFilter, tilt, openProfileEditor, closeProfileEditor, profTab, profAvatar, profUpload,
     profDraftSet, profToggleShowcase, saveProfile, chalStart, chalAnswer, chalSkip, chalRestart, notesFilter, noteComment, noteDelete, exportNotes,

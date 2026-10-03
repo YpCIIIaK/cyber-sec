@@ -6,11 +6,30 @@
   <title>CyberPath — бесплатная платформа по кибербезопасности</title>
   <meta name="description" content="Бесплатная интерактивная платформа для изучения кибербезопасности: курсы, квесты, песочница-терминал и система прогрессии.">
   <meta name="theme-color" content="#f2620a">
+  <meta name="keywords" content="кибербезопасность, обучение, этичный хакинг, пентест, CTF, OWASP, OSINT, Blue Team, cybersecurity course">
+  <link rel="canonical" href="https://ypciiiak.github.io/cyber-sec/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="CyberPath">
+  <meta property="og:title" content="CyberPath — учись кибербезопасности на практике">
+  <meta property="og:description" content="14 бесплатных курсов, 318 заданий, лабы, CTF и симулятор терминала. Без регистрации, прямо в браузере, RU / EN.">
+  <meta property="og:url" content="https://ypciiiak.github.io/cyber-sec/">
+  <meta property="og:image" content="https://ypciiiak.github.io/cyber-sec/assets/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="CyberPath — учись кибербезопасности на практике">
+  <meta property="og:locale" content="ru_RU">
+  <meta property="og:locale:alternate" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="CyberPath — учись кибербезопасности на практике">
+  <meta name="twitter:description" content="14 бесплатных курсов, 318 заданий, лабы, CTF и симулятор терминала. Без регистрации.">
+  <meta name="twitter:image" content="https://ypciiiak.github.io/cyber-sec/assets/og.png">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"CyberPath","url":"https://ypciiiak.github.io/cyber-sec/","inLanguage":["ru","en"],"description":"Бесплатная интерактивная платформа для изучения кибербезопасности","isAccessibleForFree":true}</script>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="assets/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F25C05' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l7 3v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3z'/></svg>">
 </head>
@@ -18,24 +37,24 @@
   <a class="skip-link" href="#view" data-i18n="Перейти к содержимому">Перейти к содержимому</a>
   <header class="topbar">
     <div class="topbar-inner">
-      <a class="logo" onclick="App.go('home')">
+      <a class="logo" href="#/" onclick="App.go('home');return false" aria-label="CyberPath — на главную">
         <span class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg></span>
         <span class="logo-text">Cyber<span class="accent">Path</span></span>
       </a>
-      <nav class="main-nav">
-        <a data-view="home" onclick="App.go('home')" data-i18n="Главная">Главная</a>
-        <a data-view="courses" onclick="App.go('courses')" data-i18n="Курсы">Курсы</a>
-        <a data-view="roadmap" onclick="App.go('roadmap')" data-i18n="Путь">Путь</a>
-        <a data-view="sandbox" onclick="App.go('sandbox')" data-i18n="Песочница">Песочница</a>
-        <a data-view="tools" onclick="App.go('tools')" data-i18n="Инструменты">Инструменты</a>
+      <nav class="main-nav" aria-label="Основная навигация">
+        <a data-view="home" href="#/" onclick="App.go('home');return false" data-i18n="Главная">Главная</a>
+        <a data-view="courses" href="#/courses" onclick="App.go('courses');return false" data-i18n="Курсы">Курсы</a>
+        <a data-view="roadmap" href="#/roadmap" onclick="App.go('roadmap');return false" data-i18n="Путь">Путь</a>
+        <a data-view="sandbox" href="#/sandbox" onclick="App.go('sandbox');return false" data-i18n="Песочница">Песочница</a>
+        <a data-view="tools" href="#/tools" onclick="App.go('tools');return false" data-i18n="Инструменты">Инструменты</a>
       </nav>
       <button class="cmdk-btn" style="margin-left:auto" onclick="App.openPalette()" aria-label="Поиск (Ctrl+K)" title="Быстрый переход — Ctrl/⌘ + K" data-i18n-title="Быстрый переход — Ctrl/⌘ + K"><span class="cmdk-ic"></span><kbd>⌘K</kbd></button>
       <div id="nav-stats" class="nav-stats"></div>
-      <button class="burger" onclick="document.body.classList.toggle('nav-open')" aria-label="Меню">☰</button>
+      <button class="burger" onclick="this.setAttribute('aria-expanded', document.body.classList.toggle('nav-open'))" aria-label="Меню" aria-expanded="false">☰</button>
     </div>
   </header>
 
-  <main id="view"></main>
+  <main id="view" tabindex="-1"></main>
 
   <footer class="footer">
     <div class="footer-inner">
@@ -54,7 +73,7 @@
     </div>
   </footer>
 
-  <div id="toasts" class="toasts"></div>
+  <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
   <button id="install-pill" class="install-pill" hidden onclick="App.installApp()"><span data-i18n="Установить приложение">Установить приложение</span></button>
 
   <script>
@@ -66,13 +85,6 @@
   </script>
   <script src="js/icons.js"></script>
   <script src="js/data.js"></script>
-  <script src="js/en/ad_reverse.js"></script>
-  <script src="js/en/forensics_phishing.js"></script>
-  <script src="js/en/fundamentals.js"></script>
-  <script src="js/en/hardening_blue_malware.js"></script>
-  <script src="js/en/networking_osint_crypto.js"></script>
-  <script src="js/en/web_pentest.js"></script>
-  <script src="js/en/windows.js"></script>
   <script src="js/i18n.js"></script>
   <script src="js/labs.js"></script>
   <script src="js/terminal.js"></script>

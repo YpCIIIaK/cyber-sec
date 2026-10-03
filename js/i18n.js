@@ -540,6 +540,62 @@ const I18N = (() => {
     "— учись этично, применяй ответственно.": "— learn ethically, apply responsibly.",
     "Все материалы носят образовательный характер. Тестируйте только свои системы или площадки с разрешением. Прогресс хранится локально в вашем браузере.": "All materials are for education. Test only your own systems or platforms you have permission for. Progress is stored locally in your browser.",
     "Язык / Language": "Language / Язык",
+    "Теория": "Theory",
+    "Уже что-то знаете?": "Already know some basics?",
+    "Пройдите тест уровня за 1 минуту": "Take the 1-minute level test",
+    "откроем подходящие курсы сразу.": "we'll unlock matching courses right away.",
+    "Ничего не найдено": "Nothing found",
+    "Попробуйте изменить запрос или фильтр.": "Try changing the query or filter.",
+    "Сбросить фильтры": "Reset filters",
+    "Сортировка": "Sort",
+    "Команда терминала": "Terminal command",
+    "Термин не найден": "Term not found",
+    "Проверьте написание или поищите по-английски — многие термины пишутся латиницей.": "Check the spelling or try the English term.",
+    "Очистить поиск": "Clear search",
+    "Вам пришло письмо «Ваш аккаунт заблокирован, срочно войдите по ссылке». Что это скорее всего?": "You get an email: “Your account is locked, log in via this link urgently”. What is it most likely?",
+    "Фишинг": "Phishing",
+    "Обновление системы": "A system update",
+    "Спам-фильтр": "A spam filter",
+    "Резервная копия": "A backup",
+    "Какой порт по умолчанию использует HTTPS?": "Which port does HTTPS use by default?",
+    "Чем хеширование отличается от шифрования?": "How is hashing different from encryption?",
+    "Хеш нельзя обратить в исходные данные": "A hash can't be reversed into the original data",
+    "Хеш всегда длиннее данных": "A hash is always longer than the data",
+    "Хеширование требует ключ": "Hashing requires a key",
+    "Ничем, это синонимы": "No difference, they're synonyms",
+    "Что делает команда nmap -sV?": "What does nmap -sV do?",
+    "Определяет версии сервисов на открытых портах": "Detects service versions on open ports",
+    "Включает VPN": "Turns on a VPN",
+    "Проверяет орфографию": "Checks spelling",
+    "Удаляет вирусы": "Removes viruses",
+    "Какой ввод — классический пример SQL-инъекции?": "Which input is a classic SQL injection example?",
+    "Что такое Kerberoasting?": "What is Kerberoasting?",
+    "Офлайн-подбор паролей сервисных учёток AD по TGS-билетам": "Offline cracking of AD service account passwords from TGS tickets",
+    "Перегрев сервера": "Server overheating",
+    "DDoS на DNS": "A DDoS on DNS",
+    "Шифрование диска": "Disk encryption",
+    "Тест уровня": "Level test",
+    "С чего начать?": "Where to start?",
+    "6 коротких вопросов — подберём стартовый курс. Не знаете ответ — выбирайте «Не знаю», это нормально.": "6 short questions to pick your starting course. Don't know an answer? Choose “I don't know” — that's fine.",
+    "Не знаю": "I don't know",
+    "Отличная точка старта! Начните с основ — дальше курсы будут открываться по мере прохождения.": "A great starting point! Begin with the fundamentals — more courses unlock as you progress.",
+    "У вас уже есть база. Курсы среднего уровня открыты сразу — можно не проходить основы.": "You already have a foundation. Intermediate courses are unlocked right away — no need to do the basics.",
+    "Впечатляет! Открыты все курсы, включая продвинутые. Начните с того, что интереснее.": "Impressive! All courses are unlocked, including advanced ones. Start with whatever interests you most.",
+    "Ваш уровень:": "Your level:",
+    "Рекомендуем начать с": "We recommend starting with",
+    "комн.": "rooms",
+    "Ко всем курсам": "All courses",
+    "бесплатная платформа по кибербезопасности": "free cybersecurity learning platform",
+    "Комната не найдена": "Room not found",
+    "Страница не найдена": "Page not found",
+    "Возможно, ссылка устарела или в ней опечатка. Даже лучшие разведчики иногда упираются в тупик.": "The link may be outdated or mistyped. Even the best recon hits a dead end sometimes.",
+    "Поиск": "Search",
+    "В заметках нет совпадений с запросом.": "No notes match your query.",
+    "Начать с основ": "Start with the basics",
+    "Определить мой уровень": "Find my level",
+    "К курсу": "Back to course",
+    "На главную": "Home",
+    "Каталог курсов": "Course catalog",
     "О проекте": "About",
     "Этичный хакинг": "Ethical hacking",
     "Конфиденциальность": "Privacy",
@@ -918,9 +974,32 @@ const I18N = (() => {
     document.querySelectorAll("[data-i18n-title]").forEach((el) => { el.title = t(el.getAttribute("data-i18n-title")); });
   }
 
+  /* Переводы курсов (~150 КБ) грузим лениво — только когда пользователь выбрал EN */
+  const EN_FILES = ["ad_reverse", "forensics_phishing", "fundamentals", "hardening_blue_malware", "networking_osint_crypto", "web_pentest", "windows"];
+  let enPromise = null;
+  function loadContentEN() {
+    if (window.__CONTENT_EN_READY) return Promise.resolve();
+    if (!enPromise) enPromise = Promise.all(EN_FILES.map((f) => new Promise((res, rej) => {
+      const sc = document.createElement("script");
+      sc.src = "js/en/" + f + ".js"; sc.onload = res; sc.onerror = rej;
+      document.head.appendChild(sc);
+    }))).then(() => { window.__CONTENT_EN_READY = true; })
+      .catch((e) => { enPromise = null; throw e; });
+    return enPromise;
+  }
+
   function apply(l) {
     lang = l === "en" ? "en" : "ru";
-    if (lang === "en") toEN(); else toRU();
+    if (lang === "en") {
+      toEN();
+      if (!window.__CONTENT_EN_READY && typeof document.createElement === "function") {
+        loadContentEN().then(() => {
+          if (lang !== "en") return;
+          toEN();
+          try { window.dispatchEvent(new Event("i18n:content")); } catch (e) {}
+        }).catch(() => {});
+      }
+    } else toRU();
     try { document.documentElement.lang = lang; } catch (e) {}
     applyStatic();
     const btn = document.getElementById("lang-toggle");
@@ -941,6 +1020,6 @@ const I18N = (() => {
   function lvl(l) { return lang === "en" ? (LEVELS[l] || l) : l; }
   function tag(tg) { return lang === "en" ? (TAGS[tg] || tg) : tg; }
 
-  return { t, tf, apply, set, get, toggle, current, lvl, tag };
+  return { t, tf, apply, set, get, toggle, current, lvl, tag, loadContentEN };
 })();
 try { window.I18N = I18N; } catch (e) {}

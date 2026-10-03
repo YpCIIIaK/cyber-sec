@@ -661,7 +661,7 @@ const Labs = (() => {
         ${term(t("Декодер Цезаря"), `
           <div class="tw-line"><span class="tw-prompt">ciphertext:</span> ${enc}</div>
           <div class="caesar-ctl"><span>${t("Сдвиг")}: <b id="cz-n">0</b></span>
-            <input type="range" id="cz-sl" min="0" max="25" value="0" class="caesar-range"></div>
+            <input type="range" id="cz-sl" aria-label="Shift" min="0" max="25" value="0" class="caesar-range"></div>
           <div class="tw-line out"><span class="tw-prompt">plaintext: </span><span id="cz-out" class="cz-out">${enc}</span></div>
         `)}
         <div class="lab-form" style="margin-top:12px">
