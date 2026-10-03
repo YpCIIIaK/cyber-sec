@@ -1447,6 +1447,14 @@ const App = (() => {
     }
   }
 
+  // Палитра сертификата: светлая/тёмная по текущей теме
+  function certPalette() {
+    const dark = currentTheme() === "dark";
+    return dark
+      ? { dark: true, bg: "#17120d", ink: "#f3ece2", sub: "#cabfb2", muted: "#9a8d7e", line: "#3a2f24", cell: "#221b14", ok: "#4fc27e", goldCell: "#241d12", goldLine: "#5a4820" }
+      : { dark: false, bg: "#fffdfb", ink: "#1a1613", sub: "#4b433c", muted: "#8c8178", line: "#ece5dd", cell: "#fff6f0", ok: "#1f8a4c", goldCell: "#fff8ec", goldLine: "#f0dcae" };
+  }
+
   // Стабильный серийный номер сертификата из строки-семени (детерминированный)
   function certSerial(seed) {
     let h = 2166136261;
@@ -1462,6 +1470,7 @@ const App = (() => {
     const cv = document.createElement("canvas");
     cv.width = W * scale; cv.height = H * scale;
     const g = cv.getContext("2d"); g.scale(scale, scale);
+    const P = certPalette();
     const cx = W / 2;
     const en = window.I18N && I18N.current() === "en";
     const L = (ru, e) => (en ? e : ru);
@@ -1469,7 +1478,7 @@ const App = (() => {
     const gold = "#c9951f", goldL = "#e9c15a";
     // фон
     const bg = g.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, "#fffdf8"); bg.addColorStop(1, "#fff7ea");
+    bg.addColorStop(0, P.dark ? "#1a140d" : "#fffdf8"); bg.addColorStop(1, P.dark ? "#120e09" : "#fff7ea");
     g.fillStyle = bg; g.fillRect(0, 0, W, H);
     // золотые рамки
     g.strokeStyle = gold; g.lineWidth = 7; g.strokeRect(26, 26, W - 52, H - 52);
@@ -1483,12 +1492,12 @@ const App = (() => {
     g.restore();
     g.fillStyle = gold; g.font = "700 20px Inter, sans-serif";
     g.fillText(L("CYBERPATH · ДИПЛОМ МАСТЕРА", "CYBERPATH · MASTER DIPLOMA"), cx, 162);
-    g.fillStyle = "#4b433c"; g.font = "400 24px Inter, sans-serif";
+    g.fillStyle = P.sub; g.font = "400 24px Inter, sans-serif";
     g.fillText(L("Настоящим подтверждается, что", "This is to certify that"), cx, 214);
-    g.fillStyle = "#1a1613"; g.font = "800 54px Sora, Inter, sans-serif";
+    g.fillStyle = P.ink; g.font = "800 54px Sora, Inter, sans-serif";
     g.fillText(displayName().slice(0, 30), cx, 282);
     g.strokeStyle = goldL; g.lineWidth = 1.5; g.beginPath(); g.moveTo(cx - 300, 304); g.lineTo(cx + 300, 304); g.stroke();
-    g.fillStyle = "#4b433c"; g.font = "400 23px Inter, sans-serif";
+    g.fillStyle = P.sub; g.font = "400 23px Inter, sans-serif";
     g.fillText(L("прошёл(-ла) полную программу CyberPath и освоил(-а) все " + s.coursesTotal + " курсов", "has completed the full CyberPath program, mastering all " + s.coursesTotal + " courses"), cx, 344);
     // статистика
     const acc = Progress.accuracyOverall();
@@ -1502,8 +1511,8 @@ const App = (() => {
     const cw = 198, gap = 14, x0 = cx - (cells.length * cw + (cells.length - 1) * gap) / 2;
     cells.forEach((c, i) => {
       const x = x0 + i * (cw + gap), y = 378;
-      g.fillStyle = "#fff8ec"; roundRect(g, x, y, cw, 78, 13); g.fill();
-      g.strokeStyle = "#f0dcae"; g.lineWidth = 1.5; roundRect(g, x, y, cw, 78, 13); g.stroke();
+      g.fillStyle = P.goldCell; roundRect(g, x, y, cw, 78, 13); g.fill();
+      g.strokeStyle = P.goldLine; g.lineWidth = 1.5; roundRect(g, x, y, cw, 78, 13); g.stroke();
       g.fillStyle = "#b8860b"; g.font = "800 27px Sora, Inter, sans-serif"; g.fillText(c[0], x + cw / 2, y + 36);
       g.fillStyle = "#8c8178"; g.font = "600 14px Inter, sans-serif"; g.fillText(c[1], x + cw / 2, y + 60);
     });
@@ -1514,7 +1523,7 @@ const App = (() => {
       const x = 80 + col * cellW, y = gy0 + row * gh;
       g.fillStyle = "#1f9d61"; g.textAlign = "left"; g.font = "700 15px Inter, sans-serif";
       g.fillText("✓", x, y + 18);
-      g.fillStyle = "#4b433c"; g.font = "500 13px Inter, sans-serif";
+      g.fillStyle = P.sub; g.font = "500 13px Inter, sans-serif";
       let name = T(c.title); if (name.length > 25) name = name.slice(0, 24) + "…";
       g.fillText(name, x + 20, y + 18);
     });
@@ -1524,9 +1533,9 @@ const App = (() => {
     g.fillStyle = gold; g.font = "800 30px Sora, Inter, sans-serif"; g.fillText("★", cx, 724);
     // дата + серийник
     const serial = "CP-MASTER-" + date.replace(/-/g, "") + "-" + certSerial("master|" + date + "|" + displayName());
-    g.fillStyle = "#1a1613"; g.font = "700 20px Inter, sans-serif";
+    g.fillStyle = P.ink; g.font = "700 20px Inter, sans-serif";
     g.fillText(date, cx - 330, 712); g.fillText(serial, cx + 330, 712);
-    g.fillStyle = "#8c8178"; g.font = "500 15px Inter, sans-serif";
+    g.fillStyle = P.muted; g.font = "500 15px Inter, sans-serif";
     g.fillText(L("дата выдачи", "date issued"), cx - 330, 736);
     g.fillText(L("номер диплома", "diploma ID"), cx + 330, 736);
     g.font = "500 17px Inter, sans-serif";
@@ -1544,11 +1553,12 @@ const App = (() => {
     cv.width = W * scale; cv.height = H * scale;
     const g = cv.getContext("2d");
     g.scale(scale, scale);
+    const P = certPalette();
     // фон
-    g.fillStyle = "#fffdfb"; g.fillRect(0, 0, W, H);
+    g.fillStyle = P.bg; g.fillRect(0, 0, W, H);
     // рамка
     g.strokeStyle = course.color; g.lineWidth = 6; g.strokeRect(28, 28, W - 56, H - 56);
-    g.strokeStyle = "#ece5dd"; g.lineWidth = 1.5; g.strokeRect(44, 44, W - 88, H - 88);
+    g.strokeStyle = P.line; g.lineWidth = 1.5; g.strokeRect(44, 44, W - 88, H - 88);
     const cx = W / 2;
     const en = window.I18N && I18N.current() === "en";
     const L = (ru, e) => (en ? e : ru);
@@ -1558,16 +1568,16 @@ const App = (() => {
     // логотип-щит
     g.save(); g.translate(cx - 22, 72); g.scale(44 / 24, 44 / 24);
     g.fillStyle = "#f2620a"; g.fill(new Path2D("M12 3l7 3v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3z"));
-    g.strokeStyle = "#fff"; g.lineWidth = 1.8; g.lineCap = "round"; g.lineJoin = "round"; g.stroke(new Path2D("M9 12l2 2 4-4"));
+    g.strokeStyle = P.bg; g.lineWidth = 1.8; g.lineCap = "round"; g.lineJoin = "round"; g.stroke(new Path2D("M9 12l2 2 4-4"));
     g.restore();
-    g.fillStyle = "#8c8178"; g.font = "700 20px Inter, sans-serif";
+    g.fillStyle = P.muted; g.font = "700 20px Inter, sans-serif";
     g.fillText(L("CYBERPATH · СЕРТИФИКАТ О ПРОХОЖДЕНИИ КУРСА", "CYBERPATH · CERTIFICATE OF COMPLETION"), cx, 160);
-    g.fillStyle = "#4b433c"; g.font = "400 24px Inter, sans-serif";
+    g.fillStyle = P.sub; g.font = "400 24px Inter, sans-serif";
     g.fillText(L("Настоящим подтверждается, что", "This is to certify that"), cx, 222);
-    g.fillStyle = "#1a1613"; g.font = "800 50px Sora, Inter, sans-serif";
+    g.fillStyle = P.ink; g.font = "800 50px Sora, Inter, sans-serif";
     g.fillText(displayName().slice(0, 32), cx, 290);
-    g.strokeStyle = "#ece5dd"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(cx - 260, 312); g.lineTo(cx + 260, 312); g.stroke();
-    g.fillStyle = "#4b433c"; g.font = "400 24px Inter, sans-serif";
+    g.strokeStyle = P.line; g.lineWidth = 1.5; g.beginPath(); g.moveTo(cx - 260, 312); g.lineTo(cx + 260, 312); g.stroke();
+    g.fillStyle = P.sub; g.font = "400 24px Inter, sans-serif";
     g.fillText(L("успешно прошёл(-ла) курс", "has successfully completed the course"), cx, 356);
     g.fillStyle = course.color; g.font = "800 52px Sora, Inter, sans-serif";
     wrapText(g, "«" + T(course.title) + "»", cx, 430, W - 220, 58);
@@ -1583,18 +1593,18 @@ const App = (() => {
     const cw = 190, gap = 18, x0 = cx - (cells.length * cw + (cells.length - 1) * gap) / 2;
     cells.forEach((c, i) => {
       const x = x0 + i * (cw + gap), y = 500;
-      g.fillStyle = "#fff6f0"; roundRect(g, x, y, cw, 84, 14); g.fill();
-      g.fillStyle = "#1a1613"; g.font = "800 28px Sora, Inter, sans-serif"; g.fillText(c[0], x + cw / 2, y + 40);
-      g.fillStyle = "#8c8178"; g.font = "600 16px Inter, sans-serif"; g.fillText(c[1], x + cw / 2, y + 66);
+      g.fillStyle = P.cell; roundRect(g, x, y, cw, 84, 14); g.fill();
+      g.fillStyle = P.ink; g.font = "800 28px Sora, Inter, sans-serif"; g.fillText(c[0], x + cw / 2, y + 40);
+      g.fillStyle = P.muted; g.font = "600 16px Inter, sans-serif"; g.fillText(c[1], x + cw / 2, y + 66);
     });
-    if (m.exam) { g.fillStyle = "#1f8a4c"; g.font = "700 18px Inter, sans-serif"; g.fillText("✓ " + L("Итоговый экзамен сдан", "Final exam passed"), cx, 624); }
+    if (m.exam) { g.fillStyle = P.ok; g.font = "700 18px Inter, sans-serif"; g.fillText("✓ " + L("Итоговый экзамен сдан", "Final exam passed"), cx, 624); }
     // нижняя строка: дата · печать · ID
     g.beginPath(); g.arc(cx, 690, 40, 0, Math.PI * 2); g.strokeStyle = course.color; g.lineWidth = 3; g.stroke();
     g.fillStyle = course.color; g.font = "800 28px Sora, Inter, sans-serif"; g.fillText("✓", cx, 700);
-    g.fillStyle = "#1a1613"; g.font = "700 20px Inter, sans-serif";
+    g.fillStyle = P.ink; g.font = "700 20px Inter, sans-serif";
     g.fillText(date, cx - 300, 690);
     g.fillText(certId, cx + 300, 690);
-    g.fillStyle = "#8c8178"; g.font = "500 15px Inter, sans-serif";
+    g.fillStyle = P.muted; g.font = "500 15px Inter, sans-serif";
     g.fillText(L("дата выдачи", "date issued"), cx - 300, 714);
     g.fillText(L("номер сертификата", "certificate ID"), cx + 300, 714);
     g.font = "500 17px Inter, sans-serif";
