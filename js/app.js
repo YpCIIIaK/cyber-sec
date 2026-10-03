@@ -956,7 +956,8 @@ const App = (() => {
           </div>
           <button class="btn btn-primary">${started ? T("Продолжить") : T("Начать")} ${Icon.ui("arrow")}</button>
         </div>
-        ${!started && !Progress.placement() ? `<div class="place-teaser">🧭 ${T("Уже что-то знаете?")} <a href="#/start">${T("Пройдите тест уровня за 1 минуту")}</a> — ${T("откроем подходящие курсы сразу.")}</div>` : ""}
+        ${!started && !Progress.placement() && !placeSkipped() ? `<div class="place-teaser">🧭 ${T("Уже что-то знаете?")} <a href="#/start">${T("Пройдите тест уровня за 1 минуту")}</a> — ${T("откроем подходящие курсы сразу.")}
+          <button class="place-dismiss" onclick="App.placeSkip()" aria-label="${T("Пропустить тест")}" title="${T("Пропустить тест")}">✕</button></div>` : ""}
       </section>`;
   }
 
@@ -2895,6 +2896,8 @@ const App = (() => {
             ${q.o.map((o, k) => `<button class="choice-opt" onclick="App.placeAnswer(${k})">${escapeHtml(o)}</button>`).join("")}
             <button class="choice-opt place-skip" onclick="App.placeAnswer(-1)">${T("Не знаю")}</button>
           </div>
+          <div class="place-foot"><button class="btn btn-ghost btn-sm" onclick="App.placeSkip(true)">${T("Пропустить тест")}</button>
+            <span>${T("Его всегда можно пройти позже в профиле.")}</span></div>
         </div>
       </section>`;
     const first = root().querySelector(".place-opts button"); if (first && st.i > 0) first.focus();
@@ -2938,6 +2941,16 @@ const App = (() => {
     courseId ? go("course", { courseId }) : go("courses");
   }
   function placeRetry() { placeState = null; renderPlacement(); }
+  const PLACE_SKIP_KEY = "cyberpath_place_skip";
+  function placeSkipped() { try { return !!localStorage.getItem(PLACE_SKIP_KEY); } catch (e) { return false; } }
+  // Пропуск теста: прячем приглашения, тест остаётся доступен из профиля
+  function placeSkip(toCourses) {
+    try { localStorage.setItem(PLACE_SKIP_KEY, "1"); } catch (e) {}
+    placeState = null;
+    if (document.getElementById("onboard")) endOnboard();
+    if (toCourses === true && current.view === "start") go("home");
+    else if (current.view === "home") renderHome();
+  }
   function startPlacement() { endOnboard(); placeState = null; go("start"); }
 
   // Заголовок вкладки по текущей странице (для истории, закладок и вкладок)
@@ -3591,6 +3604,7 @@ const App = (() => {
             <button class="btn btn-ghost" onclick="document.getElementById('import-file').click()">${Icon.ui("book")} ${T("Загрузить из файла")}</button>
             <input id="import-file" type="file" accept="application/json,.json" hidden onchange="App.importProgress(this.files[0])">
             <button class="btn btn-ghost" onclick="App.startOnboard()">${Icon.ui("quest")} ${T("Пройти тур заново")}</button>
+            <button class="btn btn-ghost" onclick="App.startPlacement()">🧭 ${Progress.placement() ? T("Пройти тест уровня заново") : T("Тест уровня")}</button>
             <button class="btn btn-ghost" onclick="App.toggleSound()">${Icon.ui(soundOn() ? "bolt" : "lock")} ${soundOn() ? T("Звук наград: вкл") : T("Звук наград: выкл")}</button>
           </div>
         </div>
@@ -4042,7 +4056,7 @@ const App = (() => {
         <div class="ob-dots">${steps.map((_, i) => `<span class="${i === obStep ? "on" : ""}"></span>`).join("")}</div>
         <div class="ob-actions">
           <button class="btn btn-ghost btn-sm" onclick="App.endOnboard()">${T("Пропустить")}</button>
-          ${last ? `<button class="btn btn-ghost btn-sm" onclick="App.endOnboard()">${T("Начать с основ")}</button>
+          ${last ? `<button class="btn btn-ghost btn-sm" onclick="App.placeSkip(true)">${T("Начать с основ")}</button>
           <button class="btn btn-primary btn-sm" onclick="App.startPlacement()">${T("Определить мой уровень")}</button>`
           : `<button class="btn btn-primary btn-sm" onclick="App.nextOnboard()">${T("Далее")}</button>`}
         </div>
@@ -4137,7 +4151,7 @@ const App = (() => {
     catalogSearch, catalogLevel, catalogSort, downloadCertificate, downloadMasterCertificate, exportProgress, importProgress,
     submitChoice, submitMatch, orderPick, orderReset, submitDaily,
     submitMission, toggleShell, openShortcuts, closeShortcuts,
-    glossarySearch, glossaryClear, placeAnswer, placeFinish, placeRetry, startPlacement, catalogReset, submitExam, retryExam, openPalette, palettePick, installApp,
+    glossarySearch, glossaryClear, placeAnswer, placeFinish, placeSkip, placeRetry, startPlacement, catalogReset, submitExam, retryExam, openPalette, palettePick, installApp,
     reviewChoose, reviewCheck, reviewNext, reviewStart, setXpMode, shareCard, saveDraft, toggleLang,
     openRanks, closeRanks, achSetFilter, tilt, openProfileEditor, closeProfileEditor, profTab, profAvatar, profUpload,
     profDraftSet, profToggleShowcase, saveProfile, chalStart, chalAnswer, chalSkip, chalRestart, notesFilter, noteComment, noteDelete, exportNotes,

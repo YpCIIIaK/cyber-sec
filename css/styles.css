@@ -1973,3 +1973,7 @@ body:not(.ready) .footer { display: none; }
 :root:not([data-theme="dark"]) .ach-rar { color: color-mix(in srgb, var(--rc) 55%, #000); }
 :root:not([data-theme="dark"]) .ach.r-common .ach-rar { color: var(--muted); }
 :root:not([data-theme="dark"]) .cap-kicker { color: #8a6508; }
+.place-teaser { position: relative; padding-right: 32px; }
+.place-dismiss { position: absolute; top: -2px; right: 0; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: .95rem; padding: 4px 8px; border-radius: 6px; }
+.place-dismiss:hover { color: var(--ink); background: var(--bg-3); }
+.place-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 18px; color: var(--muted); font-size: .85rem; }
