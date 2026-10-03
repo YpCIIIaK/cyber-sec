@@ -3376,15 +3376,16 @@ const App = (() => {
           <span class="pc-tier">${T(TIER_NAMES[r.tier])} · ${rIdx + 1}/${RANKS.length}</span>
         </div>
         <div class="pc-main">
-          <span class="pc-kicker">${r.icon} ${r.name}</span>
           <h2 class="pc-rank pc-nick">${escapeHtml(displayName())}</h2>
+          <button class="pc-cur-rank" onclick="App.openRanks()" title="${T("Лестница званий")}">
+            <span class="pcr-ic">${r.icon}</span><span class="pcr-txt"><small>${T("Ваше звание")} · ${T(TIER_NAMES[r.tier])}</small><b>${r.name}</b></span></button>
           ${Progress.profile().bio ? `<p class="pc-bio">${escapeHtml(Progress.profile().bio)}</p>` : ""}
           ${Progress.profile().showcase.length ? `<div class="pc-showcase">${Progress.profile().showcase.map((id) => { const a = ACHIEVEMENTS.find((x) => x.id === id); return a ? `<span class="pcs r-${ACH_RARITY[id] || "common"}" title="${escapeAttr(a.title)}">${a.icon}<b>${a.title}</b></span>` : ""; }).join("")}</div>` : ""}
           <div class="pc-lvl"><b>LVL ${s.level}</b><span>${s.xp} XP</span></div>
           <div class="pc-bar" title="${T("до следующего уровня")}"><span style="width:${s.xpInLevel}%"></span></div>
           <div class="pc-bar-meta"><span>${T("до следующего уровня")}</span><span>${s.xpToNext} XP</span></div>
           <div class="pc-next">${next
-            ? `${T("Следующее звание")}: ${next.icon} <b>${next.name}</b> · LVL ${next.min}<div class="pc-bar thin"><span style="width:${Math.max(3, Math.min(100, rankPct))}%"></span></div>`
+            ? `<span>${T("Далее")}: ${next.icon} ${next.name} · LVL ${next.min}</span><div class="pc-bar thin"><span style="width:${Math.max(3, Math.min(100, rankPct))}%"></span></div>`
             : `<b>${T("Высшее звание достигнуто")}</b>`}</div>
         </div>
         <div class="pc-stats">

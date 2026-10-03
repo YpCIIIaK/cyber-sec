@@ -540,6 +540,7 @@ const I18N = (() => {
     "— учись этично, применяй ответственно.": "— learn ethically, apply responsibly.",
     "Все материалы носят образовательный характер. Тестируйте только свои системы или площадки с разрешением. Прогресс хранится локально в вашем браузере.": "All materials are for education. Test only your own systems or platforms you have permission for. Progress is stored locally in your browser.",
     "Язык / Language": "Language / Язык",
+    "Ваше звание": "Your rank",
     "Звания — игровые: они отражают прогресс на платформе, а не профессиональную квалификацию. Настоящий опыт приходит с практикой, проектами и работой.": "Ranks are just for fun: they reflect your progress on the platform, not professional qualifications. Real expertise comes from practice, projects and work.",
     "Пропустить тест": "Skip the test",
     "Его всегда можно пройти позже в профиле.": "You can always take it later from your profile.",

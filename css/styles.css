@@ -1978,3 +1978,13 @@ body:not(.ready) .footer { display: none; }
 .place-dismiss:hover { color: var(--ink); background: var(--bg-3); }
 .place-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 18px; color: var(--muted); font-size: .85rem; }
 .ranks-note { margin-top: 14px; font-size: .82rem; color: var(--muted); line-height: 1.5; text-align: center; }
+/* Профиль: акцент на текущем звании, следующее — второстепенно */
+.pc-cur-rank { display: inline-flex; align-items: center; gap: 10px; margin: 6px 0 4px; padding: 6px 16px 6px 8px; border-radius: 14px; cursor: pointer; font: inherit; color: var(--ink);
+  background: color-mix(in srgb, var(--tier-a) 22%, var(--surface)); border: 1px solid color-mix(in srgb, var(--tier-b) 45%, transparent); }
+.pc-cur-rank:hover { border-color: var(--tier-b); }
+.pcr-ic { font-size: 1.7rem; line-height: 1; }
+.pcr-txt { display: flex; flex-direction: column; text-align: left; line-height: 1.15; }
+.pcr-txt small { font-size: .66rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.pcr-txt b { font-size: 1.25rem; font-family: var(--disp); }
+.pc-next { font-size: .78rem; color: var(--muted); }
+.pc-next .pc-bar.thin { height: 3px; opacity: .7; }
