@@ -5,7 +5,8 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "test": "node tests/validate.cjs && node tests/autotest.cjs",
+    "test": "node tests/validate.cjs && node tests/autotest.cjs && node tests/gen-catalog.cjs --check && node tests/check-config.cjs",
+    "catalog": "node tests/gen-catalog.cjs",
     "validate": "node tests/validate.cjs",
     "autotest": "node tests/autotest.cjs",
     "check:why": "node tests/why-diff.cjs && node tests/missing-why.cjs",

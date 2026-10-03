@@ -29,6 +29,8 @@ jobs:
           node-version: 22
       - name: Проверка целостности контента
         run: node tests/validate.cjs
+      - name: Автопроверка всех заданий (эталонные ответы принимаются)
+        run: node tests/autotest.cjs
       - name: Каталог заданий для Supabase актуален
         run: node tests/gen-catalog.cjs --check
       - name: В конфиге нет секретного ключа
